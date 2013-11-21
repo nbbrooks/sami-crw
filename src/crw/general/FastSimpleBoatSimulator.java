@@ -9,7 +9,6 @@ import edu.cmu.ri.crw.data.Twist;
 import edu.cmu.ri.crw.data.UtmPose;
 import java.util.Arrays;
 import java.util.TimerTask;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import robotutils.Pose3D;
 
