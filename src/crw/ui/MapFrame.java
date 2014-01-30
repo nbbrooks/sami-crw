@@ -8,7 +8,7 @@ import crw.ui.widget.SensorDataWidget;
 import crw.ui.widget.RobotTrackWidget;
 import crw.ui.widget.RobotWidget;
 import crw.ui.widget.RobotWidget.ControlMode;
-import crw.ui.widget.WorldWindPanel;
+import crw.ui.component.WorldWindPanel;
 
 /**
  *

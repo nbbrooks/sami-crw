@@ -1,5 +1,7 @@
 package crw.event.input.operator;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.UUID;
 import sami.event.InputEvent;
@@ -12,7 +14,18 @@ import sami.proxy.ProxyInt;
  */
 public class OperatorAcceptsPath extends InputEvent {
 
+    // List of fields for which a definition should be provided
+    public static final ArrayList<String> fieldNames = new ArrayList<String>();
+    // Description for each field
+    public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
+    // Fields
     public Hashtable<ProxyInt, Path> acceptedProxyPaths;
+
+    static {
+        fieldNames.add("acceptedProxyPaths");
+
+        fieldNameToDescription.put("acceptedProxyPaths", "Accepted set of paths.");
+    }
 
     public OperatorAcceptsPath() {
         id = UUID.randomUUID();

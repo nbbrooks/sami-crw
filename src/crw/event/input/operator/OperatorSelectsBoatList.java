@@ -4,6 +4,7 @@ import sami.event.InputEvent;
 import sami.proxy.ProxyInt;
 import crw.proxy.BoatProxy;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.UUID;
 
 /**
@@ -11,6 +12,11 @@ import java.util.UUID;
  * @author nbb
  */
 public class OperatorSelectsBoatList extends InputEvent {
+
+    // List of fields for which a definition should be provided
+    public static final ArrayList<String> fieldNames = new ArrayList<String>();
+    // Description for each field
+    public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
 
     public OperatorSelectsBoatList() {
         id = UUID.randomUUID();

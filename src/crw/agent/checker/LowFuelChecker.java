@@ -10,7 +10,6 @@ import sami.mission.Place;
 import sami.mission.Transition;
 import sami.mission.Vertex;
 
-
 /**
  *
  * @author pscerri

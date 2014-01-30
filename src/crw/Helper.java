@@ -1,6 +1,6 @@
 package crw;
 
-import crw.ui.widget.WorldWindPanel;
+import crw.ui.component.WorldWindPanel;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.Vec4;

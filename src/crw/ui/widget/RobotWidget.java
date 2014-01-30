@@ -1,11 +1,13 @@
 package crw.ui.widget;
 
+import crw.ui.component.WorldWindPanel;
 import crw.Helper;
 import crw.event.output.proxy.ProxyExecutePath;
 import crw.proxy.BoatProxy;
 import crw.ui.BoatMarker;
 import crw.ui.BoatTeleopPanel;
 import crw.ui.VideoFeedPanel;
+import crw.ui.component.UiWidget;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
@@ -37,6 +39,8 @@ import sami.engine.Engine;
 import sami.event.GeneratedEventListenerInt;
 import sami.event.InputEvent;
 import sami.event.OutputEvent;
+import sami.markup.Attention;
+import sami.markup.RelevantProxy;
 import sami.path.Location;
 import sami.path.Path;
 import sami.path.PathUtm;
@@ -48,8 +52,11 @@ import sami.proxy.ProxyServerListenerInt;
  *
  * @author nbb
  */
-public class RobotWidget implements WorldWindWidgetInt, ProxyServerListenerInt {
+public class RobotWidget extends UiWidget implements WorldWindWidgetInt, ProxyServerListenerInt {
 
+//    static {
+//        computeUiComponent();
+//    }
     public enum ControlMode {
 
         TELEOP, POINT, PATH, NONE
@@ -541,4 +548,16 @@ public class RobotWidget implements WorldWindWidgetInt, ProxyServerListenerInt {
             }
         }
     }
+
+//    public static void computeUiComponent() {
+//        // Markups
+//        supportedMarkups.add(Attention.AttentionTarget.ALL_PROXIES);
+//        supportedMarkups.add(Attention.AttentionTarget.RELEVANT_PROXIES);
+//        supportedMarkups.add(Attention.AttentionTarget.SELECTED_PROXIES);
+//        // blink?
+//        
+//        supportedMarkups.add(RelevantProxy.Proxies.ALL_PROXIES);
+//        supportedMarkups.add(RelevantProxy.Proxies.RELEVANT_PROXIES);
+//        supportedMarkups.add(RelevantProxy.Proxies.SELECTED_PROXIES);
+//    }
 }

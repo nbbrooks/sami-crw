@@ -1,6 +1,6 @@
 package crw.ui.queue;
 
-import crw.ui.widget.WorldWindPanel;
+import crw.ui.component.WorldWindPanel;
 import crw.uilanguage.message.toui.PathOptionsMessage;
 import java.awt.Color;
 import java.awt.Dimension;

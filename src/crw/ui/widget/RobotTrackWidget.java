@@ -1,11 +1,13 @@
 package crw.ui.widget;
 
+import crw.ui.component.WorldWindPanel;
 import sami.event.InputEvent;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyListenerInt;
 import sami.proxy.ProxyServerListenerInt;
 import sami.engine.Engine;
 import crw.proxy.BoatProxy;
+import crw.ui.component.UiWidget;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.RenderableLayer;
@@ -19,13 +21,19 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.logging.Logger;
+import sami.markup.Attention;
+import sami.markup.RelevantProxy;
+import sami.path.Location;
 
 /**
  *
  * @author nbb
  */
-public class RobotTrackWidget implements WorldWindWidgetInt, ProxyServerListenerInt {
+public class RobotTrackWidget extends UiWidget implements WorldWindWidgetInt, ProxyServerListenerInt {
 
+//    static {
+//        computeUiComponent();
+//    }
     private static final Logger LOGGER = Logger.getLogger(RobotTrackWidget.class.getName());
     private boolean visible = true;
     private Hashtable<BoatProxy, BoatProxyListener> proxyToListener = new Hashtable<BoatProxy, BoatProxyListener>();
@@ -212,4 +220,10 @@ public class RobotTrackWidget implements WorldWindWidgetInt, ProxyServerListener
             wwPanel.wwCanvas.redraw();
         }
     }
+
+//    public static void computeUiComponent() {
+//        // Markups
+//        supportedMarkups.add(RelevantProxy.ShowPaths.NO);
+//        supportedMarkups.add(RelevantProxy.ShowPaths.YES);
+//    }
 }

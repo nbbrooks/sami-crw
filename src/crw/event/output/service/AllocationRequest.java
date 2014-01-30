@@ -4,14 +4,18 @@ import sami.event.OutputEvent;
 import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.UUID;
 
 public class AllocationRequest extends OutputEvent {
 
-//    HashMap<String, Object> params = new HashMap<String, Object>();
+    // List of fields for which a definition should be provided
+    public static final ArrayList<String> fieldNames = new ArrayList<String>();
+    // Description for each field
+    public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
+    // Fields
     public ArrayList<ITask> tasks = null;
     public ArrayList<AbstractAsset> assets = null;
-//    ArrayList<Constraint> constraints = null;
     /**
      * Available time to complete request, in ms
      *
@@ -22,6 +26,14 @@ public class AllocationRequest extends OutputEvent {
      */
     public long availableTime = 0L;
     public int noOptions = 1;
+
+    static {
+        fieldNames.add("availableTime");
+        fieldNames.add("noOptions");
+
+        fieldNameToDescription.put("availableTime", "How long until the result is needed? (seconds)");
+        fieldNameToDescription.put("noOptions", "How many options to present?");
+    }
 
     public AllocationRequest() {
         id = UUID.randomUUID();

@@ -1,6 +1,8 @@
 package crw.ui.widget;
 
+import crw.ui.component.WorldWindPanel;
 import crw.Conversion;
+import crw.ui.component.UiWidget;
 import edu.cmu.ri.crw.VehicleServer;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.LatLon;
@@ -33,8 +35,13 @@ import java.util.logging.Logger;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import sami.area.Area2D;
 import sami.engine.Engine;
 import sami.event.InputEvent;
+import sami.markup.Attention;
+import sami.markup.RelevantInformation;
+import sami.path.Location;
+import sami.path.PathUtm;
 import sami.sensor.Observation;
 import sami.sensor.ObservationListenerInt;
 import sami.sensor.ObserverInt;
@@ -44,8 +51,11 @@ import sami.sensor.ObserverServerListenerInt;
  *
  * @author nbb
  */
-public class SensorDataWidget implements WorldWindWidgetInt, ObserverServerListenerInt, ObservationListenerInt {
+public class SensorDataWidget extends UiWidget implements WorldWindWidgetInt, ObserverServerListenerInt, ObservationListenerInt {
 
+//    static {
+//        computeUiComponent();
+//    }
     static final double ALT_THRESH = 2500.0; // Altitude to switch from rectangles that are fixed size in m (< ALT_THRESH) to spheres that are fixed size in pixels (> ALT_THRESH)
     static final double HEATMAP_THRESH = 10.0; // What percent difference in data range to trigger a recalculation of heatmap colors for data values
     static final double DIST_THRESH = 10.0; // How far (m) from the last measurement recorded a new measurement must be in order to add it to the visualization
@@ -489,4 +499,13 @@ public class SensorDataWidget implements WorldWindWidgetInt, ObserverServerListe
             }
         }
     }
+
+//    public static void computeUiComponent() {
+//        // Visualization
+//        supportedSelectionClasses.add(Observation.class);
+//        
+//        // Markups
+//        supportedMarkups.add(RelevantInformation.Information.SPECIFY);
+//        supportedMarkups.add(RelevantInformation.Visualization.HEATMAP);
+//    }
 }

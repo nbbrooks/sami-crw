@@ -4,9 +4,10 @@ import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
 import crw.Conversion;
 import crw.proxy.BoatProxy;
+import crw.ui.component.UiComponent;
 import crw.ui.widget.SelectGeometryWidget;
 import crw.ui.widget.SelectGeometryWidget.SelectMode;
-import crw.ui.widget.WorldWindPanel;
+import crw.ui.component.WorldWindPanel;
 import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
@@ -44,6 +45,7 @@ import javax.swing.JTextField;
 import javax.swing.table.TableCellRenderer;
 import sami.allocation.ResourceAllocation;
 import sami.area.Area2D;
+import sami.markup.Markup;
 import sami.path.Location;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
@@ -54,24 +56,28 @@ import sami.uilanguage.UiComponentGeneratorInt;
  * @author nbb
  */
 public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
-    
+
+//    static {
+//        computeUi();
+//    }
+    public static List<Class> componentClasses = new ArrayList<Class>();
     private final static Logger LOGGER = Logger.getLogger(CrwUiComponentGenerator.class.getName());
-    
+
     private static class CrwUiComponentGeneratorHolder {
-        
+
         public static final CrwUiComponentGenerator INSTANCE = new CrwUiComponentGenerator();
     }
-    
+
     private CrwUiComponentGenerator() {
     }
-    
+
     public static CrwUiComponentGenerator getInstance() {
         return CrwUiComponentGenerator.CrwUiComponentGeneratorHolder.INSTANCE;
     }
-    
+
     public JComponent getFakeComponent() {
         JComponent component = new JLabel("No handler");
-        
+
         int numAllocs = 3;
         Random random = new Random();
         Object[][] table = new Object[numAllocs][3];
@@ -82,7 +88,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
             table[row][1] = " \u21e8 ";
             table[row][2] = random.nextDouble() + " (" + random.nextDouble() + ")";
             row++;
-            
+
         }
         component = new JTable(table, header);
         ((JTable) component).setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
@@ -99,7 +105,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
         ((JTable) component).setShowGrid(false);
         return component;
     }
-    
+
     @Override
     public JComponent getCreationComponent(Class objectClass) {
         JComponent component = null;
@@ -141,7 +147,17 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
         }
         return component;
     }
-    
+
+    public JComponent getCreationComponent(Class objectClass, ArrayList<Markup> markups) {
+        JComponent component = null;
+        for (Class compClass : componentClasses) {
+            if ((UiComponent.class).isAssignableFrom(compClass)) {
+            }
+        }
+
+        return component;
+    }
+
     @Override
     public JComponent getSelectionComponent(Object object) {
         JComponent component = null;
@@ -176,7 +192,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
         } else if (object instanceof Location) {
             Location location = (Location) object;
             Position position = Conversion.locationToPosition(location);
-            
+
             WorldWindPanel worldWindPanel = new WorldWindPanel(500, 300);
             SelectGeometryWidget select = new SelectGeometryWidget(worldWindPanel, new ArrayList<SelectMode>(), SelectMode.NONE);
             worldWindPanel.addWidget(select);
@@ -258,7 +274,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
         }
         return component;
     }
-    
+
     public JComponent handleHashtable(Hashtable hashtable, Object keyObject, Object valueObject) {
         if (keyObject == null || valueObject == null) {
             return null;
@@ -296,14 +312,14 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
         }
         return component;
     }
-    
+
     @Override
     public Object getComponentValue(JComponent component, Field field) {
         Object value = null;
-        
-        
-        
-        
+
+
+
+
         if (component instanceof WorldWindPanel) {
             if (field.getType().equals(Location.class)) {
                 WorldWindPanel wwp = (WorldWindPanel) component;
@@ -355,10 +371,10 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
             }
         } else if (component instanceof JTextField) {
             String text = ((JTextField) component).getText();
-            
-            
-            
-            
+
+
+
+
             if (text.length() > 0) {
                 try {
                     if (field.getType().equals(String.class)) {
@@ -387,10 +403,10 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
             }
         } else if (component instanceof JComboBox) {
             value = ((JComboBox) component).getSelectedItem();
-            
-            
-            
-            
+
+
+
+
         } else if (component instanceof JSlider) {
             if (field.getType().equals(Color.class)) {
                 value = component.getBackground();
@@ -400,20 +416,20 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
         }
         return value;
     }
-    
+
     @Override
     public boolean setComponentValue(Object value, JComponent component) {
         boolean success = false;
-        
-        
-        
-        
+
+
+
+
         if (component instanceof WorldWindPanel) {
             if (value.getClass().equals(Location.class)) {
                 WorldWindPanel wwp = (WorldWindPanel) component;
                 // Grab or create the geometry widget
                 SelectGeometryWidget selectWidget;
-                
+
                 if (wwp.hasWidget(SelectGeometryWidget.class)) {
                     selectWidget = (SelectGeometryWidget) wwp.getWidget(SelectGeometryWidget.class);
                 } else {
@@ -424,24 +440,24 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
                 Location location = (Location) value;
                 Position position = Conversion.locationToPosition(location);
                 BasicMarkerAttributes attributes = new BasicMarkerAttributes();
-                
+
                 attributes.setShapeType(BasicMarkerShape.SPHERE);
-                
+
                 attributes.setMinMarkerSize(
                         50);
                 attributes.setMaterial(Material.YELLOW);
-                
+
                 attributes.setOpacity(
                         1);
                 BasicMarker circle = new BasicMarker(position, attributes);
-                
+
                 selectWidget.addMarker(circle);
                 success = true;
             } else if (value.getClass().equals(PathUtm.class)) {
                 WorldWindPanel wwp = (WorldWindPanel) component;
                 // Grab or create the geometry widget
                 SelectGeometryWidget selectWidget;
-                
+
                 if (wwp.hasWidget(SelectGeometryWidget.class)) {
                     selectWidget = (SelectGeometryWidget) wwp.getWidget(SelectGeometryWidget.class);
                 } else {
@@ -456,24 +472,24 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
                 }
                 Path path = new Path(positions);
                 ShapeAttributes attributes = new BasicShapeAttributes();
-                
+
                 attributes.setOutlineWidth(
                         8);
                 attributes.setOutlineMaterial(Material.YELLOW);
-                
+
                 attributes.setDrawOutline(
                         true);
                 path.setAttributes(attributes);
-                
+
                 path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
-                
+
                 selectWidget.addRenderable(path);
                 success = true;
             } else if (value.getClass().equals(Area2D.class)) {
                 WorldWindPanel wwp = (WorldWindPanel) component;
                 // Grab or create the geometry widget
                 SelectGeometryWidget selectWidget;
-                
+
                 if (wwp.hasWidget(SelectGeometryWidget.class)) {
                     selectWidget = (SelectGeometryWidget) wwp.getWidget(SelectGeometryWidget.class);
                 } else {
@@ -488,17 +504,17 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
                 }
                 SurfacePolygon polygon = new SurfacePolygon(positions);
                 ShapeAttributes attributes = new BasicShapeAttributes();
-                
+
                 attributes.setInteriorOpacity(
                         0.5);
                 attributes.setInteriorMaterial(Material.YELLOW);
-                
+
                 attributes.setOutlineWidth(
                         2);
                 attributes.setOutlineMaterial(Material.BLACK);
-                
+
                 polygon.setAttributes(attributes);
-                
+
                 selectWidget.addRenderable(polygon);
                 success = true;
             }
@@ -515,4 +531,9 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
         }
         return success;
     }
+//    public static void computeUi() {
+//        // Components
+//        componentClasses.add(TextPanel.class);
+//        componentClasses.add(WorldWindPanel.class);
+//    }
 }

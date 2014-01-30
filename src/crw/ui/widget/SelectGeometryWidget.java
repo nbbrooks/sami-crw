@@ -1,5 +1,7 @@
 package crw.ui.widget;
 
+import crw.ui.component.WorldWindPanel;
+import crw.ui.component.UiWidget;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
@@ -30,13 +32,21 @@ import java.util.Arrays;
 import java.util.List;
 import javax.swing.JButton;
 import javax.swing.JPanel;
+import sami.area.Area2D;
+import sami.markup.RelevantProxy;
+import sami.path.Location;
+import sami.path.Path;
+import sami.path.PathUtm;
 
 /**
  *
  * @author nbb
  */
-public class SelectGeometryWidget implements WorldWindWidgetInt {
+public class SelectGeometryWidget extends UiWidget implements WorldWindWidgetInt {
 
+//    static {
+//        computeUiComponent();
+//    }
     public enum SelectMode {
 
         POINT, PATH, AREA, NONE, CLEAR
@@ -405,4 +415,16 @@ public class SelectGeometryWidget implements WorldWindWidgetInt {
     public void addRenderable(Renderable renderable) {
         renderableLayer.addRenderable(renderable);
     }
+
+//    public static void computeUiComponent() {
+//        // Creation
+//        supportedCreationClasses.add(Location.class);
+//        supportedCreationClasses.add(PathUtm.class);
+//        supportedCreationClasses.add(Area2D.class);
+//
+//        // Visualization
+//        supportedSelectionClasses.add(Location.class);
+//        supportedSelectionClasses.add(PathUtm.class);
+//        supportedSelectionClasses.add(Area2D.class);
+//    }
 }

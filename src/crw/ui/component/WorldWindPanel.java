@@ -1,29 +1,45 @@
-package crw.ui.widget;
+package crw.ui.component;
 
+import crw.ui.component.UiComponent;
+import crw.ui.component.UiWidget;
+import crw.ui.widget.RobotTrackWidget;
+import crw.ui.widget.RobotWidget;
+import crw.ui.widget.SelectGeometryWidget;
+import crw.ui.widget.SensorDataWidget;
+import crw.ui.widget.WorldWindWidgetInt;
+import gov.nasa.worldwind.awt.MouseInputActionHandler;
+import gov.nasa.worldwind.awt.WorldWindowGLCanvas;
+import gov.nasa.worldwind.layers.Layer;
+import java.awt.BorderLayout;
+import java.util.Vector;
+import javax.swing.JPanel;
+import crw.ui.worldwind.WorldWindInputAdapter;
 import gov.nasa.worldwind.BasicModel;
 import gov.nasa.worldwind.Configuration;
 import gov.nasa.worldwind.avlist.AVKey;
-import gov.nasa.worldwind.awt.MouseInputActionHandler;
-import gov.nasa.worldwind.awt.WorldWindowGLCanvas;
-import gov.nasa.worldwind.globes.EarthFlat;
-import gov.nasa.worldwind.layers.Layer;
-import gov.nasa.worldwind.view.orbit.FlatOrbitView;
-import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.util.Vector;
+import java.lang.reflect.Field;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.BoxLayout;
 import javax.swing.JFrame;
-import javax.swing.JPanel;
-import crw.ui.worldwind.WorldWindInputAdapter;
+import sami.area.Area2D;
+import sami.markup.Attention;
+import sami.markup.Priority;
+import sami.markup.RelevantArea;
+import sami.path.Location;
 
 /**
  *
  * @author pscerri
  */
-public class WorldWindPanel extends JPanel {
+public class WorldWindPanel extends UiComponent {
 
-    protected WorldWindowGLCanvas wwCanvas = null;
+    static {
+        computeUiComponent();
+    }
+    public WorldWindowGLCanvas wwCanvas = null;
     public JPanel buttonPanels;
     protected final WorldWindInputAdapter mouseHandler;
     protected final Vector<WorldWindWidgetInt> widgetList;
@@ -40,13 +56,13 @@ public class WorldWindPanel extends JPanel {
 
     public WorldWindPanel(int width, int height, double lat, double lon, double alt) {
         widgetList = new Vector<WorldWindWidgetInt>();
-
+//
         // Change mouse handler
         Configuration.setValue(AVKey.VIEW_INPUT_HANDLER_CLASS_NAME, WorldWindInputAdapter.class.getName());
 
         // Use flat Earth
-        Configuration.setValue(AVKey.GLOBE_CLASS_NAME, EarthFlat.class.getName());
-        Configuration.setValue(AVKey.VIEW_CLASS_NAME, FlatOrbitView.class.getName());
+//        Configuration.setValue(AVKey.GLOBE_CLASS_NAME, EarthFlat.class.getName());
+//        Configuration.setValue(AVKey.VIEW_CLASS_NAME, FlatOrbitView.class.getName());
 
         // @todo Make initial position configurable
         // Doha Corniche
@@ -151,6 +167,44 @@ public class WorldWindPanel extends JPanel {
         widgetList.remove(w);
     }
 
+    public static void computeUiComponent() {
+        // Widgets
+        widgetClasses.add(RobotTrackWidget.class);
+        widgetClasses.add(RobotWidget.class);
+        widgetClasses.add(SelectGeometryWidget.class);
+        widgetClasses.add(SensorDataWidget.class);
+        widgetClasses.add(SensorDataWidget.class);
+
+        // Markups
+        supportedMarkups.add(Attention.AttentionEnd.ON_CLICK);
+        supportedMarkups.add(Attention.AttentionTarget.FRAME);
+        supportedMarkups.add(Attention.AttentionTarget.PANEL);
+        supportedMarkups.add(Attention.AttentionType.BLINK);
+        supportedMarkups.add(Attention.AttentionType.HIGHLIGHT);
+        supportedMarkups.add(Priority.Ranking.LOW);
+        supportedMarkups.add(Priority.Ranking.MEDIUM);
+        supportedMarkups.add(Priority.Ranking.HIGH);
+        supportedMarkups.add(Priority.Ranking.CRITICAL);
+        supportedMarkups.add(RelevantArea.AreaSelection.AREA);
+        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_POINT);
+        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_PROXY);
+        supportedMarkups.add(RelevantArea.MapType.POLITICAL);
+        supportedMarkups.add(RelevantArea.MapType.SATELLITE);
+
+        for (Class widgetClass : widgetClasses) {
+            if ((UiWidget.class).isAssignableFrom(widgetClass)) {
+                try {
+                    Field field = widgetClass.getField("supportedMarkups");
+                    System.out.println(field);
+                } catch (NoSuchFieldException ex) {
+                    Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (SecurityException ex) {
+                    Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) {
         JFrame frame = new JFrame();
 
@@ -160,8 +214,7 @@ public class WorldWindPanel extends JPanel {
         WorldWindPanel www = new WorldWindPanel();
         frame.getContentPane().add(www);
 
-        for (Layer l :
-                www.getCanvas().getModel().getLayers()) {
+        for (Layer l : www.getCanvas().getModel().getLayers()) {
             System.out.println("Layer: " + l);
         }
 

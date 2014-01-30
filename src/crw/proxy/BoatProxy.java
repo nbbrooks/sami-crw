@@ -376,7 +376,7 @@ public class BoatProxy extends Thread implements ProxyInt {
             sequentialOutputEvents.add(index, oe);
             sequentialInputEvents.add(index, new ProxyStationKeepCompleted(oe.getId(), oe.getMissionId(), this));
             ProxyStationKeep stationKeep = (ProxyStationKeep) oe;
-            stationKeepRunnable = new StationKeepRunnable(this, stationKeep.point, stationKeep.minRadius, stationKeep.maxRadius);
+            stationKeepRunnable = new StationKeepRunnable(this, stationKeep.point, stationKeep.radius);
             stationKeepRunnable.run();
         } else {
             LOGGER.severe("Can't handle OutputEvent of class " + oe.getClass().getSimpleName());
@@ -876,13 +876,12 @@ public class BoatProxy extends Thread implements ProxyInt {
         private volatile boolean execute;
         private BoatProxy proxy;
         private Position position;
-        private double minRadius, maxRadius;
+        private double radius;
 
-        public StationKeepRunnable(BoatProxy proxy, Location location, double minRadius, double maxRadius) {
+        public StationKeepRunnable(BoatProxy proxy, Location location, double minRadius) {
             this.proxy = proxy;
             this.position = Conversion.locationToPosition(location);
-            this.minRadius = minRadius;
-            this.maxRadius = maxRadius;
+            this.radius = minRadius;
         }
 
         @Override

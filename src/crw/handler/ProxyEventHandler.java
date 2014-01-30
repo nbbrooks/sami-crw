@@ -8,7 +8,6 @@ import crw.event.input.proxy.ProxyPathFailed;
 import crw.event.output.proxy.ConnectExistingProxy;
 import crw.event.output.proxy.CreateSimulatedProxy;
 import crw.event.output.proxy.ProxyExecutePath;
-import crw.event.output.proxy.ProxyExecuteTask;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.event.output.proxy.ProxyStationKeep;
 import crw.general.FastSimpleBoatSimulator;
@@ -107,8 +106,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 // Send the path
                 boatProxy.handleEvent(oe);
             }
-        } else if (oe instanceof ProxyExecuteTask) {
-            //@todo simulator integration
+//        } else if (oe instanceof ProxyExecuteTask) {
+//            //@todo simulator integration
         } else if (oe instanceof ProxyExploreArea) {
             // Get the lawnmower path for the whole area
             // How many meters the proxy should move north after each horizontal section of the lawnmower pattern

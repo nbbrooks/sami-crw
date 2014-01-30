@@ -96,7 +96,7 @@ public class DecisionQueueComponent {
 
                     // Add in component for creating the item
                     JComponent objectVisualization = null;
-                    objectVisualization = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType());
+                    objectVisualization = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), creationMessage.getMarkups());
                     if (objectVisualization == null) {
                         LOGGER.severe("Got null creation component for field: " + field);
                         objectVisualization = new JLabel("");
