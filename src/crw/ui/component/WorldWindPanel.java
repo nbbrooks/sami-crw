@@ -1,10 +1,11 @@
 package crw.ui.component;
 
-import crw.ui.component.UiComponent;
-import crw.ui.component.UiWidget;
+import crw.Conversion;
+import sami.uilanguage.MarkupComponent;
 import crw.ui.widget.RobotTrackWidget;
 import crw.ui.widget.RobotWidget;
 import crw.ui.widget.SelectGeometryWidget;
+import crw.ui.widget.SelectGeometryWidget.SelectMode;
 import crw.ui.widget.SensorDataWidget;
 import crw.ui.widget.WorldWindWidgetInt;
 import gov.nasa.worldwind.awt.MouseInputActionHandler;
@@ -16,54 +17,83 @@ import javax.swing.JPanel;
 import crw.ui.worldwind.WorldWindInputAdapter;
 import gov.nasa.worldwind.BasicModel;
 import gov.nasa.worldwind.Configuration;
+import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.geom.LatLon;
+import gov.nasa.worldwind.geom.Position;
+import gov.nasa.worldwind.globes.EarthFlat;
+import gov.nasa.worldwind.layers.MarkerLayer;
+import gov.nasa.worldwind.layers.RenderableLayer;
+import gov.nasa.worldwind.render.BasicShapeAttributes;
+import gov.nasa.worldwind.render.Material;
+import gov.nasa.worldwind.render.Path;
+import gov.nasa.worldwind.render.Renderable;
+import gov.nasa.worldwind.render.ShapeAttributes;
+import gov.nasa.worldwind.render.SurfacePolygon;
+import gov.nasa.worldwind.render.markers.BasicMarker;
+import gov.nasa.worldwind.render.markers.BasicMarkerAttributes;
+import gov.nasa.worldwind.render.markers.BasicMarkerShape;
+import gov.nasa.worldwind.render.markers.Marker;
+import gov.nasa.worldwind.view.orbit.FlatOrbitView;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.BoxLayout;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import sami.area.Area2D;
-import sami.markup.Attention;
-import sami.markup.Priority;
+import sami.markup.Markup;
 import sami.markup.RelevantArea;
 import sami.path.Location;
+import sami.path.PathUtm;
+import sami.uilanguage.MarkupComponentHelper;
+import sami.uilanguage.MarkupComponentWidget;
+import sami.uilanguage.MarkupManager;
 
 /**
  *
  * @author pscerri
  */
-public class WorldWindPanel extends UiComponent {
+public class WorldWindPanel implements MarkupComponent {
 
-    static {
-        computeUiComponent();
-    }
+    // MarkupComponent variables
+    public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
+    public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
+    public final ArrayList<Class> widgetClasses = new ArrayList<Class>();
+    public JComponent component = null;
+    //
+    private final static Logger LOGGER = Logger.getLogger(WorldWindPanel.class.getName());
     public WorldWindowGLCanvas wwCanvas = null;
     public JPanel buttonPanels;
-    protected final WorldWindInputAdapter mouseHandler;
-    protected final Vector<WorldWindWidgetInt> widgetList;
+    protected WorldWindInputAdapter mouseHandler;
+    protected Vector<WorldWindWidgetInt> widgetList;
     protected MouseInputActionHandler handler;
     protected BorderLayout borderLayout;
 
     public WorldWindPanel() {
-        this(800, 600, Double.NaN, Double.NaN, Double.NaN);
+        populateLists();
     }
 
-    public WorldWindPanel(int width, int height) {
-        this(width, height, Double.NaN, Double.NaN, Double.NaN);
+    public void createMap() {
+        createMap(400, 300, Double.NaN, Double.NaN, Double.NaN);
     }
 
-    public WorldWindPanel(int width, int height, double lat, double lon, double alt) {
+    public void createMap(int width, int height) {
+        createMap(width, height, Double.NaN, Double.NaN, Double.NaN);
+    }
+
+    public void createMap(int width, int height, double lat, double lon, double alt) {
         widgetList = new Vector<WorldWindWidgetInt>();
-//
+        // Use flat Earth
+        Configuration.setValue(AVKey.GLOBE_CLASS_NAME, EarthFlat.class.getName());
+        Configuration.setValue(AVKey.VIEW_CLASS_NAME, FlatOrbitView.class.getName());
         // Change mouse handler
         Configuration.setValue(AVKey.VIEW_INPUT_HANDLER_CLASS_NAME, WorldWindInputAdapter.class.getName());
-
-        // Use flat Earth
-//        Configuration.setValue(AVKey.GLOBE_CLASS_NAME, EarthFlat.class.getName());
-//        Configuration.setValue(AVKey.VIEW_CLASS_NAME, FlatOrbitView.class.getName());
-
         // @todo Make initial position configurable
         // Doha Corniche
         if (Double.isNaN(lat) && Double.isNaN(lon) && Double.isNaN(alt)) {
@@ -101,26 +131,23 @@ public class WorldWindPanel extends UiComponent {
         mouseHandler = (WorldWindInputAdapter) wwCanvas.getView().getViewInputHandler();
         mouseHandler.setWidgetList(widgetList);
         borderLayout = new BorderLayout(0, 0);
-        setLayout(borderLayout);
+        component = new JPanel();
+        component.setLayout(borderLayout);
         // World Wind Canvas
-        add(wwCanvas, BorderLayout.CENTER);
+        component.add(wwCanvas, BorderLayout.CENTER);
         // Button panel
         buttonPanels = new JPanel();
         buttonPanels.setLayout(new BoxLayout(buttonPanels, BoxLayout.Y_AXIS));
         buttonPanels.revalidate();
-        add(buttonPanels, BorderLayout.SOUTH);
+        component.add(buttonPanels, BorderLayout.SOUTH);
 
-        setMinimumSize(new Dimension(0, 0));
-        setMaximumSize(new java.awt.Dimension(width, height));
-        setPreferredSize(new java.awt.Dimension(width, height));
+        component.setMinimumSize(new Dimension(0, 0));
+        component.setMaximumSize(new java.awt.Dimension(width, height));
+        component.setPreferredSize(new java.awt.Dimension(width, height));
     }
 
     public BorderLayout getLayout() {
         return borderLayout;
-    }
-
-    public JPanel getPanel() {
-        return this;
     }
 
     public JPanel getControl() {
@@ -129,6 +156,10 @@ public class WorldWindPanel extends UiComponent {
 
     public WorldWindowGLCanvas getCanvas() {
         return wwCanvas;
+    }
+
+    public void revalidate() {
+        component.revalidate();
     }
 
     /**
@@ -167,42 +198,225 @@ public class WorldWindPanel extends UiComponent {
         widgetList.remove(w);
     }
 
-    public static void computeUiComponent() {
+    private void populateLists() {
         // Widgets
         widgetClasses.add(RobotTrackWidget.class);
         widgetClasses.add(RobotWidget.class);
         widgetClasses.add(SelectGeometryWidget.class);
         widgetClasses.add(SensorDataWidget.class);
         widgetClasses.add(SensorDataWidget.class);
-
+        // Creation
+        //
+        // Visualization
+        //
         // Markups
-        supportedMarkups.add(Attention.AttentionEnd.ON_CLICK);
-        supportedMarkups.add(Attention.AttentionTarget.FRAME);
-        supportedMarkups.add(Attention.AttentionTarget.PANEL);
-        supportedMarkups.add(Attention.AttentionType.BLINK);
-        supportedMarkups.add(Attention.AttentionType.HIGHLIGHT);
-        supportedMarkups.add(Priority.Ranking.LOW);
-        supportedMarkups.add(Priority.Ranking.MEDIUM);
-        supportedMarkups.add(Priority.Ranking.HIGH);
-        supportedMarkups.add(Priority.Ranking.CRITICAL);
         supportedMarkups.add(RelevantArea.AreaSelection.AREA);
-        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_POINT);
-        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_PROXY);
+        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_ON_POINT);
+        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_ON_ALL_PROXIES);
+        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_ON_RELEVANT_PROXIES);
         supportedMarkups.add(RelevantArea.MapType.POLITICAL);
         supportedMarkups.add(RelevantArea.MapType.SATELLITE);
+    }
 
+    @Override
+    public int getCreationComponentScore(Class creationClass, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedMarkups, widgetClasses, creationClass, markups);
+    }
+
+    @Override
+    public int getSelectionComponentScore(Class selectionClass, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedMarkups, widgetClasses, selectionClass, markups);
+    }
+
+    @Override
+    public int getMarkupScore(ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getMarkupComponentScore(supportedMarkups, widgetClasses, markups);
+    }
+
+    @Override
+    public MarkupComponent useCreationComponent(Class objectClass, ArrayList<Markup> markups) {
+        if (wwCanvas == null) {
+            createMap();
+        }
         for (Class widgetClass : widgetClasses) {
-            if ((UiWidget.class).isAssignableFrom(widgetClass)) {
-                try {
-                    Field field = widgetClass.getField("supportedMarkups");
-                    System.out.println(field);
-                } catch (NoSuchFieldException ex) {
-                    Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (SecurityException ex) {
-                    Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
+            try {
+                MarkupComponentWidget widgetInstance = (MarkupComponentWidget) widgetClass.newInstance();
+                int widgetScore = widgetInstance.getCreationWidgetScore(objectClass, markups);
+                if (widgetScore >= 0) {
+                    MarkupComponentWidget widget = (MarkupComponentWidget) widgetInstance;
+                    addWidget((WorldWindWidgetInt) widget.addCreationWidget(this, objectClass, markups));
                 }
+            } catch (InstantiationException ex) {
+                Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IllegalAccessException ex) {
+                Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+        return this;
+    }
+
+    @Override
+    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups) {
+        if (wwCanvas == null) {
+            createMap();
+        }
+        for (Class widgetClass : widgetClasses) {
+            try {
+                MarkupComponentWidget widgetInstance = (MarkupComponentWidget) widgetClass.newInstance();
+                int widgetScore = widgetInstance.getSelectionWidgetScore(object.getClass(), markups);
+                if (widgetScore >= 0) {
+                    MarkupComponentWidget widget = (MarkupComponentWidget) widgetInstance;
+                    widget.addSelectionWidget(this, object, markups);
+                    addWidget((WorldWindWidgetInt) widget);
+                }
+            } catch (InstantiationException ex) {
+                Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IllegalAccessException ex) {
+                Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        return this;
+    }
+
+    @Override
+    public JComponent getComponent() {
+        return component;
+    }
+
+    @Override
+    public Object getComponentValue(Field field) {
+        Object value = null;
+        if (field.getType().equals(Location.class)) {
+            MarkerLayer layer = (MarkerLayer) wwCanvas.getModel().getLayers().getLayerByName("Marker Layer");
+            Marker position = null;
+            for (Marker marker : layer.getMarkers()) {
+                if (marker instanceof Marker) {
+                    position = (Marker) marker;
+                }
+            }
+            if (position
+                    != null) {
+                value = Conversion.positionToLocation(position.getPosition());
+            }
+        } else if (field.getType().equals(PathUtm.class)) {
+            RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
+            Path path = null;
+            for (Renderable renderable : layer.getRenderables()) {
+                if (renderable instanceof Path) {
+                    path = (Path) renderable;
+                }
+            }
+            if (path
+                    != null) {
+                ArrayList<Location> locationList = new ArrayList<Location>();
+                for (Position position : path.getPositions()) {
+                    locationList.add(Conversion.positionToLocation(position));
+                }
+                value = new Area2D(locationList);
+            }
+        } else if (field.getType().equals(Area2D.class)) {
+            RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
+            SurfacePolygon area = null;
+            for (Renderable renderable : layer.getRenderables()) {
+                if (renderable instanceof SurfacePolygon) {
+                    area = (SurfacePolygon) renderable;
+                }
+            }
+            if (area
+                    != null) {
+                ArrayList<Location> locationList = new ArrayList<Location>();
+                for (LatLon latLon : area.getLocations()) {
+                    locationList.add(Conversion.latLonToLocation(latLon));
+                }
+                value = new Area2D(locationList);
+            }
+        }
+        return value;
+    }
+
+    @Override
+    public boolean setComponentValue(Object value) {
+        boolean success = false;
+        if (value.getClass().equals(Location.class)) {
+            // Grab or create the geometry widget
+            SelectGeometryWidget selectWidget;
+            if (hasWidget(SelectGeometryWidget.class)) {
+                selectWidget = (SelectGeometryWidget) getWidget(SelectGeometryWidget.class);
+            } else {
+                selectWidget = new SelectGeometryWidget(this, new ArrayList<SelectMode>(), SelectMode.NONE);
+                addWidget(selectWidget);
+            }
+            // Add the marker of position
+            Location location = (Location) value;
+            Position position = Conversion.locationToPosition(location);
+            BasicMarkerAttributes attributes = new BasicMarkerAttributes();
+            attributes.setShapeType(BasicMarkerShape.SPHERE);
+            attributes.setMinMarkerSize(50);
+            attributes.setMaterial(Material.YELLOW);
+            attributes.setOpacity(1);
+            BasicMarker circle = new BasicMarker(position, attributes);
+            selectWidget.addMarker(circle);
+            success = true;
+        } else if (value.getClass().equals(PathUtm.class)) {
+            // Grab or create the geometry widget
+            SelectGeometryWidget selectWidget;
+            if (hasWidget(SelectGeometryWidget.class)) {
+                selectWidget = (SelectGeometryWidget) getWidget(SelectGeometryWidget.class);
+            } else {
+                selectWidget = new SelectGeometryWidget(this, new ArrayList<SelectMode>(), SelectMode.NONE);
+                addWidget(selectWidget);
+            }
+            // Add surface polygon of area
+            List<Location> waypoints = ((PathUtm) value).getPoints();
+            List<Position> positions = new ArrayList<Position>();
+            for (Location waypoint : waypoints) {
+                positions.add(Conversion.locationToPosition(waypoint));
+            }
+            Path path = new Path(positions);
+            ShapeAttributes attributes = new BasicShapeAttributes();
+            attributes.setOutlineWidth(8);
+            attributes.setOutlineMaterial(Material.YELLOW);
+            attributes.setDrawOutline(true);
+            path.setAttributes(attributes);
+            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+            selectWidget.addRenderable(path);
+            success = true;
+        } else if (value.getClass().equals(Area2D.class)) {
+            // Grab or create the geometry widget
+            SelectGeometryWidget selectWidget;
+            if (hasWidget(SelectGeometryWidget.class)) {
+                selectWidget = (SelectGeometryWidget) getWidget(SelectGeometryWidget.class);
+            } else {
+                selectWidget = new SelectGeometryWidget(this, new ArrayList<SelectMode>(), SelectMode.NONE);
+                addWidget(selectWidget);
+            }
+            // Add surface polygon of area
+            List<Location> locations = ((Area2D) value).getPoints();
+            List<Position> positions = new ArrayList<Position>();
+            for (Location location : locations) {
+                positions.add(Conversion.locationToPosition(location));
+            }
+            SurfacePolygon polygon = new SurfacePolygon(positions);
+            ShapeAttributes attributes = new BasicShapeAttributes();
+            attributes.setInteriorOpacity(0.5);
+            attributes.setInteriorMaterial(Material.YELLOW);
+            attributes.setOutlineWidth(2);
+            attributes.setOutlineMaterial(Material.BLACK);
+            polygon.setAttributes(attributes);
+            selectWidget.addRenderable(polygon);
+            success = true;
+        }
+        return success;
+    }
+
+    @Override
+    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void disableMarkup(Markup markup) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     public static void main(String[] args) {
@@ -212,7 +426,8 @@ public class WorldWindPanel extends UiComponent {
         frame.getContentPane().setLayout(new FlowLayout());
 
         WorldWindPanel www = new WorldWindPanel();
-        frame.getContentPane().add(www);
+        www.createMap();
+        frame.getContentPane().add(www.wwCanvas);
 
         for (Layer l : www.getCanvas().getModel().getLayers()) {
             System.out.println("Layer: " + l);

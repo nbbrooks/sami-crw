@@ -2,7 +2,6 @@ package crw.ui.widget;
 
 import crw.ui.component.WorldWindPanel;
 import crw.Conversion;
-import crw.ui.component.UiWidget;
 import edu.cmu.ri.crw.VehicleServer;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.LatLon;
@@ -28,6 +27,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -35,34 +35,42 @@ import java.util.logging.Logger;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import sami.area.Area2D;
 import sami.engine.Engine;
 import sami.event.InputEvent;
-import sami.markup.Attention;
-import sami.markup.RelevantInformation;
-import sami.path.Location;
-import sami.path.PathUtm;
+import sami.markup.Markup;
 import sami.sensor.Observation;
 import sami.sensor.ObservationListenerInt;
 import sami.sensor.ObserverInt;
 import sami.sensor.ObserverServerListenerInt;
+import sami.uilanguage.MarkupComponent;
+import sami.uilanguage.MarkupComponentHelper;
+import sami.uilanguage.MarkupComponentWidget;
+import sami.uilanguage.MarkupManager;
 
 /**
  *
  * @author nbb
  */
-public class SensorDataWidget extends UiWidget implements WorldWindWidgetInt, ObserverServerListenerInt, ObservationListenerInt {
+public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetInt, ObserverServerListenerInt, ObservationListenerInt {
 
-//    static {
-//        computeUiComponent();
-//    }
-    static final double ALT_THRESH = 2500.0; // Altitude to switch from rectangles that are fixed size in m (< ALT_THRESH) to spheres that are fixed size in pixels (> ALT_THRESH)
-    static final double HEATMAP_THRESH = 10.0; // What percent difference in data range to trigger a recalculation of heatmap colors for data values
-    static final double DIST_THRESH = 10.0; // How far (m) from the last measurement recorded a new measurement must be in order to add it to the visualization
-    final double RECT_OPACITY = 0.5; // Opacity of markers that are fixed size in m (< ALT_THRESH)
-    final double SPHERE_OPACITY = 1.0; // Opacity of spheres that are fixed size in pixels (> ALT_THRESH)
-    final int SPHERE_SIZE = 30; // Sphere size
+    // MarkupComponentWidget variables
+    public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
+    public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
+    //
     private static final Logger LOGGER = Logger.getLogger(SensorDataWidget.class.getName());
+    // Altitude to switch from rectangles that are fixed size in m (< ALT_THRESH) to spheres that are fixed size in pixels (> ALT_THRESH)
+    static final double ALT_THRESH = 2500.0;
+    // What percent difference in data range to trigger a recalculation of heatmap colors for data values
+    static final double HEATMAP_THRESH = 10.0;
+    // How far (m) from the last measurement recorded a new measurement must be in order to add it to the visualization
+    static final double DIST_THRESH = 10.0;
+    // Opacity of markers that are fixed size in m (< ALT_THRESH)
+    final double RECT_OPACITY = 0.5;
+    // Opacity of spheres that are fixed size in pixels (> ALT_THRESH)
+    final double SPHERE_OPACITY = 1.0;
+    // Sphere size
+    final int SPHERE_SIZE = 30;
     private Hashtable<String, Integer> sensorNameToIndex = new Hashtable<String, Integer>();
     private Hashtable<Integer, String> indexToSensorName = new Hashtable<Integer, String>();
     private ArrayList<ArrayList<Renderable>> lowAltRenderables = new ArrayList<ArrayList<Renderable>>();
@@ -80,6 +88,10 @@ public class SensorDataWidget extends UiWidget implements WorldWindWidgetInt, Ob
     JComboBox sourceCB;
     private boolean visible = true;
     private WorldWindPanel wwPanel;
+
+    public SensorDataWidget() {
+        populateLists();
+    }
 
     public SensorDataWidget(WorldWindPanel wwPanel) {
         this.wwPanel = wwPanel;
@@ -277,17 +289,16 @@ public class SensorDataWidget extends UiWidget implements WorldWindWidgetInt, Ob
         double[] sensorDataMinMax = dataMinMax.get(sensorIndex);
         boolean rangeChanged = false;
 
-
         synchronized (sourceToLastObsUtm) {
             sourceToLastObsUtm.put(observation.getSource() + observation.getVariable(), adjUtm);
         }
-        LatLon adjLatLon =
-                UTMCoord.locationFromUTMCoord(
-                adjUtm.getZone(),
-                adjUtm.getHemisphere(),
-                adjUtm.getEasting(),
-                adjUtm.getNorthing(),
-                null);
+        LatLon adjLatLon
+                = UTMCoord.locationFromUTMCoord(
+                        adjUtm.getZone(),
+                        adjUtm.getHemisphere(),
+                        adjUtm.getEasting(),
+                        adjUtm.getNorthing(),
+                        null);
 
         // Check if sensor measurement is outside of current heatmap bounds
         if (observation.value < sensorDataMinMax[0]) {
@@ -500,12 +511,59 @@ public class SensorDataWidget extends UiWidget implements WorldWindWidgetInt, Ob
         }
     }
 
-//    public static void computeUiComponent() {
-//        // Visualization
-//        supportedSelectionClasses.add(Observation.class);
-//        
-//        // Markups
-//        supportedMarkups.add(RelevantInformation.Information.SPECIFY);
-//        supportedMarkups.add(RelevantInformation.Visualization.HEATMAP);
-//    }
+    private void populateLists() {
+        // Creation
+        //
+        // Visualization
+        //
+        // Markups
+        //
+        // Widgets
+        //
+    }
+
+    @Override
+    public int getCreationWidgetScore(Class creationClass, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, creationClass, markups);
+    }
+
+    @Override
+    public int getSelectionWidgetScore(Object selectionObject, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, selectionObject.getClass(), markups);
+    }
+
+    @Override
+    public int getMarkupScore(ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getMarkupWidgetScore(supportedMarkups, markups);
+    }
+
+    @Override
+    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Class creationClass, ArrayList<Markup> markups) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public Object getComponentValue(Field field) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public boolean setComponentValue(Object value) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void disableMarkup(Markup markup) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
 }

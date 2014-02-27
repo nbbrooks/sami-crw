@@ -14,6 +14,8 @@ import sami.event.GeneratedEventListenerInt;
 import sami.event.GeneratedInputEventSubscription;
 import sami.event.OutputEvent;
 import sami.handler.EventHandlerInt;
+import sami.markup.Markup;
+import sami.markup.NumberOptions;
 import sami.mission.Token;
 import sami.path.DestinationUtmObjective;
 import sami.path.Path;
@@ -38,7 +40,6 @@ import sami.service.pathplanning.PlanningServiceResponse;
 public class PathHandler implements EventHandlerInt, InformationServiceProviderInt {
 
     private final static Logger LOGGER = Logger.getLogger(PathHandler.class.getName());
-    private static final int DEFAULT_NUM_OPTIONS = 3;
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
 
@@ -55,10 +56,16 @@ public class PathHandler implements EventHandlerInt, InformationServiceProviderI
 
         if (oe instanceof PathUtmRequest) {
             PathUtmRequest request = (PathUtmRequest) oe;
-            int numOptions = DEFAULT_NUM_OPTIONS;
+            int numOptions = NumberOptions.DEFAULT_NUM_OPTIONS;
+            for (Markup markup : oe.getMarkups()) {
+                if (markup instanceof NumberOptions) {
+                    numOptions = ((NumberOptions) markup).numberOption.number;
+                    break;
+                }
+            }
 
             final ArrayList<Hashtable<ProxyInt, PathUtm>> proxyPathsChoices = new ArrayList<Hashtable<ProxyInt, PathUtm>>();
-            for(int i = 0; i < numOptions; i++) {
+            for (int i = 0; i < numOptions; i++) {
                 proxyPathsChoices.add(new Hashtable<ProxyInt, PathUtm>());
             }
             final ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();

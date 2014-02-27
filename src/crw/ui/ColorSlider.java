@@ -2,6 +2,7 @@ package crw.ui;
 
 import java.awt.Color;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -10,24 +11,22 @@ import javax.swing.event.ChangeListener;
  *
  * @author nbb
  */
-public class ColorSlider extends JSlider {
+public class ColorSlider extends JPanel {
+
+    JSlider slider;
 
     public ColorSlider() {
-        super(0, 100, 0);
-        setValue(100);
-        this.addChangeListener(new ChangeListener() {
+        super();
+        slider = new JSlider(0, 100, 0);
+        slider.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent e) {
                 JSlider source = (JSlider) e.getSource();
                 setBackground(valueToColor(source.getValue(), 0, 100));
             }
         });
-    }
-
-    @Override
-    public void setValue(int value) {
-        super.setValue(value);
-        setBackground(valueToColor(value, 0, 100));
+        setBackground(valueToColor(slider.getValue(), 0, 100));
+        add(slider);
     }
 
     /**
@@ -97,10 +96,6 @@ public class ColorSlider extends JSlider {
                 (int) Math.floor(255.0 * Math.pow(red * factor, gamma)),
                 (int) Math.floor(255.0 * Math.pow(green * factor, gamma)),
                 (int) Math.floor(255.0 * Math.pow(blue * factor, gamma)));
-//        Color color = new Color(
-//                (int) Math.floor(255.0 * red),
-//                (int) Math.floor(255.0 * green),
-//                (int) Math.floor(255.0 * blue));
         return color;
     }
 
@@ -110,7 +105,4 @@ public class ColorSlider extends JSlider {
         frame.setVisible(true);
         frame.pack();
     }
-//    public double colorToValue(Color color, double min, double max) {
-//        
-//    }
 }

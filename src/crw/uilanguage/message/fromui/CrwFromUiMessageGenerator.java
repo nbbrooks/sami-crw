@@ -9,10 +9,11 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.logging.Logger;
-import javax.swing.JComponent;
 import sami.allocation.ResourceAllocation;
 import sami.path.Path;
 import sami.proxy.ProxyInt;
+import sami.uilanguage.MarkupComponent;
+import sami.uilanguage.fromui.FromUiMessageGeneratorInt;
 import sami.uilanguage.fromui.AllocationSelectedMessage;
 import sami.uilanguage.fromui.CreationDoneMessage;
 import sami.uilanguage.fromui.FromUiMessage;
@@ -26,23 +27,23 @@ import sami.uilanguage.toui.SelectionMessage;
  *
  * @author nbb
  */
-public class FromUiMessageGenerator {
+public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
 
-    private final static Logger LOGGER = Logger.getLogger(FromUiMessageGenerator.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(CrwFromUiMessageGenerator.class.getName());
 
     private static class FromUiMessageGeneratorHolder {
 
-        public static final FromUiMessageGenerator INSTANCE = new FromUiMessageGenerator();
+        public static final CrwFromUiMessageGenerator INSTANCE = new CrwFromUiMessageGenerator();
     }
 
-    private FromUiMessageGenerator() {
+    private CrwFromUiMessageGenerator() {
     }
 
-    public static FromUiMessageGenerator getInstance() {
-        return FromUiMessageGenerator.FromUiMessageGeneratorHolder.INSTANCE;
+    public static CrwFromUiMessageGenerator getInstance() {
+        return CrwFromUiMessageGenerator.FromUiMessageGeneratorHolder.INSTANCE;
     }
 
-    public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<Field, JComponent> componentTable) {
+    public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<Field, MarkupComponent> componentTable) {
         CreationDoneMessage doneMessage = null;
         if (creationMessage instanceof GetParamsMessage) {
             Hashtable<Field, Object> fieldToValue = new Hashtable<Field, Object>();
@@ -106,5 +107,14 @@ public class FromUiMessageGenerator {
             LOGGER.warning("Got SelectionMessage " + selectionMessage + " with option " + option + ", don't know what to do with it!");
         }
         return fromUiMessage;
+    }
+
+    public FromUiMessage getFromUiMessage(SelectionMessage selectionMessage, int optionIndex) {
+        if (selectionMessage.getOptionsList().size() > optionIndex) {
+            return getFromUiMessage(selectionMessage, selectionMessage.getOptionsList().get(optionIndex));
+        } else {
+            LOGGER.severe("Got SelectionMessage " + selectionMessage + " with option index " + optionIndex + ", but only have " + selectionMessage.getOptionsList().size() + " options!");
+            return null;
+        }
     }
 }

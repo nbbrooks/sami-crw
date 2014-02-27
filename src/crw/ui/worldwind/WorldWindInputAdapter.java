@@ -1,6 +1,5 @@
 package crw.ui.worldwind;
 
-import sami.path.Location;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.view.orbit.OrbitViewInputHandler;
 import java.awt.event.MouseEvent;
@@ -85,12 +84,8 @@ public class WorldWindInputAdapter extends OrbitViewInputHandler {
         }
 
         // If no one "claims" the mouse click, translate the view
-        Position curPos = wwd.getView().getCurrentEyePosition();
-        Position mousePos = wwd.getView().computePositionFromScreenPoint(e.getX(), e.getY());
-        Location mouseLoc = new Location(mousePos.latitude.degrees, mousePos.longitude.degrees, curPos.elevation);
-        System.out.println("clicked " + mousePos + " : " + mouseLoc);
-        Position target = new Position(mousePos.getLatitude(), mousePos.getLongitude(), curPos.elevation);
-        wwd.getView().setEyePosition(target);
+        Position newPos = new Position(wwd.getCurrentPosition().getLatitude(), wwd.getCurrentPosition().getLongitude(), wwd.getView().getCurrentEyePosition().getElevation());
+        wwd.getView().setEyePosition(newPos);
         wwd.redraw();
     }
 //    protected void handleMouseWheelMoved(MouseWheelEvent e) {

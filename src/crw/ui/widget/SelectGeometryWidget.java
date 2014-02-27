@@ -1,7 +1,8 @@
 package crw.ui.widget;
 
+import crw.Conversion;
 import crw.ui.component.WorldWindPanel;
-import crw.ui.component.UiWidget;
+import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
@@ -9,6 +10,7 @@ import gov.nasa.worldwind.layers.MarkerLayer;
 import gov.nasa.worldwind.layers.RenderableLayer;
 import gov.nasa.worldwind.render.BasicShapeAttributes;
 import gov.nasa.worldwind.render.Material;
+import gov.nasa.worldwind.render.Path;
 import gov.nasa.worldwind.render.Polyline;
 import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.render.ShapeAttributes;
@@ -27,30 +29,36 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import sami.area.Area2D;
-import sami.markup.RelevantProxy;
+import sami.markup.Markup;
 import sami.path.Location;
-import sami.path.Path;
 import sami.path.PathUtm;
+import sami.uilanguage.MarkupComponent;
+import sami.uilanguage.MarkupComponentHelper;
+import sami.uilanguage.MarkupComponentWidget;
+import sami.uilanguage.MarkupManager;
 
 /**
  *
  * @author nbb
  */
-public class SelectGeometryWidget extends UiWidget implements WorldWindWidgetInt {
+public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWidgetInt {
 
-//    static {
-//        computeUiComponent();
-//    }
     public enum SelectMode {
 
         POINT, PATH, AREA, NONE, CLEAR
     };
+    // MarkupComponentWidget variables
+    public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
+    public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
+    //
     private boolean visible = true;
     private ArrayList<Marker> markers = new ArrayList<Marker>();
     private ArrayList<Position> selectedPositions = new ArrayList<Position>();
@@ -63,6 +71,10 @@ public class SelectGeometryWidget extends UiWidget implements WorldWindWidgetInt
     private Polyline polyline = null;
 //    private Path path = null;
     private SurfacePolygon area = null;
+
+    public SelectGeometryWidget() {
+        populateLists();
+    }
 
     public SelectGeometryWidget(WorldWindPanel wwPanel) {
         this(wwPanel, Arrays.asList(SelectMode.POINT, SelectMode.PATH, SelectMode.AREA, SelectMode.NONE, SelectMode.CLEAR), SelectMode.NONE);
@@ -114,7 +126,7 @@ public class SelectGeometryWidget extends UiWidget implements WorldWindWidgetInt
 
     @Override
     public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
-        Position clickPosition = wwd.getView().computePositionFromScreenPoint(evt.getX(), evt.getY());
+        Position clickPosition = wwd.getCurrentPosition();
         // Continue creating a new area?
         switch (selectMode) {
             case POINT:
@@ -416,15 +428,125 @@ public class SelectGeometryWidget extends UiWidget implements WorldWindWidgetInt
         renderableLayer.addRenderable(renderable);
     }
 
-//    public static void computeUiComponent() {
-//        // Creation
-//        supportedCreationClasses.add(Location.class);
-//        supportedCreationClasses.add(PathUtm.class);
-//        supportedCreationClasses.add(Area2D.class);
-//
-//        // Visualization
-//        supportedSelectionClasses.add(Location.class);
-//        supportedSelectionClasses.add(PathUtm.class);
-//        supportedSelectionClasses.add(Area2D.class);
-//    }
+    private void populateLists() {
+        // Creation
+        supportedCreationClasses.add(Location.class);
+        supportedCreationClasses.add(PathUtm.class);
+        supportedCreationClasses.add(Area2D.class);
+        // Visualization
+        supportedSelectionClasses.add(Location.class);
+        supportedSelectionClasses.add(PathUtm.class);
+        supportedSelectionClasses.add(Area2D.class);
+        // Markups
+        //
+        // Widgets
+        //
+    }
+
+    @Override
+    public int getCreationWidgetScore(Class creationClass, ArrayList<Markup> markups) {
+        int score = MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, creationClass, markups);
+//        System.out.println("### Geom widget creation score for " + creationClass.getSimpleName() + ": " + score);
+        return score;
+    }
+
+    @Override
+    public int getSelectionWidgetScore(Object selectionObject, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, selectionObject.getClass(), markups);
+    }
+
+    @Override
+    public int getMarkupScore(ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getMarkupWidgetScore(supportedMarkups, markups);
+    }
+
+    @Override
+    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Class creationClass, ArrayList<Markup> markups) {
+        MarkupComponentWidget widget = null;
+        if (creationClass.equals(Location.class)) {
+            List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.POINT, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
+            widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.POINT);
+        } else if (creationClass.equals(PathUtm.class)) {
+            List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.PATH, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
+            widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.PATH);
+        } else if (creationClass.equals(Area2D.class)) {
+            List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.AREA, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
+            widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.AREA);
+        }
+        return widget;
+    }
+
+    @Override
+    public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
+        MarkupComponentWidget widget = null;
+        if (selectionObject instanceof Location) {
+            Location location = (Location) selectionObject;
+            Position position = Conversion.locationToPosition(location);
+
+            SelectGeometryWidget select = new SelectGeometryWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
+            BasicMarkerAttributes attributes = new BasicMarkerAttributes();
+            attributes.setShapeType(BasicMarkerShape.SPHERE);
+            attributes.setMinMarkerSize(50);
+            attributes.setMaterial(Material.YELLOW);
+            attributes.setOpacity(1);
+            BasicMarker circle = new BasicMarker(position, attributes);
+            select.addMarker(circle);
+            widget = select;
+        } else if (selectionObject instanceof PathUtm) {
+            List<Location> waypoints = ((PathUtm) selectionObject).getPoints();
+            List<Position> positions = new ArrayList<Position>();
+            // Convert from Locations to LatLons
+            for (Location waypoint : waypoints) {
+                positions.add(Conversion.locationToPosition(waypoint));
+            }
+            SelectGeometryWidget select = new SelectGeometryWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
+            // Add path
+            Path path = new Path(positions);
+            ShapeAttributes attributes = new BasicShapeAttributes();
+            attributes.setOutlineWidth(8);
+            attributes.setOutlineMaterial(Material.YELLOW);
+            attributes.setDrawOutline(true);
+            path.setAttributes(attributes);
+            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+            select.addRenderable(path);
+            widget = select;
+        } else if (selectionObject instanceof Area2D) {
+            List<Location> locations = ((Area2D) selectionObject).getPoints();
+            List<Position> positions = new ArrayList<Position>();
+            // Convert from Locations to LatLons
+            for (Location location : locations) {
+                positions.add(Conversion.locationToPosition(location));
+            }
+            SelectGeometryWidget select = new SelectGeometryWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
+            // Add surface polygon of area
+            SurfacePolygon polygon = new SurfacePolygon(positions);
+            ShapeAttributes attributes = new BasicShapeAttributes();
+            attributes.setInteriorOpacity(0.5);
+            attributes.setInteriorMaterial(Material.YELLOW);
+            attributes.setOutlineWidth(2);
+            attributes.setOutlineMaterial(Material.BLACK);
+            polygon.setAttributes(attributes);
+            select.addRenderable(polygon);
+            widget = select;
+        }
+        return widget;
+    }
+
+    @Override
+    public Object getComponentValue(Field field) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public boolean setComponentValue(Object value) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+    }
+
+    @Override
+    public void disableMarkup(Markup markup) {
+    }
 }

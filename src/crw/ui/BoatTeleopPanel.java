@@ -401,4 +401,10 @@ public class BoatTeleopPanel extends JPanel {
             jJoystick.updateDims = true;
         }
     }
+
+    public static void main(String[] args) {
+        JFrame frame = new JFrame();
+        frame.add(new BoatTeleopPanel(new JButton()));
+        frame.setVisible(true);
+    }
 }

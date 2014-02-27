@@ -14,7 +14,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.net.InetSocketAddress;
 import java.security.AccessControlException;
-import java.util.ArrayList;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,7 +23,6 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import robotutils.Pose3D;
 import sami.engine.Engine;
-import sami.gui.GuiElementSpec;
 import sami.uilanguage.UiFrame;
 
 /**
@@ -52,7 +50,6 @@ public class ProxyFrame extends UiFrame {
         colorB.setForeground(color);
 
         try {
-
             LOGGER.log(Level.INFO, "SecurityManager: " + System.getSecurityManager());
 
             physicalServerF.setText(Preferences.userRoot().get(LAST_URI_KEY, "http://168.192.1.X:11411"));
@@ -275,7 +272,6 @@ public class ProxyFrame extends UiFrame {
         // These are done in BoatSimpleProxy
         // URI masterUri = new URI(server);
         // RosVehicleProxy rosServer = new RosVehicleProxy(masterUri, "vehicle_client" + new Random().nextInt(1000000));
-
         Engine.getInstance().getProxyServer().createProxy(nameF.getText(), colorB.getBackground(), CrwNetworkUtils.toInetSocketAddress(server));
         ImagePanel.setImagesDirectory(imagesDirF.getText());
         try {
@@ -309,17 +305,11 @@ public class ProxyFrame extends UiFrame {
 
             // Create a ROS proxy server that accesses the same object
             // RosVehicleProxy proxyServer = new RosVehicleProxy(masterUri, "vehicle_client");
-
             LOGGER.log(Level.INFO, "Initialization of vehicle server complete");
-
             UTMCoord utm = UTMCoord.fromLatLon(Angle.fromDegrees(lat), Angle.fromDegrees(lon));
-
             UtmPose p1 = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
-
             server.setPose(p1);
-
             Engine.getInstance().getProxyServer().createProxy(nameF.getText(), colorB.getBackground(), new InetSocketAddress("localhost", port + i));
-
             colorB.setBackground(randomColor());
         }
 
@@ -406,11 +396,6 @@ public class ProxyFrame extends UiFrame {
     private javax.swing.JSpinner simNoS;
     private javax.swing.JSpinner simPortNoS;
     // End of variables declaration                   
-
-    @Override
-    public void setGUISpec(ArrayList<GuiElementSpec> guiElements) {
-        System.out.println("Not supported yet.");
-    }
 
     private void incrementBoatIdInfo() {
         boatCounter++;

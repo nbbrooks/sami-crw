@@ -89,7 +89,7 @@ public class Helper {
     public static void main(String[] args) throws InterruptedException {
         JFrame frame = new JFrame();
         WorldWindPanel www = new WorldWindPanel();
-        frame.getContentPane().add(www);
+        frame.getContentPane().add(www.getComponent());
         frame.pack();
         frame.setVisible(true);
         Thread.sleep(10000);

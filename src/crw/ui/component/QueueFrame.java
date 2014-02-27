@@ -1,11 +1,14 @@
-package crw.ui.queue;
+package crw.ui.component;
 
-import sami.gui.GuiElementSpec;
+import crw.ui.queue.DecisionQueuePanel;
+import crw.ui.queue.QueueDatabase;
+import crw.ui.queue.QueueItem;
+import crw.ui.queue.QueuePanelInt;
+import sami.uilanguage.MarkupManager;
 import sami.engine.Engine;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Point;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.logging.Logger;
 import javax.swing.JComponent;
@@ -26,8 +29,8 @@ import sami.uilanguage.toui.ToUiMessage;
  */
 public class QueueFrame extends UiFrame implements UiClientListenerInt {
 
-    private final static Logger LOGGER = Logger.getLogger(crw.ui.queue.QueueFrame.class.getName());
-    private Dimension frameDim = new Dimension(DecisionQueuePanel.NUM_THUMBNAILS * DecisionQueueComponent.THUMB_SCALED_WIDTH + 98, 600);
+    private final static Logger LOGGER = Logger.getLogger(QueueFrame.class.getName());
+    private Dimension frameDim = new Dimension(DecisionQueuePanel.NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 600);
     private JPanel bottomPanel = new JPanel();
     private JPanel topPanel = new JPanel();
     private JScrollPane scrollingPane = new JScrollPane(bottomPanel);
@@ -92,15 +95,13 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt {
     }
 
     @Override
-    public void setGUISpec(ArrayList<GuiElementSpec> guiElements) {
-        System.out.println("Not supported yet.");
-    }
-
-    @Override
     public void ToUiMessage(ToUiMessage toUiMsg) {
         if (toUiMsg instanceof SelectionMessage
                 || toUiMsg instanceof CreationMessage) {
-            qdb.addDecision(toUiMsg);
+            MarkupManager manager = new MarkupManager(toUiMsg);
+            manager.addComponent(this);
+            qdb.addDecision(toUiMsg, manager);
+
         }
     }
 

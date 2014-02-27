@@ -1,7 +1,6 @@
 package crw.ui.widget;
 
 import crw.ui.component.WorldWindPanel;
-import crw.ui.component.UiWidget;
 import gov.nasa.worldwind.WorldWindow;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;

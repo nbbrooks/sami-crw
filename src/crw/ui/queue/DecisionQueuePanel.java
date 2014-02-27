@@ -1,9 +1,9 @@
 package crw.ui.queue;
 
-import crw.ui.queue.QueueFrame;
-import crw.ui.queue.QueuePanelInt;
 import crw.ui.queue.QueueDatabase;
-import crw.ui.queue.DecisionQueueComponent;
+import crw.ui.component.QueueFrame;
+import crw.ui.queue.QueueItem;
+import crw.ui.queue.QueuePanelInt;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;
@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.GroupLayout;
+import sami.uilanguage.MarkupManager;
+import sami.uilanguage.MarkupManagerListener;
+import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.toui.ToUiMessage;
 
 /**
@@ -32,7 +35,7 @@ import sami.uilanguage.toui.ToUiMessage;
  * @author owens
  * @author nbb
  */
-public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWheelListener {
+public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWheelListener, MarkupManagerListener {
 
     private final static Logger LOGGER = Logger.getLogger(DecisionQueuePanel.class.getName());
     final static int MISC_BORDER = 15;
@@ -46,14 +49,14 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
     private boolean selected = false;
     private final QueuePanelInt thisQueuePanel = this;
     private int index = 0;
-    private DecisionQueueComponent currentComponent = null;
+    private QueueItem currentComponent = null;
     private ToUiMessage currentMessage = null;
     private int k;
-    private Dimension collapsedStateDim = new Dimension(NUM_THUMBNAILS * DecisionQueueComponent.THUMB_SCALED_WIDTH + 98, 180);
-    private Dimension expandedStateDim = new Dimension(NUM_THUMBNAILS * DecisionQueueComponent.THUMB_SCALED_WIDTH + 98, 525);
-    private Dimension iconBarDim = new Dimension(NUM_THUMBNAILS * DecisionQueueComponent.THUMB_SCALED_WIDTH + 88, 80);
-    private Dimension iconPanelDim = new Dimension(NUM_THUMBNAILS * DecisionQueueComponent.THUMB_SCALED_WIDTH + 98, 90);
-    private Dimension headerPanelDim = new Dimension(NUM_THUMBNAILS * DecisionQueueComponent.THUMB_SCALED_WIDTH + 98, 25);
+    private Dimension collapsedStateDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 180);
+    private Dimension expandedStateDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 525);
+    private Dimension iconBarDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 88, 80);
+    private Dimension iconPanelDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 90);
+    private Dimension headerPanelDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 25);
     private final static int ITEMS_PER_FETCH = 3;
     private List<ToUiMessage> loadedMessages;
     // Use a ScrollPane instead of JScrollPane to prevent GLCanvas components from drawing outside of the scroll pane area
@@ -62,7 +65,7 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
     private JPanel iconBar = new JPanel();
     private QueueFrame queueFrame;
     private QueueDatabase queueDatabase;
-    private Hashtable<ToUiMessage, DecisionQueueComponent> messageToComponent = new Hashtable<ToUiMessage, DecisionQueueComponent>();
+    private Hashtable<ToUiMessage, QueueItem> messageToItem = new Hashtable<ToUiMessage, QueueItem>();
 
     /**
      * Default constructor for the demo.
@@ -80,9 +83,8 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         headerPanel.setPreferredSize(headerPanelDim);
         headerPanel.setMaximumSize(headerPanelDim);
 
-
         detailsScrollPane.setBackground(COLOR_TWO);
-        detailsScrollPane.add(DecisionQueueComponent.getFillerComponent());
+        detailsScrollPane.add(QueueItem.getFillerComponent());
 
         // We add two glue components. Later in process() we will add thumbnail buttons
         // to the toolbar inbetween thease glue compoents. This will center the
@@ -114,9 +116,9 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         setMaximumSize(expandedStateDim);
         layout.setHorizontalGroup(layout.createSequentialGroup()
                 .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                .addComponent(headerPanel)
-                .addComponent(iconPanel)
-                .addComponent(detailsScrollPane)));
+                        .addComponent(headerPanel)
+                        .addComponent(iconPanel)
+                        .addComponent(detailsScrollPane)));
         layout.setVerticalGroup(layout.createSequentialGroup()
                 .addComponent(headerPanel)
                 .addComponent(iconPanel)
@@ -182,8 +184,11 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
 
         for (k = 0; k < displayedList.size(); k++) {
             LOGGER.log(Level.FINEST, "Created icons :" + k);
-            DecisionQueueComponent component = messageToComponent.get(displayedList.get(k));
-            JButton button = new JButton(new ImageIcon(component.getThumbnail()));
+
+            QueueItem component = messageToItem.get(displayedList.get(k));
+//            JButton button = new JButton(new ImageIcon(component.getThumbnail()));
+            JButton button = new JButton();
+            button.add(component.getThumbnail());
             if (component.getViewed()) {
                 button.setBackground(Color.BLUE);
             }
@@ -196,7 +201,7 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         LOGGER.log(Level.FINEST, "createImageIcon: components in iconbar before adding fillers =  " + iconBar.getComponentCount());
         for (int y = iconBar.getComponentCount(); y < NUM_THUMBNAILS; y++) {
             LOGGER.log(Level.FINEST, "Creating filler # " + y);
-            JButton filler = new JButton(new ImageIcon(DecisionQueueComponent.getFillerThumbnail()));
+            JButton filler = new JButton(new ImageIcon(QueueItem.getFillerThumbnail()));
             iconBar.add(filler);
         }
 
@@ -205,11 +210,11 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
     }
 
     private void setCurrentComponent(int val) {
-        DecisionQueueComponent component = null;
+        QueueItem component = null;
         synchronized (loadedMessages) {
             if (val >= 0 && val < loadedMessages.size()) {
                 currentMessage = loadedMessages.get(val);
-                component = messageToComponent.get(currentMessage);
+                component = messageToItem.get(currentMessage);
             }
         }
         if (component != null) {
@@ -226,7 +231,7 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
             synchronized (lock) {
                 currentComponent = component;
                 detailsScrollPane.removeAll();
-                detailsScrollPane.add(DecisionQueueComponent.getFillerComponent());
+                detailsScrollPane.add(QueueItem.getFillerComponent());
             }
         }
     }
@@ -258,7 +263,10 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
 //                LOGGER.log(Level.INFO, "Fetched " + fetched + " images from VidDB, wanted " + (ITEMS_PER_FETCH) + ", list size = " + loadedInteractions.size() + ", index=" + index);
                 // Create the components for the newly loaded messages
                 for (int i = 1; i <= fetched; i++) {
-                    messageToComponent.put(loadedMessages.get(loadedMessages.size() - i), new DecisionQueueComponent(loadedMessages.get(loadedMessages.size() - i), componentListener));
+                    ToUiMessage message = loadedMessages.get(loadedMessages.size() - i);
+                    MarkupManager manager = queueDatabase.getParent(message);
+                    messageToItem.put(message, new QueueItem(message, componentListener, manager));
+
                 }
             }
         }
@@ -279,7 +287,7 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         public void actionPerformed(ActionEvent e) {
             // Remove the current component from the loaded lists
             loadedMessages.remove(currentMessage);
-            messageToComponent.remove(currentMessage);
+            messageToItem.remove(currentMessage);
             createImageIcon();
         }
     };
@@ -289,6 +297,17 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         // System.out.println("Mouse: " + mwe.getScrollAmount() + " " + mwe.getScrollType() + " " + mwe.getWheelRotation());
         createImageIcon();
         DecisionQueuePanel.this.repaint();
+    }
+
+    @Override
+    public void autonomyTriggered(ToUiMessage toMessage, FromUiMessage fromMessage) {
+        // If the message has a thumbnail/content panel, remove them from the loaded lists
+        QueueItem component = messageToItem.remove(toMessage);
+        messageToItem.remove(toMessage);
+        if (component != null) {
+            createImageIcon();
+//            component.viewed.set(true);
+        }
     }
 
     private class HeaderPanel extends JPanel implements MouseListener {

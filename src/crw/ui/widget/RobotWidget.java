@@ -7,7 +7,6 @@ import crw.proxy.BoatProxy;
 import crw.ui.BoatMarker;
 import crw.ui.BoatTeleopPanel;
 import crw.ui.VideoFeedPanel;
-import crw.ui.component.UiWidget;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
@@ -29,6 +28,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -39,7 +39,7 @@ import sami.engine.Engine;
 import sami.event.GeneratedEventListenerInt;
 import sami.event.InputEvent;
 import sami.event.OutputEvent;
-import sami.markup.Attention;
+import sami.markup.Markup;
 import sami.markup.RelevantProxy;
 import sami.path.Location;
 import sami.path.Path;
@@ -47,20 +47,26 @@ import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyListenerInt;
 import sami.proxy.ProxyServerListenerInt;
+import sami.uilanguage.MarkupComponent;
+import sami.uilanguage.MarkupComponentHelper;
+import sami.uilanguage.MarkupComponentWidget;
+import sami.uilanguage.MarkupManager;
 
 /**
  *
  * @author nbb
  */
-public class RobotWidget extends UiWidget implements WorldWindWidgetInt, ProxyServerListenerInt {
+public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, ProxyServerListenerInt {
 
-//    static {
-//        computeUiComponent();
-//    }
     public enum ControlMode {
 
         TELEOP, POINT, PATH, NONE
     };
+    // MarkupComponentWidget variables
+    public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
+    public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
+    //
     // This increases the "grab" radius for proxy markers to make selecting a proxy easier
     private final int CLICK_RADIUS = 25;
     private boolean visible = true;
@@ -84,6 +90,10 @@ public class RobotWidget extends UiWidget implements WorldWindWidgetInt, ProxySe
     private RenderableLayer renderableLayer;
     private VideoFeedPanel videoP;
     private WorldWindPanel wwPanel;
+
+    public RobotWidget() {
+        populateLists();
+    }
 
     public RobotWidget(WorldWindPanel wwPanel) {
         this(wwPanel, null);
@@ -549,15 +559,58 @@ public class RobotWidget extends UiWidget implements WorldWindWidgetInt, ProxySe
         }
     }
 
-//    public static void computeUiComponent() {
-//        // Markups
-//        supportedMarkups.add(Attention.AttentionTarget.ALL_PROXIES);
-//        supportedMarkups.add(Attention.AttentionTarget.RELEVANT_PROXIES);
-//        supportedMarkups.add(Attention.AttentionTarget.SELECTED_PROXIES);
-//        // blink?
-//        
-//        supportedMarkups.add(RelevantProxy.Proxies.ALL_PROXIES);
-//        supportedMarkups.add(RelevantProxy.Proxies.RELEVANT_PROXIES);
-//        supportedMarkups.add(RelevantProxy.Proxies.SELECTED_PROXIES);
-//    }
+    private void populateLists() {
+        // Creation
+        //
+        // Visualization
+        //
+        // Markups
+        supportedMarkups.add(RelevantProxy.Proxies.ALL_PROXIES);
+        supportedMarkups.add(RelevantProxy.Proxies.RELEVANT_PROXIES);
+        // Widgets
+        //
+    }
+
+    @Override
+    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+    }
+
+    @Override
+    public void disableMarkup(Markup markup) {
+    }
+
+    @Override
+    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Class creationClass, ArrayList<Markup> markups) {
+        return null;
+    }
+
+    @Override
+    public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
+        return null;
+    }
+
+    @Override
+    public int getCreationWidgetScore(Class creationClass, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, creationClass, markups);
+    }
+
+    @Override
+    public int getSelectionWidgetScore(Object selectionObject, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, selectionObject.getClass(), markups);
+    }
+
+    @Override
+    public int getMarkupScore(ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getMarkupWidgetScore(supportedMarkups, markups);
+    }
+
+    @Override
+    public Object getComponentValue(Field field) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public boolean setComponentValue(Object value) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
 }

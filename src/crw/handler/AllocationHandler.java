@@ -18,6 +18,8 @@ import sami.event.GeneratedEventListenerInt;
 import sami.event.GeneratedInputEventSubscription;
 import sami.event.OutputEvent;
 import sami.handler.EventHandlerInt;
+import sami.markup.Markup;
+import sami.markup.NumberOptions;
 import sami.mission.Token;
 import sami.mission.TokenSpecification.TokenType;
 import sami.service.information.InformationServer;
@@ -45,6 +47,15 @@ public class AllocationHandler implements EventHandlerInt, InformationServicePro
         }
 
         final ResourceAllocationRequest request = new ResourceAllocationRequest();
+        int numOptions = NumberOptions.DEFAULT_NUM_OPTIONS;
+        for (Markup markup : oe.getMarkups()) {
+            if (markup instanceof NumberOptions) {
+                numOptions = ((NumberOptions) markup).numberOption.number;
+                break;
+            }
+        }
+        request.setNoOptions(numOptions);
+
         ArrayList<ITask> tasks = new ArrayList<ITask>();
         LOGGER.log(Level.FINE, "\tTokens");
         for (Token token : tokens) {

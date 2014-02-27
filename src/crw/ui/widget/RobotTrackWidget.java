@@ -7,7 +7,6 @@ import sami.proxy.ProxyListenerInt;
 import sami.proxy.ProxyServerListenerInt;
 import sami.engine.Engine;
 import crw.proxy.BoatProxy;
-import crw.ui.component.UiWidget;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.RenderableLayer;
@@ -17,28 +16,38 @@ import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.logging.Logger;
-import sami.markup.Attention;
+import sami.markup.Markup;
 import sami.markup.RelevantProxy;
-import sami.path.Location;
+import sami.uilanguage.MarkupComponent;
+import sami.uilanguage.MarkupComponentHelper;
+import sami.uilanguage.MarkupComponentWidget;
+import sami.uilanguage.MarkupManager;
 
 /**
  *
  * @author nbb
  */
-public class RobotTrackWidget extends UiWidget implements WorldWindWidgetInt, ProxyServerListenerInt {
+public class RobotTrackWidget implements MarkupComponentWidget, WorldWindWidgetInt, ProxyServerListenerInt {
 
-//    static {
-//        computeUiComponent();
-//    }
+    // MarkupComponentWidget variables
+    public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
+    public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
+    //
     private static final Logger LOGGER = Logger.getLogger(RobotTrackWidget.class.getName());
     private boolean visible = true;
     private Hashtable<BoatProxy, BoatProxyListener> proxyToListener = new Hashtable<BoatProxy, BoatProxyListener>();
     private RenderableLayer renderableLayer;
     private WorldWindPanel wwPanel;
+
+    public RobotTrackWidget() {
+        populateLists();
+    }
 
     public RobotTrackWidget(WorldWindPanel wwPanel) {
         this.wwPanel = wwPanel;
@@ -221,9 +230,60 @@ public class RobotTrackWidget extends UiWidget implements WorldWindWidgetInt, Pr
         }
     }
 
-//    public static void computeUiComponent() {
-//        // Markups
-//        supportedMarkups.add(RelevantProxy.ShowPaths.NO);
-//        supportedMarkups.add(RelevantProxy.ShowPaths.YES);
-//    }
+    private void populateLists() {
+        // Creation
+        //
+        // Visualization
+        //
+        // Markups
+        supportedMarkups.add(RelevantProxy.ShowPaths.YES);
+        supportedMarkups.add(RelevantProxy.ShowPaths.NO);
+        // Widgets
+        //    
+    }
+
+    @Override
+    public int getSelectionWidgetScore(Object selectionObject, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, selectionObject.getClass(), markups);
+    }
+
+    @Override
+    public int getMarkupScore(ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getMarkupWidgetScore(supportedMarkups, markups);
+    }
+
+    @Override
+    public int getCreationWidgetScore(Class creationClass, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, creationClass, markups);
+    }
+
+    @Override
+    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Class creationClass, ArrayList<Markup> markups) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public Object getComponentValue(Field field) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public boolean setComponentValue(Object value) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void disableMarkup(Markup markup) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
 }

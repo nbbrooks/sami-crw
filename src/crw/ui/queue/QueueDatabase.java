@@ -1,6 +1,8 @@
 package crw.ui.queue;
 
+import sami.uilanguage.MarkupManager;
 import java.util.Comparator;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.logging.Logger;
@@ -18,7 +20,9 @@ public class QueueDatabase {
     UiClientInt uiClient;
     UiServerInt uiServer;
     private PriorityQueue<ToUiMessage> incomingDecisions = new PriorityQueue<ToUiMessage>(11, new MessageComparator());
-    private Thread myThread;
+    
+    // private
+    public Hashtable<ToUiMessage, MarkupManager> parentLookup = new Hashtable<ToUiMessage, MarkupManager>();
 
     public QueueDatabase() {
     }
@@ -37,8 +41,15 @@ public class QueueDatabase {
         return incomingDecisions.size();
     }
 
-    public void addDecision(ToUiMessage decisionMessage) {
+    public void addDecision(ToUiMessage decisionMessage, MarkupManager parent) {
         incomingDecisions.add(decisionMessage);
+        
+        
+        parentLookup.put(decisionMessage, parent);
+    }
+
+    public MarkupManager getParent(ToUiMessage decisionMessage) {
+        return parentLookup.get(decisionMessage);
     }
 
     public class MessageComparator implements Comparator<ToUiMessage> {

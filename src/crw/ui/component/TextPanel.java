@@ -1,25 +1,51 @@
 package crw.ui.component;
 
+import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
+import com.perc.mitpas.adi.mission.planning.task.ITask;
+import crw.proxy.BoatProxy;
+import crw.ui.ColorSlider;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
 import java.lang.reflect.Field;
-import java.util.logging.Level;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Map;
 import java.util.logging.Logger;
-import sami.markup.Attention;
-import sami.markup.Priority;
+import javax.swing.BorderFactory;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.table.TableCellRenderer;
+import sami.allocation.ResourceAllocation;
+import sami.markup.Markup;
+import sami.uilanguage.MarkupComponent;
+import sami.uilanguage.MarkupComponentHelper;
+import sami.uilanguage.MarkupManager;
 
 /**
  *
  * @author nbb
  */
-public class TextPanel extends UiComponent {
+public class TextPanel implements MarkupComponent {
 
-    static {
-        computeUiComponent();
-    }
+    // MarkupComponent variables
+    public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
+    public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
+    public final ArrayList<Class> widgetClasses = new ArrayList<Class>();
+    public JComponent component = null;
+    //
+    private final static Logger LOGGER = Logger.getLogger(TextPanel.class.getName());
 
     public TextPanel() {
+        populateLists();
     }
 
-    public static void computeUiComponent() {
+    private void populateLists() {
         // Creation
         supportedCreationClasses.add(String.class);
         supportedCreationClasses.add(Double.class);
@@ -30,7 +56,8 @@ public class TextPanel extends UiComponent {
         supportedCreationClasses.add(float.class);
         supportedCreationClasses.add(int.class);
         supportedCreationClasses.add(long.class);
-
+        supportedCreationClasses.add(Enum.class);
+        supportedCreationClasses.add(Color.class);
         // Visualization
         supportedSelectionClasses.add(String.class);
         supportedSelectionClasses.add(Double.class);
@@ -41,29 +68,205 @@ public class TextPanel extends UiComponent {
         supportedSelectionClasses.add(float.class);
         supportedSelectionClasses.add(int.class);
         supportedSelectionClasses.add(long.class);
-
+        supportedSelectionClasses.add(Enum.class);
+        supportedSelectionClasses.add(Color.class);
+        supportedSelectionClasses.add(ResourceAllocation.class);
+        supportedSelectionClasses.add(BoatProxy.class);
         // Markups
-        supportedMarkups.add(Attention.AttentionEnd.ON_CLICK);
-        supportedMarkups.add(Attention.AttentionTarget.FRAME);
-        supportedMarkups.add(Attention.AttentionTarget.PANEL);
-        supportedMarkups.add(Attention.AttentionType.BLINK);
-        supportedMarkups.add(Attention.AttentionType.HIGHLIGHT);
-        supportedMarkups.add(Priority.Ranking.LOW);
-        supportedMarkups.add(Priority.Ranking.MEDIUM);
-        supportedMarkups.add(Priority.Ranking.HIGH);
-        supportedMarkups.add(Priority.Ranking.CRITICAL);
+        // Instructional text
+    }
 
-        for (Class widgetClass : widgetClasses) {
-            if ((UiWidget.class).isAssignableFrom(widgetClass)) {
-                try {
-                    Field field = widgetClass.getField("supportedMarkups");
-                    System.out.println(field);
-                } catch (NoSuchFieldException ex) {
-                    Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (SecurityException ex) {
-                    Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
+    @Override
+    public int getCreationComponentScore(Class creationClass, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedMarkups, widgetClasses, creationClass, markups);
+    }
+
+    @Override
+    public int getSelectionComponentScore(Class selectionClass, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedMarkups, widgetClasses, selectionClass, markups);
+    }
+
+    @Override
+    public int getMarkupScore(ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getMarkupComponentScore(supportedMarkups, widgetClasses, markups);
+    }
+
+    @Override
+    public MarkupComponent useCreationComponent(Class objectClass, ArrayList<Markup> markups) {
+        if (objectClass.equals(Color.class)) {
+            component = new ColorSlider();
+            component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
+        } else if (objectClass.equals(String.class)
+                || objectClass.equals(Double.class)
+                || objectClass.equals(Float.class)
+                || objectClass.equals(Integer.class)
+                || objectClass.equals(Long.class)
+                || objectClass.equals(double.class)
+                || objectClass.equals(float.class)
+                || objectClass.equals(int.class)
+                || objectClass.equals(long.class)) {
+            component = new JTextField();
+            component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
+        } else if (objectClass.isEnum()) {
+            component = new JComboBox(objectClass.getEnumConstants());
+        } else {
+            LOGGER.severe("Could not generate component for object class: " + objectClass);
+        }
+        return this;
+    }
+
+    @Override
+    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups) {
+        if (object instanceof ResourceAllocation) {
+            Map<ITask, AbstractAsset> allocation = ((ResourceAllocation) object).getAllocation();
+            if (allocation.isEmpty()) {
+                return null;
+            }
+            Object[][] table = new Object[allocation.size()][3];
+            Object[] header = new Object[]{"", "", ""};
+            int row = 0;
+            for (ITask task : allocation.keySet()) {
+                AbstractAsset asset = allocation.get(task);
+                table[row][0] = asset.getName() + " (" + asset.getClass().getSimpleName() + ")";
+                table[row][1] = " \u21e8 ";
+                table[row][2] = task.getName() + " (" + task.getClass().getSimpleName() + ")";
+                row++;
+            }
+            component = new JTable(table, header);
+            ((JTable) component).setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+            int width;
+            for (int c = 0; c < table[0].length; c++) {
+                width = 0;
+                for (int r = 0; r < table.length; r++) {
+                    TableCellRenderer renderer = ((JTable) component).getCellRenderer(r, c);
+                    Component comp = ((JTable) component).prepareRenderer(renderer, r, c);
+                    width = Math.max(comp.getPreferredSize().width + ((JTable) component).getIntercellSpacing().width, width);
+                }
+                ((JTable) component).getColumnModel().getColumn(c).setMaxWidth(width);
+            }
+            ((JTable) component).setShowGrid(false);
+        } else if (object instanceof BoatProxy) {
+            BoatProxy boatProxy = (BoatProxy) object;
+            component = new JLabel(boatProxy.toString());
+            component.setFont(new java.awt.Font("Lucida Grande", 1, 13));
+            component.setBorder(BorderFactory.createLineBorder(boatProxy.getColor(), 6));
+            component.setForeground(boatProxy.getColor());
+            component.setOpaque(true);
+        } else if (object instanceof Color) {
+            component = new JPanel();
+            component.setBackground((Color) object);
+        } else if (object instanceof Hashtable) {
+            Hashtable hashtable = ((Hashtable) object);
+            Object keyObject = null, valueObject = null;
+            if (hashtable.size() > 0) {
+                for (Object key : hashtable.keySet()) {
+                    if (key != null && hashtable.get(key) != null) {
+                        keyObject = key;
+                        valueObject = hashtable.get(key);
+                        break;
+                    }
                 }
             }
+            if (keyObject != null && valueObject != null) {
+                component = handleHashtable(hashtable, keyObject, valueObject);
+            }
+        } else if (object instanceof String
+                || object instanceof Double
+                || object instanceof Float
+                || object instanceof Integer
+                || object instanceof Long //
+                // || object instanceof double
+                // || object instanceof float
+                // || object instanceof int
+                // || object instanceof long
+                ) {
+            component = new JLabel(object.toString());
+        } else {
+            LOGGER.severe("Could not selection component for object class: " + object.getClass().getSimpleName());
         }
+        return this;
+    }
+
+    public static JComponent handleHashtable(Hashtable hashtable, Object keyObject, Object valueObject) {
+        if (keyObject == null || valueObject == null) {
+            return null;
+        }
+        JComponent component = null;
+        return component;
+    }
+
+    @Override
+    public JComponent getComponent() {
+        return component;
+    }
+
+    @Override
+    public Object getComponentValue(Field field) {
+        Object value = null;
+        if (component instanceof JTextField) {
+            String text = ((JTextField) component).getText();
+
+            if (text.length() > 0) {
+                try {
+                    if (field.getType().equals(String.class)) {
+                        value = text;
+                    } else if (field.getType().equals(Double.class)) {
+                        value = new Double(text);
+                    } else if (field.getType().equals(Float.class)) {
+                        value = new Float(text);
+                    } else if (field.getType().equals(Integer.class)) {
+                        value = new Integer(text);
+                    } else if (field.getType().equals(Long.class)) {
+                        value = new Long(text);
+                    } else if (field.getType().equals(double.class)) {
+                        value = Double.parseDouble(text);
+                    } else if (field.getType().equals(float.class)) {
+                        value = Float.parseFloat(text);
+                    } else if (field.getType().equals(int.class)) {
+                        value = Integer.parseInt(text);
+                    } else if (field.getType().equals(long.class)) {
+                        value = Long.parseLong(text);
+                    }
+                } catch (Exception e) {
+                    LOGGER.warning("Exception encountered when trying to get value for field type: " + field.getType() + " from text: " + text + ", setting value to null with exception: " + e);
+                    value = null;
+                }
+            }
+        } else if (component instanceof JComboBox) {
+            value = ((JComboBox) component).getSelectedItem();
+
+        } else if (component instanceof ColorSlider) {
+            if (field.getType().equals(Color.class)) {
+                value = component.getBackground();
+            }
+        }
+        return value;
+    }
+
+    @Override
+    public boolean setComponentValue(Object value) {
+        boolean success = false;
+        if (component instanceof JTextField) {
+            ((JTextField) component).setText(value.toString());
+        } else if (component instanceof JComboBox) {
+            ((JComboBox) component).setSelectedItem(value);
+        } else if (component instanceof ColorSlider) {
+            if (value instanceof Color) {
+                ((ColorSlider) component).setBackground((Color) value);
+            }
+        } else {
+            LOGGER.severe("Could not set component value for component: " + component + " and value class: " + value.getClass().getSimpleName());
+        }
+        return success;
+    }
+
+    @Override
+    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+        // No dynamic markups handled
+    }
+
+    @Override
+    public void disableMarkup(Markup markup) {
+        // No dynamic markups handled
     }
 }
