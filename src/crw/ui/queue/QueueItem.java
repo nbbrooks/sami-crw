@@ -169,12 +169,8 @@ public class QueueItem {
                 int maxColWidth = BUTTON_WIDTH;
                 int cumulComponentHeight = 0;
                 for (final Object option : selectionMessage.getOptionsList()) {
-                    MarkupComponent markupComponent = CrwUiComponentGenerator.getInstance().getSelectionComponent(option, selectionMessage.getMarkups());
+                    MarkupComponent markupComponent = CrwUiComponentGenerator.getInstance().getSelectionComponent(option.getClass(), option, selectionMessage.getMarkups());
                     JComponent visualization = markupComponent.getComponent();
-
-                    System.out.println("objectVisualization.getMaximumSize(): " + visualization.getMaximumSize().toString());
-                    System.out.println("objectVisualization.getSize(): " + visualization.getSize().toString());
-
                     JComponent button;
                     if (selectionMessage.getAllowMultiple()) {
                         button = new JCheckBox("Use " + row, false);

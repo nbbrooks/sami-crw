@@ -8,6 +8,8 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map;
@@ -77,13 +79,13 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public int getCreationComponentScore(Class creationClass, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedMarkups, widgetClasses, creationClass, markups);
+    public int getCreationComponentScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedMarkups, widgetClasses, type, markups);
     }
 
     @Override
-    public int getSelectionComponentScore(Class selectionClass, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedMarkups, widgetClasses, selectionClass, markups);
+    public int getSelectionComponentScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedMarkups, widgetClasses, type, markups);
     }
 
     @Override
@@ -92,32 +94,57 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public MarkupComponent useCreationComponent(Class objectClass, ArrayList<Markup> markups) {
-        if (objectClass.equals(Color.class)) {
-            component = new ColorSlider();
-            component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
-        } else if (objectClass.equals(String.class)
-                || objectClass.equals(Double.class)
-                || objectClass.equals(Float.class)
-                || objectClass.equals(Integer.class)
-                || objectClass.equals(Long.class)
-                || objectClass.equals(double.class)
-                || objectClass.equals(float.class)
-                || objectClass.equals(int.class)
-                || objectClass.equals(long.class)) {
-            component = new JTextField();
-            component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
-        } else if (objectClass.isEnum()) {
-            component = new JComboBox(objectClass.getEnumConstants());
+    public MarkupComponent useCreationComponent(Type type, ArrayList<Markup> markups) {
+        if (type instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) type;
+            if(pt.getRawType() instanceof Class && Hashtable.class.isAssignableFrom((Class)pt.getRawType())) {
+                component = handleCreationHashtable(pt);
+            }
+            return this;
+        } else if (type instanceof Class) {
+            Class objectClass = (Class) type;
+            if (objectClass.equals(Color.class)) {
+                component = new ColorSlider();
+                component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
+            } else if (objectClass.equals(String.class)
+                    || objectClass.equals(Double.class)
+                    || objectClass.equals(Float.class)
+                    || objectClass.equals(Integer.class)
+                    || objectClass.equals(Long.class)
+                    || objectClass.equals(double.class)
+                    || objectClass.equals(float.class)
+                    || objectClass.equals(int.class)
+                    || objectClass.equals(long.class)) {
+                component = new JTextField();
+                component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
+            } else if (objectClass.isEnum()) {
+                component = new JComboBox(objectClass.getEnumConstants());
+            } else {
+                LOGGER.severe("Could not generate component for object class: " + objectClass);
+            }
         } else {
-            LOGGER.severe("Could not generate component for object class: " + objectClass);
+            LOGGER.severe("Tried to generate a componenent for type that was not a ParameterizedType or Class: " + type);
+
         }
         return this;
     }
 
     @Override
     public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups) {
-        if (object instanceof ResourceAllocation) {
+        if (object instanceof Hashtable) {
+            Hashtable hashtable = (Hashtable) object;
+            if (hashtable.size() > 0) {
+                for (Object key : hashtable.keySet()) {
+                    if (key != null && hashtable.get(key) != null) {
+                        component = handleSelectionHashtable(hashtable, key, object);
+                        break;
+                    }
+                }
+            } else {
+                component = new JLabel("Empty");
+            }
+            return this;
+        } else if (object instanceof ResourceAllocation) {
             Map<ITask, AbstractAsset> allocation = ((ResourceAllocation) object).getAllocation();
             if (allocation.isEmpty()) {
                 return null;
@@ -155,21 +182,6 @@ public class TextPanel implements MarkupComponent {
         } else if (object instanceof Color) {
             component = new JPanel();
             component.setBackground((Color) object);
-        } else if (object instanceof Hashtable) {
-            Hashtable hashtable = ((Hashtable) object);
-            Object keyObject = null, valueObject = null;
-            if (hashtable.size() > 0) {
-                for (Object key : hashtable.keySet()) {
-                    if (key != null && hashtable.get(key) != null) {
-                        keyObject = key;
-                        valueObject = hashtable.get(key);
-                        break;
-                    }
-                }
-            }
-            if (keyObject != null && valueObject != null) {
-                component = handleHashtable(hashtable, keyObject, valueObject);
-            }
         } else if (object instanceof String
                 || object instanceof Double
                 || object instanceof Float
@@ -182,12 +194,19 @@ public class TextPanel implements MarkupComponent {
                 ) {
             component = new JLabel(object.toString());
         } else {
+            component = new JLabel("No component found");
             LOGGER.severe("Could not selection component for object class: " + object.getClass().getSimpleName());
+
         }
         return this;
     }
 
-    public static JComponent handleHashtable(Hashtable hashtable, Object keyObject, Object valueObject) {
+    public JComponent handleCreationHashtable(ParameterizedType type) {
+        JComponent component = new JLabel("No component found");
+        return component;
+    }
+
+    public JComponent handleSelectionHashtable(Hashtable hashtable, Object keyObject, Object valueObject) {
         if (keyObject == null || valueObject == null) {
             return null;
         }

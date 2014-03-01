@@ -4,7 +4,6 @@ import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.view.orbit.OrbitViewInputHandler;
 import java.awt.event.MouseEvent;
 import java.util.Vector;
-import crw.ui.widget.WorldWindWidgetInt;
 
 /**
  *

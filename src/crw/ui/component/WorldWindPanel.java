@@ -7,7 +7,7 @@ import crw.ui.widget.RobotWidget;
 import crw.ui.widget.SelectGeometryWidget;
 import crw.ui.widget.SelectGeometryWidget.SelectMode;
 import crw.ui.widget.SensorDataWidget;
-import crw.ui.widget.WorldWindWidgetInt;
+import crw.ui.worldwind.WorldWindWidgetInt;
 import gov.nasa.worldwind.awt.MouseInputActionHandler;
 import gov.nasa.worldwind.awt.WorldWindowGLCanvas;
 import gov.nasa.worldwind.layers.Layer;
@@ -38,6 +38,7 @@ import gov.nasa.worldwind.view.orbit.FlatOrbitView;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -219,13 +220,13 @@ public class WorldWindPanel implements MarkupComponent {
     }
 
     @Override
-    public int getCreationComponentScore(Class creationClass, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedMarkups, widgetClasses, creationClass, markups);
+    public int getCreationComponentScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedMarkups, widgetClasses, type, markups);
     }
 
     @Override
-    public int getSelectionComponentScore(Class selectionClass, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedMarkups, widgetClasses, selectionClass, markups);
+    public int getSelectionComponentScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedMarkups, widgetClasses, type, markups);
     }
 
     @Override
@@ -234,17 +235,18 @@ public class WorldWindPanel implements MarkupComponent {
     }
 
     @Override
-    public MarkupComponent useCreationComponent(Class objectClass, ArrayList<Markup> markups) {
+    public MarkupComponent useCreationComponent(Type type, ArrayList<Markup> markups) {
         if (wwCanvas == null) {
             createMap();
         }
         for (Class widgetClass : widgetClasses) {
             try {
                 MarkupComponentWidget widgetInstance = (MarkupComponentWidget) widgetClass.newInstance();
-                int widgetScore = widgetInstance.getCreationWidgetScore(objectClass, markups);
-                if (widgetScore >= 0) {
-                    MarkupComponentWidget widget = (MarkupComponentWidget) widgetInstance;
-                    addWidget((WorldWindWidgetInt) widget.addCreationWidget(this, objectClass, markups));
+                int widgetCreationScore = widgetInstance.getCreationWidgetScore(type, markups);
+                int widgetMarkupScore = widgetInstance.getMarkupScore(markups);
+                if (widgetCreationScore >= 0 || widgetMarkupScore > 0) {
+                    MarkupComponentWidget widget = ((MarkupComponentWidget) widgetInstance).addCreationWidget(this, type, markups);
+                    addWidget((WorldWindWidgetInt) widget);
                 }
             } catch (InstantiationException ex) {
                 Logger.getLogger(WorldWindPanel.class.getName()).log(Level.SEVERE, null, ex);
@@ -263,10 +265,10 @@ public class WorldWindPanel implements MarkupComponent {
         for (Class widgetClass : widgetClasses) {
             try {
                 MarkupComponentWidget widgetInstance = (MarkupComponentWidget) widgetClass.newInstance();
-                int widgetScore = widgetInstance.getSelectionWidgetScore(object.getClass(), markups);
-                if (widgetScore >= 0) {
-                    MarkupComponentWidget widget = (MarkupComponentWidget) widgetInstance;
-                    widget.addSelectionWidget(this, object, markups);
+                int widgetSelectionScore = widgetInstance.getSelectionWidgetScore(object.getClass(), markups);
+                int widgetMarkupScore = widgetInstance.getMarkupScore(markups);
+                if (widgetSelectionScore >= 0 || widgetMarkupScore > 0) {
+                    MarkupComponentWidget widget = ((MarkupComponentWidget) widgetInstance).addSelectionWidget(this, object, markups);
                     addWidget((WorldWindWidgetInt) widget);
                 }
             } catch (InstantiationException ex) {

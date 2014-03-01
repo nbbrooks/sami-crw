@@ -27,9 +27,6 @@ public class MapFrame extends UiFrame {
         // Add map
         wwPanel = new WorldWindPanel();
         wwPanel.createMap();
-        List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.POINT, SelectGeometryWidget.SelectMode.PATH, SelectGeometryWidget.SelectMode.AREA, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
-        SelectGeometryWidget select = new SelectGeometryWidget(wwPanel, modes, SelectGeometryWidget.SelectMode.NONE);
-        wwPanel.addWidget(select);
         getContentPane().add(wwPanel.component, BorderLayout.CENTER);
         // Add widgets
         SensorDataWidget data = new SensorDataWidget(wwPanel);

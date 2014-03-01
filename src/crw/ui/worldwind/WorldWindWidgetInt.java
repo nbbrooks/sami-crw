@@ -1,4 +1,4 @@
-package crw.ui.widget;
+package crw.ui.worldwind;
 
 import crw.ui.component.WorldWindPanel;
 import gov.nasa.worldwind.WorldWindow;

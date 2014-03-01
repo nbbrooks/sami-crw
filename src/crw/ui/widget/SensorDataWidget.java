@@ -1,5 +1,6 @@
 package crw.ui.widget;
 
+import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.Conversion;
 import edu.cmu.ri.crw.VehicleServer;
@@ -28,6 +29,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -38,6 +40,7 @@ import javax.swing.JPanel;
 import sami.engine.Engine;
 import sami.event.InputEvent;
 import sami.markup.Markup;
+import sami.markup.RelevantInformation;
 import sami.sensor.Observation;
 import sami.sensor.ObservationListenerInt;
 import sami.sensor.ObserverInt;
@@ -517,19 +520,18 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
         // Visualization
         //
         // Markups
-        //
-        // Widgets
-        //
+        supportedMarkups.add(RelevantInformation.Information.SPECIFY);
+        supportedMarkups.add(RelevantInformation.Visualization.HEATMAP);
     }
 
     @Override
-    public int getCreationWidgetScore(Class creationClass, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, creationClass, markups);
+    public int getCreationWidgetScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, type, markups);
     }
 
     @Override
-    public int getSelectionWidgetScore(Object selectionObject, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, selectionObject.getClass(), markups);
+    public int getSelectionWidgetScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, type, markups);
     }
 
     @Override
@@ -538,32 +540,52 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     }
 
     @Override
-    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Class creationClass, ArrayList<Markup> markups) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Type type, ArrayList<Markup> markups) {
+        MarkupComponentWidget widget = null;
+        for (Markup markup : markups) {
+            if (markup instanceof RelevantInformation) {
+                RelevantInformation relevantInformation = (RelevantInformation) markup;
+                if (relevantInformation.information == RelevantInformation.Information.SPECIFY) {
+                    if (relevantInformation.visualization == RelevantInformation.Visualization.HEATMAP) {
+                        widget = new SensorDataWidget((WorldWindPanel) component);
+                    }
+                }
+            }
+        }
+        return widget;
     }
 
     @Override
     public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        MarkupComponentWidget widget = null;
+        for (Markup markup : markups) {
+            if (markup instanceof RelevantInformation) {
+                RelevantInformation relevantInformation = (RelevantInformation) markup;
+                if (relevantInformation.information == RelevantInformation.Information.SPECIFY) {
+                    if (relevantInformation.visualization == RelevantInformation.Visualization.HEATMAP) {
+                        widget = new SensorDataWidget((WorldWindPanel) component);
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Override
     public Object getComponentValue(Field field) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return null;
     }
 
     @Override
     public boolean setComponentValue(Object value) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return false;
     }
 
     @Override
     public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
     public void disableMarkup(Markup markup) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

@@ -1,5 +1,6 @@
 package crw.ui.widget;
 
+import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.Helper;
 import crw.event.output.proxy.ProxyExecutePath;
@@ -29,6 +30,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -40,6 +43,7 @@ import sami.event.GeneratedEventListenerInt;
 import sami.event.InputEvent;
 import sami.event.OutputEvent;
 import sami.markup.Markup;
+import sami.markup.RelevantInformation;
 import sami.markup.RelevantProxy;
 import sami.path.Location;
 import sami.path.Path;
@@ -567,41 +571,69 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         // Markups
         supportedMarkups.add(RelevantProxy.Proxies.ALL_PROXIES);
         supportedMarkups.add(RelevantProxy.Proxies.RELEVANT_PROXIES);
-        // Widgets
-        //
     }
 
     @Override
-    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+    public int getCreationWidgetScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, type, markups);
     }
 
     @Override
-    public void disableMarkup(Markup markup) {
-    }
-
-    @Override
-    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Class creationClass, ArrayList<Markup> markups) {
-        return null;
-    }
-
-    @Override
-    public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
-        return null;
-    }
-
-    @Override
-    public int getCreationWidgetScore(Class creationClass, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, creationClass, markups);
-    }
-
-    @Override
-    public int getSelectionWidgetScore(Object selectionObject, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, selectionObject.getClass(), markups);
+    public int getSelectionWidgetScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, type, markups);
     }
 
     @Override
     public int getMarkupScore(ArrayList<Markup> markups) {
         return MarkupComponentHelper.getMarkupWidgetScore(supportedMarkups, markups);
+    }
+
+    @Override
+    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Type type, ArrayList<Markup> markups) {
+        MarkupComponentWidget widget = null;
+        for (Markup markup : markups) {
+            if (markup instanceof RelevantProxy) {
+                RelevantProxy relevantProxy = (RelevantProxy) markup;
+                if (relevantProxy.proxies == RelevantProxy.Proxies.ALL_PROXIES) {
+                    //@todo What control modes?
+                    widget = new RobotWidget((WorldWindPanel) component);
+                } else if (relevantProxy.proxies == RelevantProxy.Proxies.RELEVANT_PROXIES) {
+                    //@todo Need to pass in token list for this
+                    //@todo What control modes?
+                    widget = new RobotWidget((WorldWindPanel) component);
+                }
+            }
+        }
+        return widget;
+    }
+
+    @Override
+    public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object object, ArrayList<Markup> markups) {
+        MarkupComponentWidget widget = null;
+        for (Markup markup : markups) {
+            if (markup instanceof RelevantInformation) {
+                RelevantInformation info = (RelevantInformation) markup;
+                if (info.information == RelevantInformation.Information.SPECIFY) {
+                    if (info.visualization == RelevantInformation.Visualization.HEATMAP) {
+                        widget = new SensorDataWidget((WorldWindPanel) component);
+                    }
+                }
+            }
+        }
+        return widget;
+    }
+
+    public MarkupComponentWidget handleCreationHashtable(ParameterizedType type) {
+        MarkupComponentWidget widget = null;
+        return widget;
+    }
+
+    public MarkupComponentWidget handleSelectionHashtable(Hashtable hashtable, Object keyObject, Object valueObject) {
+        MarkupComponentWidget widget = null;
+        if (keyObject == null || valueObject == null) {
+            return null;
+        }
+        return widget;
     }
 
     @Override
@@ -612,5 +644,13 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     @Override
     public boolean setComponentValue(Object value) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+    }
+
+    @Override
+    public void disableMarkup(Markup markup) {
     }
 }

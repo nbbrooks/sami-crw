@@ -4,6 +4,7 @@ import crw.ui.component.TextPanel;
 import crw.ui.component.WorldWindPanel;
 import java.awt.Component;
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.logging.Level;
@@ -75,7 +76,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
     }
 
     @Override
-    public MarkupComponent getCreationComponent(Class objectClass, ArrayList<Markup> markups) {
+    public MarkupComponent getCreationComponent(Type type, ArrayList<Markup> markups) {
         // Find the UiComponent class that can be used to create the object and supports the largest number of markups
         Class bestClass = null;
         int bestScore = -1;
@@ -83,7 +84,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
             if ((MarkupComponent.class).isAssignableFrom(compClass)) {
                 try {
                     MarkupComponent temp = (MarkupComponent) compClass.newInstance();
-                    int score = temp.getCreationComponentScore(objectClass, markups);
+                    int score = temp.getCreationComponentScore(type, markups);
 //                    System.out.println("### Creation component score of class " + compClass + " for object class " + objectClass.getSimpleName() + " and markups " + markups.toString() + " is " + score);
                     if (score > -1 && score > bestScore) {
                         bestScore = score;
@@ -102,20 +103,20 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
 //            System.out.println("### Best creation class for " + objectClass.getSimpleName() + " is " + bestClass.getSimpleName());
             try {
                 MarkupComponent temp = (MarkupComponent) bestClass.newInstance();
-                component = temp.useCreationComponent(objectClass, markups);
+                component = temp.useCreationComponent(type, markups);
             } catch (InstantiationException ex) {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             } catch (IllegalAccessException ex) {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             }
         } else {
-            LOGGER.severe("Could not find creation component for object class: " + objectClass.getSimpleName() + " with markups: " + markups.toString());
+            LOGGER.severe("Could not find creation component for object of type: " + type + " with markups: " + markups.toString());
         }
         return component;
     }
 
     @Override
-    public MarkupComponent getSelectionComponent(Object selectionObject, ArrayList<Markup> markups) {
+    public MarkupComponent getSelectionComponent(Type type, Object value, ArrayList<Markup> markups) {
         // Find the UiComponent class that can be used to create the object and supports the largest number of markups
         Class bestClass = null;
         int bestScore = -1;
@@ -123,7 +124,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
             if ((MarkupComponent.class).isAssignableFrom(compClass)) {
                 try {
                     MarkupComponent temp = (MarkupComponent) compClass.newInstance();
-                    int score = temp.getSelectionComponentScore(selectionObject.getClass(), markups);
+                    int score = temp.getSelectionComponentScore(type, markups);
 //                    System.out.println("### Selection component score of class " + compClass + " for object class " + selectionObject.getClass().getSimpleName() + " and markups " + markups.toString() + " is " + score);
                     if (score > -1 && score > bestScore) {
                         bestScore = score;
@@ -142,14 +143,14 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
 //            System.out.println("### Best selection class for " + selectionObject.getClass().getSimpleName() + " is " + bestClass.getSimpleName());
             try {
                 MarkupComponent temp = (MarkupComponent) bestClass.newInstance();
-                component = temp.useSelectionComponent(selectionObject, markups);
+                component = temp.useSelectionComponent(value, markups);
             } catch (InstantiationException ex) {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             } catch (IllegalAccessException ex) {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             }
         } else {
-            LOGGER.severe("Could not find selection component for object class: " + selectionObject.getClass().getSimpleName() + " with markups: " + markups.toString());
+            LOGGER.severe("Could not find selection component for object class: " + value.getClass().getSimpleName() + " with markups: " + markups.toString());
         }
         return component;
     }

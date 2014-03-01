@@ -1,6 +1,8 @@
 package crw.ui.widget;
 
+import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.Conversion;
+import crw.proxy.BoatProxy;
 import crw.ui.component.WorldWindPanel;
 import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.WorldWindow;
@@ -30,8 +32,11 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Hashtable;
 import java.util.List;
 import javax.swing.JButton;
 import javax.swing.JPanel;
@@ -39,6 +44,7 @@ import sami.area.Area2D;
 import sami.markup.Markup;
 import sami.path.Location;
 import sami.path.PathUtm;
+import sami.proxy.ProxyInt;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.MarkupComponentHelper;
 import sami.uilanguage.MarkupComponentWidget;
@@ -439,20 +445,18 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
         supportedSelectionClasses.add(Area2D.class);
         // Markups
         //
-        // Widgets
-        //
     }
 
     @Override
-    public int getCreationWidgetScore(Class creationClass, ArrayList<Markup> markups) {
-        int score = MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, creationClass, markups);
+    public int getCreationWidgetScore(Type type, ArrayList<Markup> markups) {
+        int score = MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, type, markups);
 //        System.out.println("### Geom widget creation score for " + creationClass.getSimpleName() + ": " + score);
         return score;
     }
 
     @Override
-    public int getSelectionWidgetScore(Object selectionObject, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, selectionObject.getClass(), markups);
+    public int getSelectionWidgetScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, type, markups);
     }
 
     @Override
@@ -461,25 +465,42 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
     }
 
     @Override
-    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Class creationClass, ArrayList<Markup> markups) {
+    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Type type, ArrayList<Markup> markups) {
         MarkupComponentWidget widget = null;
-        if (creationClass.equals(Location.class)) {
-            List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.POINT, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
-            widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.POINT);
-        } else if (creationClass.equals(PathUtm.class)) {
-            List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.PATH, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
-            widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.PATH);
-        } else if (creationClass.equals(Area2D.class)) {
-            List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.AREA, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
-            widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.AREA);
+        if (type instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) type;
+            if (pt.getRawType() instanceof Class && Hashtable.class.isAssignableFrom((Class) pt.getRawType())) {
+                widget = handleCreationHashtable(component, pt);
+            }
+        } else if (type instanceof Class) {
+            Class creationClass = (Class) type;
+            if (creationClass.equals(Location.class)) {
+                List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.POINT, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
+                widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.POINT);
+            } else if (creationClass.equals(PathUtm.class)) {
+                List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.PATH, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
+                widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.PATH);
+            } else if (creationClass.equals(Area2D.class)) {
+                List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.AREA, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
+                widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.AREA);
+            }
         }
+        return widget;
+    }
+
+    public MarkupComponentWidget handleCreationHashtable(MarkupComponent component, ParameterizedType pt) {
+        MarkupComponentWidget widget = null;
+
         return widget;
     }
 
     @Override
     public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
         MarkupComponentWidget widget = null;
-        if (selectionObject instanceof Location) {
+        if (selectionObject instanceof Hashtable) {
+            Hashtable hashtable = (Hashtable) selectionObject;
+            widget = handleSelectionHashtable(component, hashtable);
+        } else if (selectionObject instanceof Location) {
             Location location = (Location) selectionObject;
             Position position = Conversion.locationToPosition(location);
 
@@ -528,6 +549,53 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
             polygon.setAttributes(attributes);
             select.addRenderable(polygon);
             widget = select;
+        }
+        return widget;
+    }
+
+    public MarkupComponentWidget handleSelectionHashtable(MarkupComponent component, Hashtable hashtable) {
+        MarkupComponentWidget widget = null;
+        Object keyObject = null;
+        Object valueObject = null;
+        if (hashtable.size() > 0) {
+            for (Object key : hashtable.keySet()) {
+                if (key != null && hashtable.get(key) != null) {
+                    keyObject = key;
+                    valueObject = hashtable.get(key);
+                    break;
+                }
+            }
+        }
+        if (keyObject == null || valueObject == null) {
+            return null;
+        }
+
+        if (keyObject instanceof ProxyInt && valueObject instanceof PathUtm) {
+            Hashtable<ProxyInt, PathUtm> proxyPaths = (Hashtable<ProxyInt, PathUtm>) hashtable;
+            SelectGeometryWidget select = new SelectGeometryWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
+            // Add paths
+            for (ProxyInt proxy : proxyPaths.keySet()) {
+                // Convert to locations to positions
+                List<Location> waypoints = ((PathUtm) proxyPaths.get(proxy)).getPoints();
+                List<Position> positions = new ArrayList<Position>();
+                // Convert from Locations to LatLons
+                for (Location waypoint : waypoints) {
+                    positions.add(Conversion.locationToPosition(waypoint));
+                }
+                // Create path renderable
+                Path path = new Path(positions);
+                ShapeAttributes attributes = new BasicShapeAttributes();
+                attributes.setOutlineWidth(8);
+                if (proxy instanceof BoatProxy) {
+                    attributes.setOutlineMaterial(new Material(((BoatProxy) proxy).getColor()));
+                } else {
+                    attributes.setOutlineMaterial(Material.YELLOW);
+                }
+                attributes.setDrawOutline(true);
+                path.setAttributes(attributes);
+                path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+                select.addRenderable(path);
+            }
         }
         return widget;
     }

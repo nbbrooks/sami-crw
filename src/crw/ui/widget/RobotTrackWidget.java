@@ -1,5 +1,6 @@
 package crw.ui.widget;
 
+import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import sami.event.InputEvent;
 import sami.proxy.ProxyInt;
@@ -17,6 +18,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -238,13 +240,16 @@ public class RobotTrackWidget implements MarkupComponentWidget, WorldWindWidgetI
         // Markups
         supportedMarkups.add(RelevantProxy.ShowPaths.YES);
         supportedMarkups.add(RelevantProxy.ShowPaths.NO);
-        // Widgets
-        //    
     }
 
     @Override
-    public int getSelectionWidgetScore(Object selectionObject, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, selectionObject.getClass(), markups);
+    public int getCreationWidgetScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, type, markups);
+    }
+
+    @Override
+    public int getSelectionWidgetScore(Type type, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, type, markups);
     }
 
     @Override
@@ -253,18 +258,41 @@ public class RobotTrackWidget implements MarkupComponentWidget, WorldWindWidgetI
     }
 
     @Override
-    public int getCreationWidgetScore(Class creationClass, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, creationClass, markups);
-    }
-
-    @Override
-    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Class creationClass, ArrayList<Markup> markups) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Type type, ArrayList<Markup> markups) {
+        MarkupComponentWidget widget = null;
+        for (Markup markup : markups) {
+            if (markup instanceof RelevantProxy) {
+                RelevantProxy relevantProxy = (RelevantProxy) markup;
+                if (relevantProxy.showPaths == RelevantProxy.ShowPaths.YES) {
+                    if (relevantProxy.proxies == RelevantProxy.Proxies.ALL_PROXIES) {
+                        widget = new RobotTrackWidget((WorldWindPanel) component);
+                    } else if (relevantProxy.proxies == RelevantProxy.Proxies.RELEVANT_PROXIES) {
+                        //@todo Need to pass in token list for this
+                        widget = new RobotTrackWidget((WorldWindPanel) component);
+                    }
+                }
+            }
+        }
+        return widget;
     }
 
     @Override
     public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        MarkupComponentWidget widget = null;
+        for (Markup markup : markups) {
+            if (markup instanceof RelevantProxy) {
+                RelevantProxy relevantProxy = (RelevantProxy) markup;
+                if (relevantProxy.showPaths == RelevantProxy.ShowPaths.YES) {
+                    if (relevantProxy.proxies == RelevantProxy.Proxies.ALL_PROXIES) {
+                        widget = new RobotTrackWidget((WorldWindPanel) component);
+                    } else if (relevantProxy.proxies == RelevantProxy.Proxies.RELEVANT_PROXIES) {
+                        //@todo Need to pass in token list for this
+                        widget = new RobotTrackWidget((WorldWindPanel) component);
+                    }
+                }
+            }
+        }
+        return widget;
     }
 
     @Override
