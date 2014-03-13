@@ -80,6 +80,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
             if (selectionMessage.getAllowMultiple() && (option instanceof ArrayList || option == null)) {
                 // Multiple boat selection
                 //@todo how to check element type of list? needs to be BoatProxy
+
                 if (option == null) {
                     fromUiMessage = new BoatProxyListSelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
                 } else {

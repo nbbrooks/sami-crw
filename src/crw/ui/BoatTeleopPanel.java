@@ -24,6 +24,7 @@ public class BoatTeleopPanel extends JPanel {
     private LayoutManager borderLayout = new BorderLayout();
     // shared data in data manager
     protected JButton jAuto;
+    protected GainsPanel gainsPanel;
     protected JoystickPanel jJoystick;
     protected JPanel buttonPanel;
     protected JButton autoButton;
@@ -54,6 +55,7 @@ public class BoatTeleopPanel extends JPanel {
             }
         });
 
+        gainsPanel = new GainsPanel();
         jJoystick = new JoystickPanel();
         jJoystick.addMouseListener(jJoystick);
         jJoystick.addMouseMotionListener(jJoystick);
@@ -65,6 +67,7 @@ public class BoatTeleopPanel extends JPanel {
             }
         });
         this.add(jJoystick, java.awt.BorderLayout.CENTER);
+        this.add(gainsPanel, java.awt.BorderLayout.SOUTH);
         this.addComponentListener(new ResizeListener());
     }
 
@@ -162,15 +165,33 @@ public class BoatTeleopPanel extends JPanel {
     protected void sendVelocity() {
         if (_vehicle != null) {
             Twist twist = new Twist();
-            twist.dx(fromProgressToRange(jJoystick.telThrustFrac, THRUST_MIN, THRUST_MAX));
-            twist.drz(fromProgressToRange(jJoystick.telRudderFrac, RUDDER_MIN, RUDDER_MAX));
+            double dx = fromProgressToRange(jJoystick.telThrustFrac, THRUST_MIN, THRUST_MAX, Double.valueOf(gainsPanel.maxVelocityF.getText()));
+            double drz = fromProgressToRange(jJoystick.telRudderFrac, RUDDER_MIN, RUDDER_MAX, Double.valueOf(gainsPanel.maxVelocityF.getText()));
+            constrainToCircle(twist, dx, drz, Double.valueOf(gainsPanel.maxVelocityF.getText()));
+//            System.out.println("### Twist: " + twist.toString());
             _vehicle.setVelocity(twist, null);
         }
     }
 
     // Converts from progress bar value to linear scaling between min and max
-    private double fromProgressToRange(double progress, double min, double max) {
-        return (min + (max - min) * progress);
+    private void constrainToCircle(Twist twist, double dx, double drz, double radius) {
+        double length = Math.sqrt(Math.pow(dx, 2) + Math.pow(drz, 2));
+        double div = length / radius;
+        if (div > 1) {
+            double angle = Math.atan2(drz, dx);
+            double newDx = radius * Math.cos(angle);
+            double newDrz = radius * Math.sin(angle);
+            twist.dx(newDx);
+            twist.drz(newDrz);
+        } else {
+            twist.dx(dx);
+            twist.drz(drz);
+        }
+    }
+
+    // Converts from progress bar value to linear scaling between min and max
+    private double fromProgressToRange(double progress, double min, double max, double gain) {
+        return (min + (max - min) * progress) * gain;
     }
 
     // Converts to progress bar value from linear scaling between min and max
@@ -223,6 +244,41 @@ public class BoatTeleopPanel extends JPanel {
         jJoystick.setPreferredSize(d);
         jJoystick.setSize(d);
         jJoystick.updateDims = true;
+    }
+
+    public class GainsPanel extends JPanel {
+
+        public JTextField maxVelocityF, thrustPF, thrustIF, thrustDF, rudderPF, rudderIF, rudderDF;
+        public JLabel maxVelocityL, thrustPL, thrustIL, thrustDL, rudderPL, rudderIL, rudderDL;
+        public JButton jApply = new JButton("Apply");
+//        public double thrustP, thrustI, thrustD, rudderP, rudderI, rudderD;
+
+        public GainsPanel() {
+            maxVelocityL = new JLabel("Velocity multiplier:");
+            thrustPL = new JLabel("Thrust P");
+            thrustIL = new JLabel("Thrust I");
+            thrustDL = new JLabel("Thrust D");
+            rudderPL = new JLabel("Rudder P");
+            rudderIL = new JLabel("Rudder I");
+            rudderDL = new JLabel("Rudder D");
+            maxVelocityF = new JTextField(".12");
+            thrustPF = new JTextField("5e-8");
+            thrustIF = new JTextField("5e-8");
+            thrustDF = new JTextField("5e-8");
+            rudderPF = new JTextField("5e-8");
+            rudderIF = new JTextField("5e-8");
+            rudderDF = new JTextField("5e-8");
+            add(maxVelocityL);
+            add(maxVelocityF);
+            jApply.addActionListener(new ActionListener() {
+
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    // Apply gains
+
+                }
+            });
+        }
     }
 
     public class JoystickPanel extends JPanel implements MouseListener, MouseMotionListener {

@@ -256,7 +256,7 @@ public class TextPanel implements MarkupComponent {
 
         } else if (component instanceof ColorSlider) {
             if (field.getType().equals(Color.class)) {
-                value = component.getBackground();
+                value = ((ColorSlider)component).getColor();
             }
         }
         return value;
@@ -271,7 +271,7 @@ public class TextPanel implements MarkupComponent {
             ((JComboBox) component).setSelectedItem(value);
         } else if (component instanceof ColorSlider) {
             if (value instanceof Color) {
-                ((ColorSlider) component).setBackground((Color) value);
+                ((ColorSlider) component).setColor((Color) value);
             }
         } else {
             LOGGER.severe("Could not set component value for component: " + component + " and value class: " + value.getClass().getSimpleName());

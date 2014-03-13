@@ -84,6 +84,7 @@ public class WorldWindInputAdapter extends OrbitViewInputHandler {
 
         // If no one "claims" the mouse click, translate the view
         Position newPos = new Position(wwd.getCurrentPosition().getLatitude(), wwd.getCurrentPosition().getLongitude(), wwd.getView().getCurrentEyePosition().getElevation());
+        System.out.println("Clicked: " + newPos.getLatitude() + ", " + newPos.getLongitude());
         wwd.getView().setEyePosition(newPos);
         wwd.redraw();
     }

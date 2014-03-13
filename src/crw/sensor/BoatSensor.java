@@ -99,7 +99,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
                                 synchronized (xs) {
                                     // Possibly add another
                                     if ((rand.nextDouble() < addRate && xs.size() < 20) || (xs.size() == 0)) {
-                                        System.out.println(">>>>>>>>>>>>>> Creating");
+                                        System.out.println(">>>>>>>>>>>>>> Creating fake boat sensor data");
                                         double lon = currLoc.longitude.degrees + (distFactor * (rand.nextDouble() - 0.5));
                                         double lat = currLoc.latitude.degrees + (distFactor * (rand.nextDouble() - 0.5));
                                         double value = rand.nextDouble() * valueFactor;

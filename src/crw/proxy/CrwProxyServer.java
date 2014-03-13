@@ -49,6 +49,10 @@ public class CrwProxyServer implements ProxyServerInt {
     public ProxyInt createProxy(String name, Color color, InetSocketAddress addr) {
         try {
             // Create proxy
+            if(color == null) {
+                LOGGER.severe("Boat proxy's color was null, using white");
+                color = Color.WHITE;
+            }
             ProxyInt proxy = new BoatProxy(name, color, proxyCounter, addr);
             proxyCounter++;
             proxies.add(proxy);

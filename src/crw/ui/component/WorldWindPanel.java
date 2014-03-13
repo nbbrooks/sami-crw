@@ -96,15 +96,19 @@ public class WorldWindPanel implements MarkupComponent {
         // Change mouse handler
         Configuration.setValue(AVKey.VIEW_INPUT_HANDLER_CLASS_NAME, WorldWindInputAdapter.class.getName());
         // @todo Make initial position configurable
-        // Doha Corniche
         if (Double.isNaN(lat) && Double.isNaN(lon) && Double.isNaN(alt)) {
+//            // Doha Corniche
 //            Configuration.setValue(AVKey.INITIAL_LATITUDE, 25.29636);
 //            Configuration.setValue(AVKey.INITIAL_LONGITUDE, 51.52699);
 //            Configuration.setValue(AVKey.INITIAL_ALTITUDE, 5000.0);
-//        // Pittsburgh
-            Configuration.setValue(AVKey.INITIAL_LATITUDE, 40.44515205369163);
-            Configuration.setValue(AVKey.INITIAL_LONGITUDE, -80.01877404355538);
-            Configuration.setValue(AVKey.INITIAL_ALTITUDE, 30000.0);
+//        // Katara Beach
+            Configuration.setValue(AVKey.INITIAL_LATITUDE, 25.354484741711);
+            Configuration.setValue(AVKey.INITIAL_LONGITUDE, 51.5283418997116);
+            Configuration.setValue(AVKey.INITIAL_ALTITUDE, 5000.0);
+////        // Pittsburgh
+//            Configuration.setValue(AVKey.INITIAL_LATITUDE, 40.44515205369163);
+//            Configuration.setValue(AVKey.INITIAL_LONGITUDE, -80.01877404355538);
+//            Configuration.setValue(AVKey.INITIAL_ALTITUDE, 30000.0);
         } else {
             Configuration.setValue(AVKey.INITIAL_LATITUDE, lat);
             Configuration.setValue(AVKey.INITIAL_LONGITUDE, lon);

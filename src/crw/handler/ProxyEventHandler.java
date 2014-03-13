@@ -68,6 +68,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
     int portCounter = 0;
+    final Random RANDOM = new Random();
 
     public ProxyEventHandler() {
         LOGGER.log(Level.FINE, "Adding ProxyEventHandler as service provider");
@@ -191,7 +192,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     // Send a blank path to the remaining proxies otherwise we won't get a ProxyPathComplete InputEvent                        
                     // Listen to the proxy
                     tokenProxies.get(proxyIndex).addListener(this);
-                //@todo we never stop listening
+                    //@todo we never stop listening
                     // Send the path
                     Hashtable<ProxyInt, Path> thisProxyPath = new Hashtable<ProxyInt, Path>();
                     thisProxyPath.put(tokenProxies.get(proxyIndex), new PathUtm(new ArrayList<Location>()));
@@ -342,11 +343,9 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     }
 
     private Color randomColor() {
-        Random rand = new Random();
-
-        float r = rand.nextFloat();
-        float g = rand.nextFloat();
-        float b = rand.nextFloat();
+        float r = RANDOM.nextFloat();
+        float g = RANDOM.nextFloat();
+        float b = RANDOM.nextFloat();
 
         return new Color(r, g, b);
     }

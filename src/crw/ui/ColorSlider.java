@@ -1,7 +1,9 @@
 package crw.ui;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
@@ -14,19 +16,47 @@ import javax.swing.event.ChangeListener;
 public class ColorSlider extends JPanel {
 
     JSlider slider;
+    JLabel nullLabel;
+    boolean nullColor;
+    final String NULL_TEXT = "<html><font color=rgb(188,6,6)>NULL</font></html>";
 
     public ColorSlider() {
-        super();
+        super(new BorderLayout());
+        nullLabel = new JLabel(NULL_TEXT);
+        nullColor = true;
         slider = new JSlider(0, 100, 0);
         slider.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent e) {
                 JSlider source = (JSlider) e.getSource();
-                setBackground(valueToColor(source.getValue(), 0, 100));
+                Color color = valueToColor(source.getValue(), 0, 100);
+                if (color != null) {
+                    nullLabel.setText(" ");
+                    nullColor = false;
+                    setBackground(color);
+                } else {
+                    // No selected color
+                    nullLabel.setText(NULL_TEXT);
+                    nullColor = true;
+                    setBackground(Color.WHITE);
+                }
             }
         });
-        setBackground(valueToColor(slider.getValue(), 0, 100));
-        add(slider);
+        add(slider, BorderLayout.NORTH);
+        add(nullLabel, BorderLayout.SOUTH);
+        setBackground(Color.WHITE);
+    }
+
+    public Color getColor() {
+        if (nullColor) {
+            return null;
+        } else {
+            return getBackground();
+        }
+    }
+
+    public void setColor(Color color) {
+        setBackground(color);
     }
 
     /**
@@ -39,6 +69,10 @@ public class ColorSlider extends JPanel {
      * @return Heatmap color
      */
     public Color valueToColor(double value, double min, double max) {
+        if (value == 0.0) {
+            // Need a way to not set the value
+            return null;
+        }
 
         double wavelength = 0.0, factor = 0.0, red = 0.0, green = 0.0, blue = 0.0, gamma = 1.0;
         double adjMin = min - 5;

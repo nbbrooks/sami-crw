@@ -158,7 +158,6 @@ public class BoatProxy extends Thread implements ProxyInt {
             public void receivedPose(UtmPose upwcs) {
 
                 // Logger.getLogger(this.getClass().getName()).log(Level.INFO, "Boat pose update", this);
-
                 _pose = upwcs.clone();
 
                 if (home == null && USE_SOFTWARE_FAIL_SAFE) {
@@ -166,7 +165,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                 }
 
                 // System.out.println("Pose: [" + _pose.pose.position.x + ", " + _pose.pose.position.y + "], zone = " + _pose.utm.zone);
-
                 try {
 
                     int longZone = _pose.origin.zone;
@@ -183,7 +181,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                     LatLon latlon = new LatLon(boatPos.getLatitude(), boatPos.getLongitude());
 
                     // System.out.println("boatPos " + boatPos.getLatitude() + " " +  boatPos.getLongitude() + " latlon " + latlon.latitude.degrees + " " + latlon.longitude.degrees + " " + latlon);
-
                     Position p = new Position(latlon, 0.0);
 
                     // Update state variables
@@ -211,12 +208,9 @@ public class BoatProxy extends Thread implements ProxyInt {
             public void waypointUpdate(WaypointState ws) {
 
                 if (ws.equals(WaypointState.DONE)) {
-                    
-                    
+
                     LOGGER.log(Level.INFO, "BoatProxy " + getName() + " got waypoint update " + ws + " (WaypointState.DONE)");
 
-                    
-                    
                     // Handle the go slow
                     if (goSlowExecuting) {
                         timeLastGoSlowDone = System.currentTimeMillis();
@@ -275,7 +269,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                         }
 
                         // ImagePanel.addImage(image, _pose);
-
                         latestImg = image;
                     } else {
                         LOGGER.warning("Image was null in receivedImage");
@@ -286,7 +279,6 @@ public class BoatProxy extends Thread implements ProxyInt {
 
             }
         }, null);
-
 
         for (int i = 0; i < 3; i++) {
             ((CrwObserverServer) Engine.getInstance().getObserverServer()).createObserver(this, i);
@@ -852,7 +844,6 @@ public class BoatProxy extends Thread implements ProxyInt {
         double dist = Math.sqrt(dx * dx + dy * dy);
 
         //System.out.println("Dist to waypoint now: " + dist);
-
         if (utm1.getHemisphere().equalsIgnoreCase(utm2.getHemisphere()) && utm1.getZone() == utm2.getZone()) {
             return dist < atWaypointTolerance;
         } else {
