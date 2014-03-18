@@ -1,5 +1,7 @@
 package crw.ui;
 
+import crw.proxy.BoatProxy;
+import crw.ui.teleop.GainsPanel;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.FunctionObserver;
 import edu.cmu.ri.crw.FunctionObserver.FunctionError;
@@ -21,15 +23,13 @@ import java.util.logging.Logger;
 public class BoatTeleopPanel extends JPanel {
 
     private static final Logger LOGGER = Logger.getLogger(BoatTeleopPanel.class.getName());
-    private LayoutManager borderLayout = new BorderLayout();
     // shared data in data manager
     protected JButton jAuto;
     protected GainsPanel gainsPanel;
     protected JoystickPanel jJoystick;
-    protected JPanel buttonPanel;
     protected JButton autoButton;
-    protected int maxTele = 1;
-    protected AsyncVehicleServer _vehicle = null;
+    protected BoatProxy activeProxy = null;
+    protected AsyncVehicleServer activeVehicle = null;
     public static final int DEFAULT_UPDATE_MS = 750;
     public static final int DEFAULT_COMMAND_MS = 200;
     // Ranges for thrust and rudder signals
@@ -38,13 +38,13 @@ public class BoatTeleopPanel extends JPanel {
     public static final double RUDDER_MIN = 1.0;
     public static final double RUDDER_MAX = -1.0;
     // Sets up a flag limiting the rate of velocity command transmission
-    public AtomicBoolean _sentVelCommand = new AtomicBoolean(false);
-    public AtomicBoolean _queuedVelCommand = new AtomicBoolean(false);
-    protected java.util.Timer _timer = new java.util.Timer();
+    private AtomicBoolean _sentVelCommand = new AtomicBoolean(false);
+    private AtomicBoolean _queuedVelCommand = new AtomicBoolean(false);
+    private java.util.Timer _timer = new java.util.Timer();
     private VelocityListener velocityListener = null;
 
     public BoatTeleopPanel(JButton autoButton) {
-        setLayout(borderLayout);
+        setLayout(new BorderLayout());
 
         jAuto = new JButton();
         jAuto.addActionListener(new java.awt.event.ActionListener() {
@@ -78,15 +78,15 @@ public class BoatTeleopPanel extends JPanel {
     }
 
     public void toggleAutonomous() {
-        if (_vehicle != null) {
-            _vehicle.isAutonomous(new FunctionObserver<Boolean>() {
+        if (activeVehicle != null) {
+            activeVehicle.isAutonomous(new FunctionObserver<Boolean>() {
                 @Override
                 public void completed(Boolean v) {
                     final boolean enableAutonomy = !v;
                     if (enableAutonomy) {
                         stopTeleop();
                     }
-                    _vehicle.setAutonomous(enableAutonomy, new FunctionObserver<Void>() {
+                    activeVehicle.setAutonomous(enableAutonomy, new FunctionObserver<Void>() {
                         public void completed(Void v) {
                             autoButton.setSelected(enableAutonomy);
                         }
@@ -104,8 +104,8 @@ public class BoatTeleopPanel extends JPanel {
     }
 
     public void setAutonomous(final boolean enableAutonomy) {
-        if (_vehicle != null) {
-            _vehicle.isAutonomous(new FunctionObserver<Boolean>() {
+        if (activeVehicle != null) {
+            activeVehicle.isAutonomous(new FunctionObserver<Boolean>() {
                 @Override
                 public void completed(Boolean v) {
                     if (enableAutonomy == v) {
@@ -115,7 +115,7 @@ public class BoatTeleopPanel extends JPanel {
                     if (enableAutonomy) {
                         stopTeleop();
                     }
-                    _vehicle.setAutonomous(enableAutonomy, new FunctionObserver<Void>() {
+                    activeVehicle.setAutonomous(enableAutonomy, new FunctionObserver<Void>() {
                         public void completed(Void v) {
                             autoButton.setSelected(enableAutonomy);
                         }
@@ -163,13 +163,21 @@ public class BoatTeleopPanel extends JPanel {
 
     // Sets velocities from sliders to control proxy
     protected void sendVelocity() {
-        if (_vehicle != null) {
+        if (activeVehicle != null) {
             Twist twist = new Twist();
-            double dx = fromProgressToRange(jJoystick.telThrustFrac, THRUST_MIN, THRUST_MAX, Double.valueOf(gainsPanel.maxVelocityF.getText()));
-            double drz = fromProgressToRange(jJoystick.telRudderFrac, RUDDER_MIN, RUDDER_MAX, Double.valueOf(gainsPanel.maxVelocityF.getText()));
-            constrainToCircle(twist, dx, drz, Double.valueOf(gainsPanel.maxVelocityF.getText()));
+            double dx = fromProgressToRange(jJoystick.telThrustFrac, THRUST_MIN, THRUST_MAX, Double.valueOf(gainsPanel.velocityMultF.getText()));
+            double drz = fromProgressToRange(jJoystick.telRudderFrac, RUDDER_MIN, RUDDER_MAX, Double.valueOf(gainsPanel.velocityMultF.getText()));
+            constrainToCircle(twist, dx, drz, Double.valueOf(gainsPanel.velocityMult));
 //            System.out.println("### Twist: " + twist.toString());
-            _vehicle.setVelocity(twist, null);
+            activeVehicle.setVelocity(twist, new FunctionObserver<Void>() {
+                public void completed(Void v) {
+                    System.out.println("Set velocity succeeded");
+                }
+
+                public void failed(FunctionError fe) {
+                    System.out.println("Set velocity failed");
+                }
+            });
         }
     }
 
@@ -199,13 +207,18 @@ public class BoatTeleopPanel extends JPanel {
         return ((value - min) / (max - min));
     }
 
-    public void setVehicle(AsyncVehicleServer vehicle) {
-        if (_vehicle != null && velocityListener != null) {
-            // Remove velocity listener from previously selected proxy
-            _vehicle.removeVelocityListener(velocityListener, null);
+    public void setProxy(BoatProxy boatProxy) {
+        if (activeProxy == boatProxy) {
+            return;
         }
-        _vehicle = vehicle;
-        if (_vehicle != null) {
+        if (activeVehicle != null) {
+            // Remove velocity listener from previously selected proxy
+            activeVehicle.removeVelocityListener(velocityListener, null);
+        }
+
+        activeProxy = boatProxy;
+        if (activeProxy != null) {
+            activeVehicle = boatProxy.getVehicleServer();
             velocityListener = new VelocityListener() {
                 public void receivedVelocity(Twist twist) {
                     jJoystick.recThrustFrac = fromRangeToProgress(twist.dx(), THRUST_MIN, THRUST_MAX);
@@ -213,8 +226,8 @@ public class BoatTeleopPanel extends JPanel {
                     jJoystick.repaint();
                 }
             };
-            vehicle.addVelocityListener(velocityListener, null);
-            vehicle.isAutonomous(new FunctionObserver<Boolean>() {
+            activeVehicle.addVelocityListener(velocityListener, null);
+            activeVehicle.isAutonomous(new FunctionObserver<Boolean>() {
                 @Override
                 public void completed(Boolean v) {
                     autoButton.setSelected(v);
@@ -225,15 +238,17 @@ public class BoatTeleopPanel extends JPanel {
                 }
             });
         } else {
+            activeVehicle = null;
             autoButton.setSelected(false);
         }
+        gainsPanel.setProxy(boatProxy);
     }
 
     public void stopTeleop() {
         jJoystick.teleLock = false;
         jJoystick.telRudderFrac = 0.5;
         jJoystick.telThrustFrac = 0;
-        if (_vehicle != null) {
+        if (activeVehicle != null) {
             sendVelocity();
         }
         jJoystick.repaint();
@@ -244,41 +259,6 @@ public class BoatTeleopPanel extends JPanel {
         jJoystick.setPreferredSize(d);
         jJoystick.setSize(d);
         jJoystick.updateDims = true;
-    }
-
-    public class GainsPanel extends JPanel {
-
-        public JTextField maxVelocityF, thrustPF, thrustIF, thrustDF, rudderPF, rudderIF, rudderDF;
-        public JLabel maxVelocityL, thrustPL, thrustIL, thrustDL, rudderPL, rudderIL, rudderDL;
-        public JButton jApply = new JButton("Apply");
-//        public double thrustP, thrustI, thrustD, rudderP, rudderI, rudderD;
-
-        public GainsPanel() {
-            maxVelocityL = new JLabel("Velocity multiplier:");
-            thrustPL = new JLabel("Thrust P");
-            thrustIL = new JLabel("Thrust I");
-            thrustDL = new JLabel("Thrust D");
-            rudderPL = new JLabel("Rudder P");
-            rudderIL = new JLabel("Rudder I");
-            rudderDL = new JLabel("Rudder D");
-            maxVelocityF = new JTextField(".12");
-            thrustPF = new JTextField("5e-8");
-            thrustIF = new JTextField("5e-8");
-            thrustDF = new JTextField("5e-8");
-            rudderPF = new JTextField("5e-8");
-            rudderIF = new JTextField("5e-8");
-            rudderDF = new JTextField("5e-8");
-            add(maxVelocityL);
-            add(maxVelocityF);
-            jApply.addActionListener(new ActionListener() {
-
-                @Override
-                public void actionPerformed(ActionEvent ae) {
-                    // Apply gains
-
-                }
-            });
-        }
     }
 
     public class JoystickPanel extends JPanel implements MouseListener, MouseMotionListener {
@@ -462,5 +442,14 @@ public class BoatTeleopPanel extends JPanel {
         JFrame frame = new JFrame();
         frame.add(new BoatTeleopPanel(new JButton()));
         frame.setVisible(true);
+
+//        double temp = -1;
+//        System.out.println(temp);
+//        try {
+//            temp = Double.valueOf("");
+//        } catch (NumberFormatException ex) {
+//            System.out.println("Invalid #");
+//        }
+//        System.out.println(temp);
     }
 }

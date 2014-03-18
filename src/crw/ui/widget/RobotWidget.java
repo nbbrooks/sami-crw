@@ -476,10 +476,10 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             boatProxy = markerToProxy.get(boatMarker);
             enabled = true;
             // Update teleop panel's proxy 
-            teleopP.setVehicle(boatProxy.getVehicleServer());
+            teleopP.setProxy(boatProxy);
         } else {
             // Remove teleop panel's proxy and hide teleop panel
-            teleopP.setVehicle(null);
+            teleopP.setProxy(null);
             setControlMode(ControlMode.NONE);
             hideExpandables();
         }

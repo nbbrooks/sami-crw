@@ -124,8 +124,7 @@ public class WorldWindPanel implements MarkupComponent {
 
         // Virtual Earth
         for (Layer layer : wwCanvas.getModel().getLayers()) {
-            if (layer.getName().equals("MS Virtual Earth Aerial")
-                    || layer.getName().equals("Blue Marble (WMS) 2004")
+            if (layer.getName().equals("Bing Imagery")
                     || layer.getName().equals("Scale bar")) {
                 layer.setEnabled(true);
             } else {

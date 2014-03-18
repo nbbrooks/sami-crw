@@ -4,6 +4,7 @@ import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.view.orbit.OrbitViewInputHandler;
 import java.awt.event.MouseEvent;
 import java.util.Vector;
+import java.util.logging.Logger;
 
 /**
  *
@@ -11,6 +12,7 @@ import java.util.Vector;
  */
 public class WorldWindInputAdapter extends OrbitViewInputHandler {
 
+    private static final Logger LOGGER = Logger.getLogger(WorldWindInputAdapter.class.getName());
     protected Vector<WorldWindWidgetInt> widgetList;
 
     public void setWidgetList(Vector<WorldWindWidgetInt> widgetList) {
@@ -83,12 +85,12 @@ public class WorldWindInputAdapter extends OrbitViewInputHandler {
         }
 
         // If no one "claims" the mouse click, translate the view
+        if (wwd.getCurrentPosition() == null) {
+            return;
+        }
         Position newPos = new Position(wwd.getCurrentPosition().getLatitude(), wwd.getCurrentPosition().getLongitude(), wwd.getView().getCurrentEyePosition().getElevation());
-        System.out.println("Clicked: " + newPos.getLatitude() + ", " + newPos.getLongitude());
+        LOGGER.finest("Clicked: " + newPos.getLatitude() + ", " + newPos.getLongitude());
         wwd.getView().setEyePosition(newPos);
         wwd.redraw();
     }
-//    protected void handleMouseWheelMoved(MouseWheelEvent e) {
-////        System.out.println("handleMouseWheelMoved");
-//    }
 }

@@ -67,6 +67,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
         IDLE, WAYPOINT, PATH, AREA
     };
+    public static final int NUM_SENSOR_PORTS = 4;
     // OutputEvents that must occur sequentially (require movement)
     protected OutputEvent curSequentialEvent = null;
     protected ArrayList<OutputEvent> sequentialOutputEvents = new ArrayList<OutputEvent>();
@@ -280,7 +281,7 @@ public class BoatProxy extends Thread implements ProxyInt {
             }
         }, null);
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < NUM_SENSOR_PORTS; i++) {
             ((CrwObserverServer) Engine.getInstance().getObserverServer()).createObserver(this, i);
         }
 
