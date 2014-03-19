@@ -26,6 +26,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.LayoutStyle;
 import sami.engine.Engine;
+import sami.event.ReflectedEventSpecification;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.toui.CreationMessage;
@@ -77,6 +78,7 @@ public class QueueItem {
 
             if (decisionMessage instanceof CreationMessage) {
                 CreationMessage creationMessage = (CreationMessage) decisionMessage;
+                Hashtable<Field, ReflectedEventSpecification> fieldToEventSpec = null;
 
                 GroupLayout layout = new GroupLayout(content);
                 content.setLayout(layout);
@@ -89,6 +91,7 @@ public class QueueItem {
                 int maxColWidth = BUTTON_WIDTH;
                 int cumulComponentHeight = 0;
                 if (decisionMessage instanceof GetParamsMessage) {
+                    fieldToEventSpec = ((GetParamsMessage) decisionMessage).getFieldToEventSpec();
                 }
                 for (Field field : creationMessage.getFieldDescriptions().keySet()) {
                     // Add in description of item to be created
@@ -109,6 +112,17 @@ public class QueueItem {
                         LOGGER.severe("Got null creation component for field: " + field);
                         vizualization = new JLabel("");
                     } else {
+                        if (fieldToEventSpec != null) {
+                            ReflectedEventSpecification eventSpec = fieldToEventSpec.get(field);
+                            if (eventSpec != null) {
+                                Object definition = eventSpec.getFieldDefinition(field.getName());
+                                if (definition != null) {
+                                    CrwUiComponentGenerator.getInstance().setComponentValue(markupComponent, definition);
+                                }
+                            } else {
+                                LOGGER.severe("Failed to retrieve eventSpec for field: " + field.getName());
+                            }
+                        }
                         componentTable.put(field, markupComponent);
                         vizualization = markupComponent.getComponent();
                     }
