@@ -2,8 +2,12 @@ package crw.event.output.proxy;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.UUID;
 import sami.event.OutputEvent;
 import sami.path.Location;
+import sami.path.Path;
+import sami.proxy.ProxyInt;
 
 /**
  *
@@ -16,17 +20,37 @@ public class ProxyStationKeep extends OutputEvent {
     // Description for each field
     public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
     // Fields
-    public Location point;
-    public double radius;
+    public Hashtable<ProxyInt, Location> proxyPoints;
+    public double threshold;
 
     static {
-        fieldNames.add("point");
-        fieldNames.add("minRadius");
+        fieldNames.add("proxyPoints");
+        fieldNames.add("threshold");
 
-        fieldNameToDescription.put("point", "Location to station keep around?");
-        fieldNameToDescription.put("radius", "Distance from point robot should stay within?");
+        fieldNameToDescription.put("proxyPoints", "Location for the proxies to station keep around?");
+        fieldNameToDescription.put("threshold", "Distance from point robot should stay within?");
     }
 
     public ProxyStationKeep() {
+    }
+
+    public ProxyStationKeep(UUID uuid, UUID missionUuid, Hashtable<ProxyInt, Location> proxyPoints, double threshold) {
+        this.id = uuid;
+        this.missionId = missionUuid;
+        this.proxyPoints = proxyPoints;
+        this.threshold = threshold;
+
+    }
+
+    public Hashtable<ProxyInt, Location> getProxyPoints() {
+        return proxyPoints;
+    }
+
+    public double getThreshold() {
+        return threshold;
+    }
+
+    public void setProxyPoints(Hashtable<ProxyInt, Location> proxyPoints) {
+        this.proxyPoints = proxyPoints;
     }
 }

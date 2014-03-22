@@ -202,7 +202,7 @@ public class RobotTrackWidget implements MarkupComponentWidget, WorldWindWidgetI
                     // If we only have a single point to move to, draw a line between the robot's current location and that point
                     //  Don't do this otherwise, because we don't get updates about individually completed waypoints (only about the path as a whole)
                     //  so it looks weird
-                    list.add(0, boatProxy.getCurrLoc());
+                    list.add(0, boatProxy.getPosition());
                 }
                 if (!list.isEmpty()) {
                     lastPosForCurWp = list.get(list.size() - 1);

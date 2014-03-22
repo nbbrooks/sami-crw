@@ -73,7 +73,7 @@ public class PathHandler implements EventHandlerInt, InformationServiceProviderI
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
                     final BoatProxy boatProxy = (BoatProxy) token.getProxy();
                     LOGGER.log(Level.FINE, "\tSubmitting PlanningServiceRequest for boat proxy " + boatProxy);
-                    DestinationUtmObjective objective = new DestinationUtmObjective(Conversion.positionToLocation(boatProxy.getCurrLoc()), request.getEndLocation());
+                    DestinationUtmObjective objective = new DestinationUtmObjective(Conversion.positionToLocation(boatProxy.getPosition()), request.getEndLocation());
                     PlanningServiceRequest req = new PlanningServiceRequest(null, objective, null, numOptions);
 
                     Engine.getInstance().getServiceServer().submitPlanningRequest(req, new PlanningServiceListenerInt() {

@@ -3,6 +3,7 @@ package crw.proxy;
 import crw.Conversion;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyStationKeepCompleted;
+import crw.event.output.proxy.ProxyEmergencyAbort;
 import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyStationKeep;
 import crw.sensor.CrwObserverServer;
@@ -21,8 +22,6 @@ import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
-import gov.nasa.worldwind.render.markers.Marker;
-import gov.nasa.worldwind.util.measure.LengthMeasurer;
 import java.awt.Color;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
@@ -58,83 +57,56 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     private static final Logger LOGGER = Logger.getLogger(BoatProxy.class.getName());
 
-    public static enum AutonomousSearchAlgorithmOptions {
-
-        RANDOM, LAWNMOWER, MAX_UNCERTAINTY
-    };
-
-    public enum StateEnum {
-
-        IDLE, WAYPOINT, PATH, AREA
-    };
     public static final int NUM_SENSOR_PORTS = 4;
+    // Identifiers
+    int _boatNo;
+    private final String name;
+    private Color color = null;
+    // SAMI variables
     // OutputEvents that must occur sequentially (require movement)
     protected OutputEvent curSequentialEvent = null;
-    protected ArrayList<OutputEvent> sequentialOutputEvents = new ArrayList<OutputEvent>();
+    final ArrayList<OutputEvent> sequentialOutputEvents = new ArrayList<OutputEvent>();
     // The resulting InputEvents from sequentialOutputEvents
-    protected ArrayList<InputEvent> sequentialInputEvents = new ArrayList<InputEvent>();
-    // @todo Needs to be configurable
-    private double atWaypointTolerance = 30.0;
-    private final String name;
-    final AtomicBoolean isConnected = new AtomicBoolean(false);
-    // Tasking stuff
-    private Position currLoc = null;
-    private UTMCoord currUtm = null;
-    // Simulated
-    private double fuelLevel = 1.0;
-    private double fuelUsageRate = 1.0e-2;
+    final ArrayList<InputEvent> sequentialInputEvents = new ArrayList<InputEvent>();
+    protected ArrayList<ProxyListenerInt> listeners = new ArrayList<ProxyListenerInt>();
+    protected Hashtable<ProxyListenerInt, Integer> listenerCounter = new Hashtable<ProxyListenerInt, Integer>();
     // ROS update
+    UdpVehicleServer _server;
     PoseListener _stateListener;
     SensorListener _sensorListener;
     WaypointListener _waypointListener;
-    ArrayList<ProxyListenerInt> listeners = new ArrayList<ProxyListenerInt>();
-    Hashtable<ProxyListenerInt, Integer> listenerCounter = new Hashtable<ProxyListenerInt, Integer>();
-    int _boatNo;
+    //@todo need to consolidate all these different pose representations
     UtmPose _pose;
-    volatile boolean _isShutdown = false;
-    // Latest image returned from this boat
+    private Position position = null;
+    private UTMCoord utmCoord = null;
+    private Location location = null;
     private BufferedImage latestImg = null;
-    // Tell the boat to go slowly
-    private boolean goSlow = false;
-    private boolean goSlowExecuting = false;
-    // Set this to false to turn off the false safe
-    final boolean USE_SOFTWARE_FAIL_SAFE = true;
-    UtmPose home = null;
-    private StateEnum state = StateEnum.IDLE;
+    // Waypoints
     final Queue<UtmPose> _curWaypoints = new LinkedList<UtmPose>();
     final Queue<UtmPose> _futureWaypoints = new LinkedList<UtmPose>();
     Iterable<Position> _curWaypointsPos = null;
     Iterable<Position> _futureWaypointsPos = null;
-    UdpVehicleServer _server;
-    private Color color = null;
-    //private URI masterURI = null;
-    Marker marker = null;
-    Marker waypointMarker = null;
-    public static AutonomousSearchAlgorithmOptions autonomousSearchAlgorithm = AutonomousSearchAlgorithmOptions.MAX_UNCERTAINTY;
-    // Simulated sensor variables
-    static double base = 100.0;
-    static double distFactor = 0.01;
-    static double valueFactor = 10.0;
-    static double sigmaIncreaseRate = 0.00;
-    static double valueDecreaseRate = 1.00;
-    static double addRate = 0.01;
-    static ArrayList<Double> xs = new ArrayList<Double>();
-    static ArrayList<Double> ys = new ArrayList<Double>();
-    static ArrayList<Double> vs = new ArrayList<Double>();
-    static ArrayList<Double> sigmas = new ArrayList<Double>();
-    static boolean simpleData = false;
-    static boolean hysteresis = true;
+    // FunctionObserver variables
+    final AtomicBoolean autonomyActive = new AtomicBoolean(false);
     // Go slow variables
+    private boolean goSlow = false;
+    private boolean goSlowExecuting = false;
     Iterator<Position> goSlowWPs = null;
     UtmPose lastSentGoSlowPose = null;
     long timeLastGoSlowSent = 0L;
     long timeLastGoSlowDone = 0L;
     UtmPose goSlowCurrentTarget = null;
-    // TO CHANGE
+    // Go slow configurable variables
     long goSlowRestTime = 20000L;
     long goSlowToWaypointTime = 20000L;
     double maxWPDist = 30.0;
-    StationKeepRunnable stationKeepRunnable;
+    // Station keeping
+    final AtomicBoolean stationKeepRunning = new AtomicBoolean(false);
+    Thread stationKeepThread;
+    private Position stationKeepPosition; // Position to station keep around
+    private double stationKeepThreshold = 5; // Threshold for sending a waypoint (m)
+    private Location stationKeepLocation;
+    private UtmPose stationKeepPose;
 
     // End stuff for simulated data creation
     public BoatProxy(final String name, Color color, final int boatNo, InetSocketAddress addr) {
@@ -161,10 +133,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                 // Logger.getLogger(this.getClass().getName()).log(Level.INFO, "Boat pose update", this);
                 _pose = upwcs.clone();
 
-                if (home == null && USE_SOFTWARE_FAIL_SAFE) {
-                    home = upwcs.clone();
-                }
-
                 // System.out.println("Pose: [" + _pose.pose.position.x + ", " + _pose.pose.position.y + "], zone = " + _pose.utm.zone);
                 try {
 
@@ -185,8 +153,9 @@ public class BoatProxy extends Thread implements ProxyInt {
                     Position p = new Position(latlon, 0.0);
 
                     // Update state variables
-                    currLoc = p;
-                    currUtm = boatPos;
+                    position = p;
+                    utmCoord = boatPos;
+                    location = Conversion.positionToLocation(position);
 
                     for (ProxyListenerInt boatProxyListener : listeners) {
                         boatProxyListener.poseUpdated();
@@ -225,26 +194,25 @@ public class BoatProxy extends Thread implements ProxyInt {
                             boatProxyListener.waypointsComplete();
                         }
                     }
-                    if (sequentialOutputEvents.get(0) instanceof ProxyStationKeep) {
+                    if (curSequentialEvent instanceof ProxyStationKeep) {
                         // Return now - we don't want completion of a path to trigger station keep to end
                         return;
-                    }
+                    } else {
+                        // Remove the OutputEvent that held this path
+                        OutputEvent oe = sequentialOutputEvents.remove(0);
+                        // Send out the InputEvent assocaited with this path
+                        InputEvent ie = sequentialInputEvents.remove(0);
 
-                    // Remove the OutputEvent that held this path
-                    OutputEvent oe = sequentialOutputEvents.remove(0);
-                    // Send out the InputEvent assocaited with this path
-                    InputEvent ie = sequentialInputEvents.remove(0);
+                        updateWaypoints(true, true);
 
-                    updateWaypoints(true, true);
-
-                    LOGGER.log(Level.INFO, "BoatProxy " + getName() + " completed sequential OE " + oe + ", sending out IE " + ie);
-                    for (ProxyListenerInt boatProxyListener : listeners) {
-                        boatProxyListener.eventOccurred(ie);
-                    }
-                    if (!sequentialOutputEvents.isEmpty()) {
-                        LOGGER.log(Level.INFO, "Sequential OE list is not empty, DO THE NEXT ONE!");
-                        sendCurrentWaypoints();
-//                        executeFirstEvent();
+                        LOGGER.log(Level.INFO, "BoatProxy " + getName() + " completed sequential OE " + oe + ", sending out IE " + ie);
+                        for (ProxyListenerInt boatProxyListener : listeners) {
+                            boatProxyListener.eventOccurred(ie);
+                        }
+                        if (!sequentialOutputEvents.isEmpty()) {
+                            LOGGER.log(Level.INFO, "Sequential OE list is not empty, do the next one!");
+                            sendCurrentWaypoints();
+                        }
                     }
                 }
 
@@ -344,65 +312,58 @@ public class BoatProxy extends Thread implements ProxyInt {
         return sequentialOutputEvents;
     }
 
+    /**
+     * Stores the output event, creates a matching completion input event, and
+     * refreshes the proxy's action if necessary
+     *
+     * @param oe
+     * @param index
+     */
     public void handleEvent(OutputEvent oe, int index) {
         LOGGER.log(Level.INFO, "BoatProxy " + getName() + " was sent OutputEvent " + oe + " with index " + index);
-        if (sequentialOutputEvents.size() > 0
-                && sequentialOutputEvents.get(0) instanceof ProxyStationKeep) {
-            // We have a new event, cancel station keeping
-            OutputEvent stationKeep = sequentialOutputEvents.remove(0);
-            // Send out the InputEvent assocaited with this path
-            InputEvent stationKeepComplete = sequentialInputEvents.remove(0);
-            if (stationKeepRunnable != null) {
-                stationKeepRunnable.stopExecuting();
-                stationKeepRunnable = null;
-            }
 
-            LOGGER.log(Level.INFO, "BoatProxy " + getName() + " completed sequential OE " + stationKeep + ", sending out IE " + stationKeepComplete);
-            for (ProxyListenerInt boatProxyListener : listeners) {
-                boatProxyListener.eventOccurred(stationKeepComplete);
-            }
-        }
         if (oe instanceof ProxyExecutePath) {
             sequentialOutputEvents.add(index, oe);
             sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
         } else if (oe instanceof ProxyStationKeep) {
             sequentialOutputEvents.add(index, oe);
             sequentialInputEvents.add(index, new ProxyStationKeepCompleted(oe.getId(), oe.getMissionId(), this));
-            ProxyStationKeep stationKeep = (ProxyStationKeep) oe;
-            stationKeepRunnable = new StationKeepRunnable(this, stationKeep.point, stationKeep.radius);
-            stationKeepRunnable.run();
+        } else if(oe instanceof ProxyEmergencyAbort) {
+            // Clear out all events and stop
+            LOGGER.severe("Handling ProxyEmergencyAbort!");
+            LOGGER.severe("\t sequentialOutputEvents was: " + sequentialOutputEvents);
+            LOGGER.severe("\t sequentialInputEvents was " + sequentialInputEvents);
+            sequentialOutputEvents.clear();
+            sequentialInputEvents.clear();
         } else {
             LOGGER.severe("Can't handle OutputEvent of class " + oe.getClass().getSimpleName());
         }
 
         // Update proxy's waypoints
         updateWaypoints(true, true);
-        if (sequentialOutputEvents.size() == 1 || index == 0) {
+        if (sequentialOutputEvents.size() == 1 
+                || index == 0
+                || oe instanceof ProxyEmergencyAbort) {
+            // If we modified the first set of waypoints, start them
             sendCurrentWaypoints();
-        } else {
         }
-
-        updateAndSendWaypoints();
     }
 
     @Override
     public void abortEvent(UUID eventId) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public void abortMission(UUID missionId) {
+        int numRemoved = 0;
         ArrayList<OutputEvent> outputEventsToRemove = new ArrayList<OutputEvent>();
         ArrayList<InputEvent> inputEventsToRemove = new ArrayList<InputEvent>();
-        boolean removeFirst = false;
+        boolean removeFirst = false, removedEvent = false;
         for (int i = 0; i < sequentialOutputEvents.size(); i++) {
-            if (sequentialOutputEvents.get(i).getMissionId().equals(missionId)) {
+            if (sequentialOutputEvents.get(i).getMissionId().equals(eventId)) {
                 outputEventsToRemove.add(sequentialOutputEvents.get(i));
                 inputEventsToRemove.add(sequentialInputEvents.get(i));
                 if (i == 0) {
                     // We need to remove the currently executing task
                     removeFirst = true;
                 }
+                numRemoved++;
             }
         }
         for (OutputEvent outputEvent : outputEventsToRemove) {
@@ -412,69 +373,84 @@ public class BoatProxy extends Thread implements ProxyInt {
             sequentialInputEvents.remove(inputEvent);
         }
 
-        updateAndSendWaypoints();
+        updateWaypoints(removeFirst, numRemoved > 0);
+        if (removeFirst) {
+            // If we modified the first set of waypoints, start them
+            LOGGER.info("Removed " + numRemoved + " events while aborting eventId: " + eventId + ", including current event");
+            sendCurrentWaypoints();
+        } else {
+            LOGGER.info("Removed " + numRemoved + " events while aborting eventId: " + eventId + ", but not the current event");
+        }
+    }
+
+    @Override
+    public void abortMission(UUID missionId) {
+        int numRemoved = 0;
+        ArrayList<OutputEvent> outputEventsToRemove = new ArrayList<OutputEvent>();
+        ArrayList<InputEvent> inputEventsToRemove = new ArrayList<InputEvent>();
+        boolean removeFirst = false, removedEvent = false;
+        for (int i = 0; i < sequentialOutputEvents.size(); i++) {
+            if (sequentialOutputEvents.get(i).getMissionId().equals(missionId)) {
+                outputEventsToRemove.add(sequentialOutputEvents.get(i));
+                inputEventsToRemove.add(sequentialInputEvents.get(i));
+                if (i == 0) {
+                    // We need to remove the currently executing task
+                    removeFirst = true;
+                }
+                numRemoved++;
+            }
+        }
+        for (OutputEvent outputEvent : outputEventsToRemove) {
+            sequentialOutputEvents.remove(outputEvent);
+        }
+        for (InputEvent inputEvent : inputEventsToRemove) {
+            sequentialInputEvents.remove(inputEvent);
+        }
+
+        updateWaypoints(removeFirst, removedEvent);
+        if (removeFirst) {
+            // If we modified the first set of waypoints, start them
+            LOGGER.info("Removed " + numRemoved + " events while aborting missionId: " + missionId + ", including current event");
+            sendCurrentWaypoints();
+        } else {
+            LOGGER.info("Removed " + numRemoved + " events while aborting missionId: " + missionId + ", but not the current event");
+        }
     }
 
     public OutputEvent getCurSequentialEvent() {
         return curSequentialEvent;
     }
 
-    public void sample() {
-        LOGGER.log(Level.INFO, "Calling sample on server");
-        _server.captureImage(100, 100, null);
-    }
-
-    static public double computeGTValue(double lat, double lon) {
-        double v = base;
-        synchronized (xs) {
-            for (int i = 0; i < xs.size(); i++) {
-
-                double dx = xs.get(i) - lon;
-                double dy = ys.get(i) - lat;
-                double distSq = dx * dx + dy * dy;
-
-                double dv = vs.get(i) * (1.0 / Math.sqrt(2.0 * Math.PI * sigmas.get(i) * sigmas.get(i))) * Math.pow(Math.E, -(distSq / (2.0 * sigmas.get(i) * sigmas.get(i))));
-                // if (i == 0) System.out.println("Delta at dist " + Math.sqrt(distSq) + " for " + sigmas.get(i) + " is " + dv);
-                v += dv;
-            }
-        }
-        return v;
-    }
-
     public int getBoatNo() {
         return _boatNo;
     }
 
-    public boolean isIsShutdown() {
-        return _isShutdown;
+    public UtmPose getUtmPose() {
+        return _pose;
     }
 
-    public UtmPose getPose() {
-        return _pose;
+    public Position getPosition() {
+        return position;
+    }
+
+    public Location getLocation() {
+        return location;
     }
 
     public Queue<UtmPose> getCurrentWaypoints() {
         return _curWaypoints;
     }
 
-    public Queue<UtmPose> getFutureWaypoints() {
-        return _futureWaypoints;
-    }
-
     public Iterable<Position> getCurrentWaypointsAsPositions() {
         return _curWaypointsPos;
     }
 
-    public Position getCurrLoc() {
-        return currLoc;
+    public Queue<UtmPose> getFutureWaypoints() {
+        return _futureWaypoints;
     }
 
     public Iterable<Position> getFutureWaypointsAsPositions() {
         return _futureWaypointsPos;
-    }
-
-    public AtomicBoolean getIsConnected() {
-        return isConnected;
     }
 
     public boolean isGoSlow() {
@@ -483,6 +459,11 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     public void setGoSlow(boolean goSlow) {
         this.goSlow = goSlow;
+    }
+
+    public void addImageListener(ImageListener l) {
+        _server.addImageListener(l, null);
+        startCamera();
     }
 
     public void addSensorListener(int channel, SensorListener l) {
@@ -502,14 +483,68 @@ public class BoatProxy extends Thread implements ProxyInt {
         _server.addWaypointListener(l, null);
     }
 
+    public void startCamera() {
+
+        (new Thread() {
+            public void run() {
+
+                try {
+                    LOGGER.log(Level.INFO, "SLEEPING BEFORE CAMERA START");
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                }
+                LOGGER.log(Level.INFO, "DONE SLEEPING BEFORE CAMERA START");
+
+                _server.startCamera(0, 30.0, 640, 480, null);
+
+                LOGGER.log(Level.INFO, "Image listener started");
+            }
+        }).start();
+    }
+
+    /**
+     * Updates the variables and lists used to execute and visualize current and
+     * future waypoints from the output event list. Note this does not actually
+     * send waypoints to the server
+     *
+     * @param updateCurrent Whether to update the current event and waypoint
+     * list
+     * @param updateFuture Whether to update the waypoint list to be executed
+     * after the current event's
+     */
     public void updateWaypoints(boolean updateCurrent, boolean updateFuture) {
+        // Station keeping shtdown
+        if (stationKeepRunning.get() && sequentialOutputEvents.size() > 1 && sequentialOutputEvents.get(0) instanceof ProxyStationKeep) {
+            // We have a new event, cancel station keeping
+            OutputEvent stationKeep = sequentialOutputEvents.remove(0);
+            // Send out the InputEvent associated with this path
+            InputEvent stationKeepComplete = sequentialInputEvents.remove(0);
+            stationKeepShutdown();
+
+            LOGGER.log(Level.INFO, "BoatProxy " + getName() + " completed sequential OE " + stationKeep + ", sending out IE " + stationKeepComplete);
+            for (ProxyListenerInt boatProxyListener : listeners) {
+                boatProxyListener.eventOccurred(stationKeepComplete);
+            }
+        } else if(stationKeepRunning.get() && sequentialOutputEvents.isEmpty()) {
+            // May get here from Abort
+            LOGGER.severe("How did we get here? (stationKeepRunning.get() && sequentialOutputEvents.isEmpty())");
+            stationKeepShutdown();
+        }
+
         // Current
         if (updateCurrent) {
             _curWaypointsPos = null;
             _curWaypoints.clear();
             curSequentialEvent = null;
 
-            if (sequentialOutputEvents == null || sequentialOutputEvents.size() == 0) {
+//            if (stationKeepRunning.get()
+//                    && (sequentialOutputEvents.size() == 0
+//                    || !(sequentialOutputEvents.get(0) instanceof ProxyStationKeep))) {
+//                // If station keep is running, but we have no events or the first event is not station keeping, shut it down
+//                stationKeepShutdown();
+//            }
+            if (sequentialOutputEvents.size() == 0) {
+                // Have no events to process
             } else {
                 if (sequentialOutputEvents.get(0) instanceof ProxyExecutePath) {
                     ProxyExecutePath executePath = (ProxyExecutePath) sequentialOutputEvents.get(0);
@@ -534,6 +569,28 @@ public class BoatProxy extends Thread implements ProxyInt {
                             LOGGER.severe("Can't handle Path of class " + executePath.getProxyPaths().get(this).getClass().getSimpleName());
                         }
                     }
+                } else if (sequentialOutputEvents.get(0) instanceof ProxyStationKeep) {
+                    LOGGER.info("curSequentialEvent IS SK");
+                    ProxyStationKeep stationKeep = (ProxyStationKeep) sequentialOutputEvents.get(0);
+                    if (stationKeep.getProxyPoints().containsKey(this)) {
+                        // Do nothing - when the threshold triggers it will handle this
+                        curSequentialEvent = sequentialOutputEvents.get(0);
+                        stationKeepLocation = stationKeep.getProxyPoints().get(this);
+                        stationKeepPosition = Conversion.locationToPosition(stationKeep.getProxyPoints().get(this));
+                        stationKeepThreshold = stationKeep.getThreshold();
+                        stationKeepStart();
+//                        Location point = (Location) stationKeep.getProxyPoints().get(this);
+//                        ArrayList<Position> positions = new ArrayList<Position>();
+//                        positions.add(Conversion.locationToPosition(point));
+//                        _curWaypointsPos = positions;
+//                        for (Position position : positions) {
+//                            UTMCoord utm = UTMCoord.fromLatLon(position.latitude, position.longitude);
+//                            UtmPose pose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
+//                            _curWaypoints.add(pose);
+//                        }
+                    } else {
+                        LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + stationKeep.getProxyPoints());
+                    }
                 } else {
                     LOGGER.severe("Can't handle OutputEvent of class " + sequentialOutputEvents.get(0).getClass().getSimpleName());
                 }
@@ -546,6 +603,7 @@ public class BoatProxy extends Thread implements ProxyInt {
             _futureWaypointsPos = null;
 
             if (sequentialOutputEvents == null || sequentialOutputEvents.size() < 2) {
+                // Have no events to process
             } else {
                 ArrayList<Position> positions = new ArrayList<Position>();
                 for (int i = 1; i < sequentialOutputEvents.size(); i++) {
@@ -564,6 +622,11 @@ public class BoatProxy extends Thread implements ProxyInt {
                                 LOGGER.severe("Can't handle Path of class " + executePath.getProxyPaths().get(this).getClass().getSimpleName());
                             }
                         }
+                    } else if (sequentialOutputEvents.get(i) instanceof ProxyStationKeep) {
+                        // Station keep just finished moving back to the location
+                        //  Remove the waypoints, but do not remove the station keep event
+                        _curWaypoints.clear();
+                        _curWaypointsPos = null;
                     } else {
                         LOGGER.severe("Can't handle OutputEvent of class " + sequentialOutputEvents.get(i).getClass().getSimpleName());
                     }
@@ -583,54 +646,23 @@ public class BoatProxy extends Thread implements ProxyInt {
         }
     }
 
-    public void updateAndSendWaypoints() {
-        updateWaypoints(true, true);
-        if (_curWaypoints.isEmpty()) {
-            // There weren't any more waypoints - stop the proxy
-            // Stop proxy as opposed to sending empty list of waypoints because 
-            //  that will make the system think it finished assigned waypoints
-            _server.stopWaypoints(null);
-            state = StateEnum.IDLE;
-        } else {
-            // Start the next set of waypoints  
-            sendCurrentWaypoints();
-        }
-    }
-
-    public void startCamera() {
-
-        (new Thread() {
-            public void run() {
-
-                try {
-                    LOGGER.log(Level.INFO, "SLEEPING BEFORE CAMERA START");
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                }
-                LOGGER.log(Level.INFO, "DONE SLEEPING BEFORE CAMERA START");
-
-                _server.startCamera(0, 30.0, 640, 480, null);
-
-                LOGGER.log(Level.INFO, "Image listener started");
-            }
-        }).start();
-    }
-
-    public void addImageListener(ImageListener l) {
-        _server.addImageListener(l, null);
-        startCamera();
-    }
-
-    public void cancelCurrentSeqEvent() {
-        if (sequentialOutputEvents.isEmpty()) {
-            return;
-        }
-        sequentialOutputEvents.remove(0);
-        sequentialInputEvents.remove(0);
-
-        updateAndSendWaypoints();
-    }
-
+//    /**
+//     * Updates the variables and lists used to execute and visualize current and
+//     * future waypoints from the output event list, then sends the current
+//     * waypoints
+//     */
+//    public void updateAndSendWaypoints() {
+//        updateWaypoints(true, true);
+//        if (_curWaypoints.isEmpty()) {
+//            // There weren't any more waypoints - stop the proxy
+//            // Stop proxy as opposed to sending empty list of waypoints because 
+//            //  that will make the system think it finished assigned waypoints
+//            _server.stopWaypoints(null);
+//        } else {
+//            // Start the next set of waypoints  
+//            sendCurrentWaypoints();
+//        }
+//    }
     /**
      * Takes in an output event: if the current sequential output event has the
      * same UUID, it is replaced with the passed in event: if not, it is
@@ -642,77 +674,112 @@ public class BoatProxy extends Thread implements ProxyInt {
      * @return Whether the event was handled
      */
     public boolean updateCurrentSeqEvent(OutputEvent updatedEvent) {
+        LOGGER.info("updateCurrentSeqEvent with updatedEvent: " + updatedEvent + "sequentialOutputEvents: " + sequentialOutputEvents);
+        boolean handled = true;
         if (curSequentialEvent != null && curSequentialEvent.getId().equals(updatedEvent.getId())) {
+            LOGGER.info("Replace");
+            // The updated event is the currently executing event, replace it
             if (updatedEvent instanceof ProxyExecutePath) {
                 // Replace the existing event with the updated event and begin executing it
                 sequentialOutputEvents.set(0, updatedEvent);
                 curSequentialEvent = updatedEvent;
-
                 updateWaypoints(true, false);
-
                 sendCurrentWaypoints();
-//                setPath(((ProxyExecutePath) updatedEvent).getPath());
-                return true;
+            } else if (updatedEvent instanceof ProxyStationKeep) {
+                sequentialOutputEvents.set(0, updatedEvent);
+                curSequentialEvent = updatedEvent;
+                updateWaypoints(true, false);
             } else {
                 LOGGER.log(Level.INFO, "BoatProxy can't handle OutputEvent of class " + updatedEvent.getClass().getSimpleName());
+                handled = false;
             }
+//            if (handled) {
+//                // Only the current waypoints have changed
+//                updateWaypoints(true, false);
+//            }
         } else {
+            LOGGER.info("Insert at 0 while size is " + sequentialOutputEvents.size());
+            // The updated event is not the currently executing event, insert it at the beginning of the list
             if (updatedEvent instanceof ProxyExecutePath) {
                 // Insert the event and begin executing it
                 sequentialOutputEvents.add(0, updatedEvent);
                 sequentialInputEvents.add(0, new ProxyPathCompleted(updatedEvent.getId(), updatedEvent.getMissionId(), this));
                 curSequentialEvent = updatedEvent;
-
                 updateWaypoints(true, true);
-
                 sendCurrentWaypoints();
-//                setPath(((ProxyExecutePath) updatedEvent).getPath());
-                return true;
+            } else if (updatedEvent instanceof ProxyStationKeep) {
+                sequentialOutputEvents.add(0, updatedEvent);
+                sequentialInputEvents.add(0, new ProxyStationKeepCompleted());
+                curSequentialEvent = updatedEvent;
+                updateWaypoints(true, true);
             } else {
                 LOGGER.severe("Can't handle OutputEvent of class " + updatedEvent.getClass().getSimpleName());
+                handled = false;
             }
+//            if (handled) {
+//                updateWaypoints(true, true);
+//            }
         }
-        return false;
+//        if (handled) {
+//            sendCurrentWaypoints();
+//        }
+        return handled;
     }
 
-    public void setExternalVelocity(Twist t) {
-        _server.setVelocity(t, new FunctionObserver<Void>() {
-            public void completed(Void v) {
-                LOGGER.log(Level.FINE, "Set velocity succeeded");
-            }
+    /**
+     * Stops and removes the current sequential output event being executed and
+     * then begins the next (if applicable)
+     */
+    public void cancelCurrentSeqEvent() {
+        if (sequentialOutputEvents.isEmpty()) {
+            return;
+        }
+        OutputEvent removedEvent = sequentialOutputEvents.remove(0);
+        sequentialInputEvents.remove(0);
 
-            public void failed(FunctionError fe) {
-                LOGGER.severe("Set velocity failed");
-            }
-        });
-    }
+        if (removedEvent instanceof ProxyStationKeep) {
+            stationKeepShutdown();
+        }
 
-    public StateEnum getMode() {
-        return state;
+        updateWaypoints(true, true);
+        sendCurrentWaypoints();
     }
 
     public void sendCurrentWaypoints() {
-        if (_curWaypoints == null) {
-            return;
-        }
+//        Exception e = new Exception();
+//        e.printStackTrace();
 
-        if (goSlow && _curWaypointsPos.iterator().hasNext()) {
-            LOGGER.log(Level.INFO, "GO SLOW MODE");
-            sendCurrentWaypointsGoSlow();
-            return;
+        LOGGER.info("sendCurrentWaypoints");
+        if (_curWaypoints.isEmpty()) {
+            LOGGER.info("stopWaypoints");
+            // There weren't any more waypoints - stop the proxy
+            // Stop proxy as opposed to sending empty list of waypoints because 
+            //  that will make the system think it finished assigned waypoints
+            _server.stopWaypoints(null);
+        } else {
+            if (goSlow && _curWaypointsPos.iterator().hasNext()) {
+                LOGGER.log(Level.INFO, "GO SLOW MODE");
+                sendCurrentWaypointsGoSlow();
+            } else if (!goSlow) {
+                LOGGER.log(Level.INFO, "GO FAST MODE");
+                sendCurrentWaypointsGoFast();
+            }
         }
+    }
 
-        _server.setAutonomous(true, null);
+    private void sendCurrentWaypointsGoFast() {
+        LOGGER.info("sendCurrentWaypointsGoFast");
+        activateAutonomy(true);
         _server.startWaypoints(_curWaypoints.toArray(new UtmPose[_curWaypoints.size()]), "POINT_AND_SHOOT", new FunctionObserver() {
             int completedCounter = 0;
 
             public void completed(Object v) {
-                LOGGER.log(Level.FINE, "Completed called");
+                LOGGER.log(Level.FINE, "Start waypoints succeeded");
             }
 
             public void failed(FunctionError fe) {
                 // @todo Do something when start waypoints fails
-                LOGGER.severe("START WAYPOINTS FAILED");
+                LOGGER.severe("Start waypoints failed");
             }
         });
     }
@@ -748,7 +815,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                     LOGGER.log(Level.FINE, "Creating an intermediate point in go slow");
                     double x = _pose.pose.getX() + (maxWPDist / dist) * (goSlowCurrentTarget.pose.getX() - _pose.pose.getX());
                     double y = _pose.pose.getY() + (maxWPDist / dist) * (goSlowCurrentTarget.pose.getY() - _pose.pose.getY());
-                    realTarget = new UtmPose(new Pose3D(x, y, _pose.pose.getZ(), _pose.pose.getRotation()), new Utm(currUtm.getZone(), currUtm.getHemisphere().contains("North")));
+                    realTarget = new UtmPose(new Pose3D(x, y, _pose.pose.getZ(), _pose.pose.getRotation()), new Utm(utmCoord.getZone(), utmCoord.getHemisphere().contains("North")));
                     _curWaypoints.add(realTarget);
                 } else {
                     // We are done with this point
@@ -783,7 +850,8 @@ public class BoatProxy extends Thread implements ProxyInt {
                     }
                 }).start();
 
-                _server.setAutonomous(true, null);
+                activateAutonomy(true);
+
                 _server.startWaypoints(_curWaypoints.toArray(new UtmPose[_curWaypoints.size()]), "POINT_AND_SHOOT", new FunctionObserver() {
                     public void completed(Object v) {
                         System.out.println("Successfully sent a waypoint in Go Slow: " + _curWaypoints.peek());
@@ -815,7 +883,40 @@ public class BoatProxy extends Thread implements ProxyInt {
                 }
             }).start();
         }
+    }
 
+    /**
+     * Sends a twist velocity to the boat server to be executed
+     *
+     * @param t
+     */
+    public void setExternalVelocity(Twist t) {
+        _server.setVelocity(t, new FunctionObserver<Void>() {
+            public void completed(Void v) {
+                LOGGER.log(Level.FINE, "Set velocity succeeded");
+            }
+
+            public void failed(FunctionError fe) {
+                LOGGER.severe("Set velocity failed");
+            }
+        });
+    }
+
+    public void activateAutonomy(final boolean activate) {
+        _server.setAutonomous(activate, new FunctionObserver<Void>() {
+
+            @Override
+            public void completed(Void v) {
+                LOGGER.log(Level.FINE, "Set autonomous to " + activate + " succeeded");
+                autonomyActive.set(true);
+            }
+
+            @Override
+            public void failed(FunctionError fe) {
+                LOGGER.severe("Set autonomous to " + activate + " failed");
+                autonomyActive.set(false);
+            }
+        });
     }
 
     public void asyncGetWaypointStatus(FunctionObserver<WaypointState> fo) {
@@ -826,31 +927,8 @@ public class BoatProxy extends Thread implements ProxyInt {
         return color;
     }
 
-    public double getFuelLevel() {
-        return fuelLevel;
-    }
-
     public BufferedImage getLatestImg() {
         return latestImg;
-    }
-
-    private boolean at(Position p1, Position p2) {
-        UTMCoord utm1 = UTMCoord.fromLatLon(p1.latitude, p1.longitude);
-        UTMCoord utm2 = UTMCoord.fromLatLon(p2.latitude, p2.longitude);
-
-        // @todo This only really works for short distances
-        double dx = utm1.getEasting() - utm2.getEasting();
-        double dy = utm1.getNorthing() - utm2.getNorthing();
-
-        double dist = Math.sqrt(dx * dx + dy * dy);
-
-        //System.out.println("Dist to waypoint now: " + dist);
-        if (utm1.getHemisphere().equalsIgnoreCase(utm2.getHemisphere()) && utm1.getZone() == utm2.getZone()) {
-            return dist < atWaypointTolerance;
-        } else {
-            return false;
-        }
-
     }
 
     public UdpVehicleServer getVehicleServer() {
@@ -863,37 +941,89 @@ public class BoatProxy extends Thread implements ProxyInt {
         // (masterURI == null ? "Unknown" : masterURI.toString());
     }
 
-    class StationKeepRunnable implements Runnable {
+    private class StationKeepRunnable implements Runnable {
 
-        private volatile boolean execute;
-        private BoatProxy proxy;
-        private Position position;
-        private double radius;
+        public static final int STATION_KEEP_SLEEP = 1000;
 
-        public StationKeepRunnable(BoatProxy proxy, Location location, double minRadius) {
-            this.proxy = proxy;
-            this.position = Conversion.locationToPosition(location);
-            this.radius = minRadius;
+        public StationKeepRunnable() {
         }
 
+//        public void setPosition(Location location) {
+//            this.position = position;
+//            UTMCoord utm = UTMCoord.fromLatLon(position.latitude, position.longitude);
+//            stationKeepPose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
+//        }
+//
+//        public void setPosition(Position position) {
+//            this.position = position;
+//            UTMCoord utm = UTMCoord.fromLatLon(position.latitude, position.longitude);
+//            stationKeepPose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
+//        }
+//
+//        public void setThreshold(double threshold) {
+//            this.threshold = threshold;
+//        }
         @Override
         public void run() {
-            execute = true;
-            while (execute) {
-                ArrayList<Position> line = new ArrayList<Position>();
-                line.add(proxy.getCurrLoc());
-                line.add(position);
-                LengthMeasurer measurer = new LengthMeasurer(line);
+            LOGGER.info("### StationKeepRunnable running");
+            while (stationKeepRunning.get()) {
+                LOGGER.info("### StationKeepRunnable checking");
+                if (curSequentialEvent instanceof ProxyStationKeep) {
+                    if (!_curWaypoints.isEmpty()) {
+                        // Are already moving to the station keep position
+                        LOGGER.info("Station keep is running and we already have waypoints!");
+                    } else if (stationKeepPosition == null) {
+                        LOGGER.severe("Station keep is running, but has no position!");
+                    } else if (stationKeepThreshold < 0) {
+                        LOGGER.severe("Station keep is running, but has a negative threshold!");
+                    } else {
+                        // Check if we are outside the threshold
+                        UTMCoord stationKeepUtm = UTMCoord.fromLatLon(stationKeepPosition.latitude, stationKeepPosition.longitude);
+                        stationKeepPose = new UtmPose(new Pose3D(stationKeepUtm.getEasting(), stationKeepUtm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(stationKeepUtm.getZone(), stationKeepUtm.getHemisphere().contains("North")));
+
+                        double dist = _pose.pose.getEuclideanDistance(stationKeepPose.pose);
+
+                        if (dist >= stationKeepThreshold) {
+                            LOGGER.info("### StationKeepRunnable too far");
+                            // Move back to the station keep waypoint assuming no obstacles
+                            _curWaypoints.add(stationKeepPose);
+                            ArrayList<Position> positions = new ArrayList<Position>();
+                            positions.add(Conversion.locationToPosition(stationKeepLocation));
+                            _curWaypointsPos = positions;
+
+//                        updateWaypoints(true, false);
+                            sendCurrentWaypoints();
+                        } else {
+                            LOGGER.info("### StationKeepRunnable close enough");
+                        }
+                    }
+                } else {
+                    LOGGER.severe("StationKeepRunnable is running, but current event is not for station keeping: " + curSequentialEvent);
+                }
+
                 try {
-                    Thread.sleep(30000);
+                    Thread.sleep(STATION_KEEP_SLEEP);
                 } catch (InterruptedException ex) {
-                    Logger.getLogger(BoatProxy.class.getName()).log(Level.SEVERE, null, ex);
+//                    ex.printStackTrace();
                 }
             }
         }
+    }
 
-        public void stopExecuting() {
-            execute = false;
+    public void stationKeepStart() {
+        LOGGER.info("stationKeepStart");
+        if (!stationKeepRunning.get()) {
+            stationKeepRunning.set(true);
+            stationKeepThread = new Thread(new StationKeepRunnable());
+            stationKeepThread.start();
+        }
+    }
+
+    public void stationKeepShutdown() {
+        LOGGER.info("stationKeepShutdown");
+        if (stationKeepRunning.get()) {
+            stationKeepRunning.set(false);
+            stationKeepThread.interrupt();
         }
     }
 }

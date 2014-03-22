@@ -35,6 +35,7 @@ public class MapFrame extends UiFrame {
         controlModes.add(ControlMode.TELEOP);
         controlModes.add(ControlMode.POINT);
         controlModes.add(ControlMode.PATH);
+        controlModes.add(ControlMode.STATION_KEEP);
         controlModes.add(ControlMode.NONE);
         RobotWidget robot = new RobotWidget(wwPanel, controlModes);
         wwPanel.addWidget(robot);

@@ -5,8 +5,12 @@ import crw.Helper;
 import crw.event.input.proxy.ProxyCreated;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPathFailed;
+import crw.event.input.service.AssembleLocationResponse;
+import crw.event.input.service.PathUtmResponse;
 import crw.event.output.proxy.ConnectExistingProxy;
 import crw.event.output.proxy.CreateSimulatedProxy;
+import crw.event.output.service.AssembleLocationRequest;
+import crw.event.output.proxy.ProxyEmergencyAbort;
 import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.event.output.proxy.ProxyStationKeep;
@@ -29,6 +33,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import robotutils.Pose3D;
@@ -69,6 +74,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
     int portCounter = 0;
     final Random RANDOM = new Random();
+    private Hashtable<UUID, Integer> eventIdToAssembleCounter = new Hashtable<UUID, Integer>();
 
     public ProxyEventHandler() {
         LOGGER.log(Level.FINE, "Adding ProxyEventHandler as service provider");
@@ -200,6 +206,85 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     tokenProxies.get(proxyIndex).handleEvent(proxyEvent);
                 }
             }
+        } else if (oe instanceof AssembleLocationRequest) {
+            AssembleLocationRequest request = (AssembleLocationRequest) oe;
+            int assembleCounter = 0;
+            if (eventIdToAssembleCounter.contains(request.getId())) {
+                assembleCounter = eventIdToAssembleCounter.get(request.getId());
+            }
+
+            int numProxies = 0;
+            Hashtable<ProxyInt, Location> proxyPoints = new Hashtable<ProxyInt, Location>();
+            ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    Location assembleLocation = null;
+                    if (assembleCounter == 0) {
+                        assembleLocation = request.getLocation();
+                    } else {
+                        int direction = (assembleCounter - 1) % 8;
+                        int magnitude = (assembleCounter - 1) / 8 + 1;
+                        UTMCoordinate centerCoord = request.getLocation().getCoordinate();
+                        UTMCoordinate proxyCoord = new UTMCoordinate(centerCoord.getNorthing(), centerCoord.getEasting(), centerCoord.getZone());
+                        switch (direction) {
+                            case 0:
+                                //  0: N
+                                proxyCoord.setNorthing(centerCoord.getNorthing() + magnitude * request.getSpacing());
+                                break;
+                            case 1:
+                                //  1: NE
+                                proxyCoord.setNorthing(centerCoord.getNorthing() + magnitude * request.getSpacing());
+                                proxyCoord.setEasting(centerCoord.getEasting() + magnitude * request.getSpacing());
+                                break;
+                            case 2:
+                                //  2: E
+                                proxyCoord.setEasting(centerCoord.getEasting() + magnitude * request.getSpacing());
+                                break;
+                            case 3:
+                                //  3: SE
+                                proxyCoord.setNorthing(centerCoord.getNorthing() - magnitude * request.getSpacing());
+                                proxyCoord.setEasting(centerCoord.getEasting() + magnitude * request.getSpacing());
+                                break;
+                            case 4:
+                                //  4: S
+                                proxyCoord.setNorthing(centerCoord.getNorthing() - magnitude * request.getSpacing());
+                                break;
+                            case 5:
+                                //  5: SW
+                                proxyCoord.setNorthing(centerCoord.getNorthing() - magnitude * request.getSpacing());
+                                proxyCoord.setEasting(centerCoord.getEasting() - magnitude * request.getSpacing());
+                                break;
+                            case 6:
+                                //  6: W
+                                proxyCoord.setEasting(centerCoord.getEasting() - magnitude * request.getSpacing());
+                                break;
+                            case 7:
+                                //  7: NW
+                                proxyCoord.setNorthing(centerCoord.getNorthing() + magnitude * request.getSpacing());
+                                proxyCoord.setEasting(centerCoord.getEasting() - magnitude * request.getSpacing());
+                                break;
+                        }
+                        assembleLocation = new Location(proxyCoord, request.getLocation().getAltitude());
+                    }
+                    proxyPoints.put(token.getProxy(), assembleLocation);
+                    relevantProxies.add(token.getProxy());
+                    numProxies++;
+                    assembleCounter++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has no tokens with proxies attached: " + oe);
+            } else if (numProxies > 1) {
+                LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has " + numProxies + " tokens with proxies attached: " + oe);
+            }
+
+            eventIdToAssembleCounter.put(request.getId(), assembleCounter);
+
+            AssembleLocationResponse responseEvent = new AssembleLocationResponse(oe.getId(), oe.getMissionId(), proxyPoints, relevantProxies);
+            for (GeneratedEventListenerInt listener : listeners) {
+                LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
+                listener.eventGenerated(responseEvent);
+            }
         } else if (oe instanceof ProxyAbortMission) {
             for (Token token : tokens) {
                 if (token.getProxy() != null) {
@@ -274,6 +359,24 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 //@todo we never stop listening
                 boatProxy.handleEvent(oe);
             }
+        } else if (oe instanceof ProxyEmergencyAbort) {
+            int numProxies = 0;
+            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    tokenProxies.add((BoatProxy) token.getProxy());
+                    numProxies++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyEmergencyAbort has no tokens with proxies attached: " + oe);
+            }
+            for (BoatProxy boatProxy : tokenProxies) {
+                // Listen to the proxy
+                boatProxy.addListener(this);
+                //@todo we never stop listening
+                boatProxy.handleEvent(oe);
+            }
         }
     }
 
@@ -282,7 +385,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         LOGGER.log(Level.INFO, "ProxyEventHandler offered subscription: " + sub);
         if (sub.getSubscriptionClass() == ProxyPathCompleted.class
                 || sub.getSubscriptionClass() == ProxyPathFailed.class
-                || sub.getSubscriptionClass() == ProxyCreated.class) {
+                || sub.getSubscriptionClass() == ProxyCreated.class
+                || sub.getSubscriptionClass() == AssembleLocationResponse.class) {
             LOGGER.log(Level.INFO, "\tProxyEventHandler taking subscription: " + sub);
             if (!listeners.contains(sub.getListener())) {
                 LOGGER.log(Level.FINE, "\t\tProxyEventHandler adding listener: " + sub.getListener());
@@ -459,5 +563,13 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             p1 = p2;
         }
         return result;
+    }
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 10; i++) {
+            System.out.println("" + i);
+            System.out.println("\t" + ((int) i % 6));
+            System.out.println("\t" + ((int) i / 6));
+        }
     }
 }

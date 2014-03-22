@@ -4,6 +4,7 @@ import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.Helper;
 import crw.event.output.proxy.ProxyExecutePath;
+import crw.event.output.proxy.ProxyStationKeep;
 import crw.proxy.BoatProxy;
 import crw.ui.BoatMarker;
 import crw.ui.BoatTeleopPanel;
@@ -64,7 +65,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     public enum ControlMode {
 
-        TELEOP, POINT, PATH, NONE
+        TELEOP, POINT, PATH, STATION_KEEP, NONE
     };
     // MarkupComponentWidget variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
@@ -83,7 +84,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private Hashtable<BoatProxy, BoatMarker> proxyToMarker = new Hashtable<BoatProxy, BoatMarker>();
     private Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
     private Hashtable<BoatProxy, UUID> proxyToWpEventId = new Hashtable<BoatProxy, UUID>();
-    private JButton teleopButton, pointButton, pathButton, cancelButton, autoButton;
+    private JButton teleopButton, pointButton, pathButton, stationKeepButton, cancelButton, autoButton;
     private JPanel topPanel, btmPanel, buttonPanel;
     private List<ControlMode> enabledModes;
     private Marker selectedMarker = null;
@@ -178,6 +179,13 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                     return true;
                 }
                 break;
+            case STATION_KEEP:
+                if (clickPosition != null) {
+                    stationKeep(clickPosition);
+                    setControlMode(ControlMode.NONE);
+                    return true;
+                }
+                break;
             case NONE:
                 // Selected a proxy?
                 ArrayList<Marker> markersCopy;
@@ -243,17 +251,17 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (proxy instanceof BoatProxy) {
             final BoatProxy boatProxy = (BoatProxy) proxy;
             // Create marker
-            final BoatMarker bm = new BoatMarker(boatProxy, boatProxy.getCurrLoc(), new BasicMarkerAttributes(new Material(boatProxy.getColor()), BasicMarkerShape.ORIENTED_SPHERE, 0.9));
+            final BoatMarker bm = new BoatMarker(boatProxy, boatProxy.getPosition(), new BasicMarkerAttributes(new Material(boatProxy.getColor()), BasicMarkerShape.ORIENTED_SPHERE, 0.9));
             bm.getAttributes().setHeadingMaterial(UNSELECTED_MAT);
-            bm.setPosition(boatProxy.getCurrLoc());
+            bm.setPosition(boatProxy.getPosition());
 
             // Create listener to update marker pose
             boatProxy.addListener(new ProxyListenerInt() {
                 boolean first = true;
 
                 public void poseUpdated() {
-                    bm.setPosition(bm.getProxy().getCurrLoc());
-                    bm.setHeading(Angle.fromRadians(Math.PI / 2.0 - bm.getProxy().getPose().pose.getRotation().toYaw()));
+                    bm.setPosition(bm.getProxy().getPosition());
+                    bm.setHeading(Angle.fromRadians(Math.PI / 2.0 - bm.getProxy().getUtmPose().pose.getRotation().toYaw()));
 
                     if (first) {
                         // Add marker to lists
@@ -360,6 +368,17 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                 }
             });
         }
+        if (enabledModes.contains(ControlMode.STATION_KEEP)) {
+            stationKeepButton = new JButton("Station");
+            stationKeepButton.setEnabled(false);
+            btmPanel.add(stationKeepButton);
+            stationKeepButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    setControlMode(ControlMode.STATION_KEEP);
+                }
+            });
+        }
         if (enabledModes.size() > 0) {
             cancelButton = new JButton("Cancel");
             cancelButton.setEnabled(false);
@@ -435,6 +454,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             case PATH:
                 hideExpandables();
                 break;
+            case STATION_KEEP:
+                hideExpandables();
+                break;
             case NONE:
                 hideExpandables();
                 break;
@@ -494,6 +516,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (pathButton != null) {
             pathButton.setEnabled(enabled);
         }
+        if (stationKeepButton != null) {
+            stationKeepButton.setEnabled(enabled);
+        }
         if (cancelButton != null) {
             cancelButton.setEnabled(enabled);
         }
@@ -538,6 +563,23 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         Hashtable<ProxyInt, Path> proxyPath = new Hashtable<ProxyInt, Path>();
         proxyPath.put(selectedProxy, path);
         ProxyExecutePath proxyEvent = new ProxyExecutePath(eventId, null, proxyPath);
+        selectedProxy.updateCurrentSeqEvent(proxyEvent);
+        autoButton.setSelected(true);
+    }
+
+    public void stationKeep(Position point) {
+        Location location = new Location(point.latitude.degrees, point.longitude.degrees, 0);
+
+        UUID eventId = null;
+        if (proxyToWpEventId.containsKey(selectedProxy)) {
+            eventId = proxyToWpEventId.get(selectedProxy);
+        } else {
+            eventId = UUID.randomUUID();
+            proxyToWpEventId.put(selectedProxy, eventId);
+        }
+        Hashtable<ProxyInt, Location> proxyPoint = new Hashtable<ProxyInt, Location>();
+        proxyPoint.put(selectedProxy, location);
+        ProxyStationKeep proxyEvent = new ProxyStationKeep(eventId, null, proxyPoint, 3.0);
         selectedProxy.updateCurrentSeqEvent(proxyEvent);
         autoButton.setSelected(true);
     }

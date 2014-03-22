@@ -171,11 +171,11 @@ public class BoatTeleopPanel extends JPanel {
 //            System.out.println("### Twist: " + twist.toString());
             activeVehicle.setVelocity(twist, new FunctionObserver<Void>() {
                 public void completed(Void v) {
-                    System.out.println("Set velocity succeeded");
+                    LOGGER.fine("Set velocity succeeded");
                 }
 
                 public void failed(FunctionError fe) {
-                    System.out.println("Set velocity failed");
+                    LOGGER.fine("Set velocity failed");
                 }
             });
         }

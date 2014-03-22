@@ -68,7 +68,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
 
                         double[] prev = null;
 
-                        currLoc = proxy.getCurrLoc();
+                        currLoc = proxy.getPosition();
                         if (currLoc != null) {
                             SensorData sd = new SensorData();
 
@@ -194,7 +194,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
 
     @Override
     public void receivedSensor(SensorData sd) {
-        Position curP = proxy.getCurrLoc();
+        Position curP = proxy.getPosition();
         Long timeReceived = System.currentTimeMillis();
         Location curLocation = new Location(curP.latitude.degrees, curP.longitude.degrees, 0);
         Observation obs = new Observation(sd.type.toString(), sd.data[0], proxy.getName(), curLocation, timeReceived);
