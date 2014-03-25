@@ -19,6 +19,8 @@ public class ColorSlider extends JPanel {
     JLabel nullLabel;
     boolean nullColor;
     final String NULL_TEXT = "<html><font color=rgb(188,6,6)>NULL</font></html>";
+    final Color[] colorDividers = new Color[]{Color.BLACK, Color.RED, Color.MAGENTA, Color.BLUE, Color.CYAN, Color.GREEN, Color.YELLOW, Color.ORANGE, Color.WHITE};
+    final double dividerIncrement = 1.0 / (colorDividers.length - 1);
 
     public ColorSlider() {
         super(new BorderLayout());
@@ -56,86 +58,71 @@ public class ColorSlider extends JPanel {
     }
 
     public void setColor(Color color) {
-        setBackground(color);
+        slider.setValue((int) (colorToValue(color) * 100));
+        repaint();
     }
 
-    /**
-     * Heatmap color computation taken from
-     * http://stackoverflow.com/questions/2374959/algorithm-to-convert-any-positive-integer-to-an-rgb-value
-     *
-     * @param value The value to compute the color for
-     * @param min Min value of data range
-     * @param max Max value of data range
-     * @return Heatmap color
-     */
     public Color valueToColor(double value, double min, double max) {
         if (value == 0.0) {
-            // Need a way to not set the value
+            // No value
             return null;
-        }
-
-        double wavelength = 0.0, factor = 0.0, red = 0.0, green = 0.0, blue = 0.0, gamma = 1.0;
-        double adjMin = min - 5;
-        double adjMax = max - 5;
-
-        if (value < adjMin) {
-            wavelength = 0.0;
-        } else if (value <= adjMax) {
-            wavelength = (value - adjMin) / (adjMax - adjMin) * (750.0f - 350.0f) + 350.0f;
         } else {
-            wavelength = 0.0;
+            double sliderPercent = value / 100.0;
+            int lowerColorIndex = (int) (sliderPercent / dividerIncrement);
+            if (lowerColorIndex == colorDividers.length - 1) {
+                // Bar is all the way to the right, return the last divider color
+                return colorDividers[colorDividers.length - 1];
+            } else {
+                // Linearly scale between the two adjacent divider colors
+                double adjacentFraction = (sliderPercent - lowerColorIndex * dividerIncrement) / dividerIncrement;
+                int r = (int) (colorDividers[lowerColorIndex].getRed() + (adjacentFraction * (colorDividers[lowerColorIndex + 1].getRed() - colorDividers[lowerColorIndex].getRed())));
+                int g = (int) (colorDividers[lowerColorIndex].getGreen() + (adjacentFraction * (colorDividers[lowerColorIndex + 1].getGreen() - colorDividers[lowerColorIndex].getGreen())));
+                int b = (int) (colorDividers[lowerColorIndex].getBlue() + (adjacentFraction * (colorDividers[lowerColorIndex + 1].getBlue() - colorDividers[lowerColorIndex].getBlue())));
+                return new Color(r, g, b);
+            }
         }
+    }
 
-        if (wavelength == 0.0f) {
-            red = 0.0;
-            green = 0.0;
-            blue = 0.0;
-        } else if (wavelength < 440.0f) {
-            red = -(wavelength - 440.0f) / (440.0f - 350.0f);
-            green = 0.0;
-            blue = 1.0;
-        } else if (wavelength < 490.0f) {
-            red = 0.0;
-            green = (wavelength - 440.0f) / (490.0f - 440.0f);
-            blue = 1.0;
-        } else if (wavelength < 510.0f) {
-            red = 0.0;
-            green = 1.0;
-            blue = -(wavelength - 510.0f) / (510.0f - 490.0f);
-        } else if (wavelength < 580.0f) {
-            red = (wavelength - 510.0f) / (580.0f - 510.0f);
-            green = 1.0;
-            blue = 0.0;
-        } else if (wavelength < 645) {
-            red = 1.0;
-            green = -(wavelength - 645.0f) / (645.0f - 580.0f);
-            blue = 0.0;
+    public double colorToValue(Color color) {
+        if (color == null) {
+            return 0.0;
         } else {
-            red = 1.0;
-            green = 0.0;
-            blue = 0.0;
+            for (int i = 0; i < colorDividers.length - 1; i++) {
+                if (((color.getRed() >= colorDividers[i].getRed() && color.getRed() <= colorDividers[i + 1].getRed())
+                        || (color.getRed() >= colorDividers[i + 1].getRed() && color.getRed() <= colorDividers[i].getRed()))
+                        && ((color.getGreen() >= colorDividers[i].getGreen() && color.getGreen() <= colorDividers[i + 1].getGreen())
+                        || (color.getGreen() >= colorDividers[i + 1].getGreen() && color.getGreen() <= colorDividers[i].getGreen()))
+                        && ((color.getBlue() >= colorDividers[i].getBlue() && color.getBlue() <= colorDividers[i + 1].getBlue())
+                        || (color.getBlue() >= colorDividers[i + 1].getBlue() && color.getBlue() <= colorDividers[i].getBlue()))) {
+                    // All of the color's RGB values are between these two divider colors
+                    // Linearly scale value between the two divider colors' values
+                    double adjacentFraction = 0.0;
+                    if (colorDividers[i].getRed() != colorDividers[i + 1].getRed()) {
+                        adjacentFraction = fromRangeToProgress(color.getRed() * 1.0, colorDividers[i].getRed() * 1.0, colorDividers[i + 1].getRed() * 1.0);
+                    } else if (colorDividers[i].getGreen() != colorDividers[i + 1].getGreen()) {
+                        adjacentFraction = fromRangeToProgress(color.getGreen() * 1.0, colorDividers[i].getGreen() * 1.0, colorDividers[i + 1].getGreen() * 1.0);
+                    } else if (colorDividers[i].getBlue() != colorDividers[i + 1].getBlue()) {
+                        adjacentFraction = fromRangeToProgress(color.getBlue() * 1.0, colorDividers[i].getBlue() * 1.0, colorDividers[i + 1].getBlue() * 1.0);
+                    }
+                    return (i * dividerIncrement) + (adjacentFraction * dividerIncrement);
+                }
+            }
         }
+        return 1.0;
+    }
 
-        if (wavelength == 0.0f) {
-            factor = 0.0;
-        } else if (wavelength < 420) {
-            factor = 0.3f + 0.7f * (wavelength - 350.0f) / (420.0f - 350.0f);
-        } else if (wavelength < 680) {
-            factor = 1.0;
-        } else {
-            factor = 0.3f + 0.7f * (750.0f - wavelength) / (750.0f - 680.0f);
-        }
+    private double fromProgressToRange(double progress, double min, double max) {
+        return min + (max - min) * progress;
+    }
 
-        Color color = new Color(
-                (int) Math.floor(255.0 * Math.pow(red * factor, gamma)),
-                (int) Math.floor(255.0 * Math.pow(green * factor, gamma)),
-                (int) Math.floor(255.0 * Math.pow(blue * factor, gamma)));
-        return color;
+    private double fromRangeToProgress(double value, double min, double max) {
+        return ((value - min) / (max - min));
     }
 
     public static void main(String[] args) {
         JFrame frame = new JFrame();
-        frame.add(new ColorSlider());
+        ColorSlider slider = new ColorSlider();
+        frame.add(slider);
         frame.setVisible(true);
         frame.pack();
     }
