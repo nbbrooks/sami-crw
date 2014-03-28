@@ -15,7 +15,9 @@ import sami.engine.Engine;
 import sami.event.MissingParamsRequest;
 import sami.event.OutputEvent;
 import sami.handler.EventHandlerInt;
+import sami.markup.Markup;
 import sami.markup.Priority;
+import sami.markup.RelevantProxy;
 import sami.mission.Token;
 import sami.proxy.ProxyInt;
 import sami.uilanguage.toui.GetParamsMessage;
@@ -98,6 +100,18 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
             return;
         }
 
+        // Handle markups
+        for(Markup markup : oe.getMarkups()) {
+            if(markup instanceof RelevantProxy) {
+                ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
+                for(Token t : tokens) {
+                    if(t.getProxy() != null && !relevantProxies.contains(t.getProxy())) {
+                        relevantProxies.add(t.getProxy());
+                    }
+                }
+                ((RelevantProxy)markup).setRelevantProxies(relevantProxies);
+            }
+        }
         message.setMarkups(oe.getMarkups());
 
         Engine.getInstance().getUiClient().UIMessage(message);

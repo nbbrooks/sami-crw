@@ -6,6 +6,8 @@ import crw.event.input.proxy.ProxyPoseUpdated;
 import crw.event.input.proxy.ProxyStationKeepCompleted;
 import crw.event.output.proxy.ProxyEmergencyAbort;
 import crw.event.output.proxy.ProxyExecutePath;
+import crw.event.output.proxy.ProxyGotoPoint;
+import crw.event.output.proxy.ProxyResendWaypoints;
 import crw.event.output.proxy.ProxyStationKeep;
 import crw.sensor.CrwObserverServer;
 import edu.cmu.ri.crw.FunctionObserver;
@@ -376,6 +378,9 @@ public class BoatProxy extends Thread implements ProxyInt {
         if (oe instanceof ProxyExecutePath) {
             sequentialOutputEvents.add(index, oe);
             sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
+        } else if (oe instanceof ProxyGotoPoint) {
+            sequentialOutputEvents.add(index, oe);
+            sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
         } else if (oe instanceof ProxyStationKeep) {
             sequentialOutputEvents.add(index, oe);
             sequentialInputEvents.add(index, new ProxyStationKeepCompleted(oe.getId(), oe.getMissionId(), this));
@@ -384,6 +389,8 @@ public class BoatProxy extends Thread implements ProxyInt {
             LOGGER.severe("Handling ProxyEmergencyAbort! sequentialOutputEvents were: " + sequentialOutputEvents + ", sequentialInputEvents were: " + sequentialInputEvents);
             sequentialOutputEvents.clear();
             sequentialInputEvents.clear();
+            sendWps = true;
+        } else if (oe instanceof ProxyResendWaypoints) {
             sendWps = true;
         } else {
             LOGGER.severe("Can't handle OutputEvent of class " + oe.getClass().getSimpleName());
@@ -619,6 +626,23 @@ public class BoatProxy extends Thread implements ProxyInt {
                             LOGGER.severe("Can't handle Path of class " + executePath.getProxyPaths().get(this).getClass().getSimpleName());
                         }
                     }
+                } else if (sequentialOutputEvents.get(0) instanceof ProxyGotoPoint) {
+                    ProxyGotoPoint gotoPoint = (ProxyGotoPoint) sequentialOutputEvents.get(0);
+                    if (gotoPoint.getProxyPoints().containsKey(this)) {
+                        curSequentialEvent = sequentialOutputEvents.get(0);
+                        Location location = gotoPoint.getProxyPoints().get(this);
+                        ArrayList<Position> positions = new ArrayList<Position>();
+                        positions.add(Conversion.locationToPosition(location));
+
+                        _curWaypointsPos = positions;
+                        for (Position position : positions) {
+                            UTMCoord utm = UTMCoord.fromLatLon(position.latitude, position.longitude);
+                            UtmPose pose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
+                            _curWaypoints.add(pose);
+                        }
+                    } else {
+                        LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + gotoPoint.getProxyPoints());
+                    }
                 } else if (sequentialOutputEvents.get(0) instanceof ProxyStationKeep) {
                     LOGGER.info("curSequentialEvent IS SK");
                     ProxyStationKeep stationKeep = (ProxyStationKeep) sequentialOutputEvents.get(0);
@@ -662,6 +686,14 @@ public class BoatProxy extends Thread implements ProxyInt {
                             } else {
                                 LOGGER.severe("Can't handle Path of class " + executePath.getProxyPaths().get(this).getClass().getSimpleName());
                             }
+                        }
+                    } else if (sequentialOutputEvents.get(i) instanceof ProxyGotoPoint) {
+                        ProxyGotoPoint gotoPoint = (ProxyGotoPoint) sequentialOutputEvents.get(i);
+                        if (gotoPoint.getProxyPoints().containsKey(this)) {
+                            Location location = gotoPoint.getProxyPoints().get(this);
+                            positions.add(Conversion.locationToPosition(location));
+                        } else {
+                            LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + gotoPoint.getProxyPoints());
                         }
                     } else if (sequentialOutputEvents.get(i) instanceof ProxyStationKeep) {
                         // Station keep just finished moving back to the location

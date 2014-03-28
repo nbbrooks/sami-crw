@@ -5,15 +5,21 @@ import crw.Helper;
 import crw.event.input.proxy.ProxyCreated;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPathFailed;
+import crw.event.input.proxy.ProxyPoseUpdated;
 import crw.event.input.service.AssembleLocationResponse;
-import crw.event.input.service.PathUtmResponse;
+import crw.event.input.service.QuantityEqual;
+import crw.event.input.service.QuantityGreater;
+import crw.event.input.service.QuantityLess;
 import crw.event.output.proxy.ConnectExistingProxy;
 import crw.event.output.proxy.CreateSimulatedProxy;
 import crw.event.output.service.AssembleLocationRequest;
 import crw.event.output.proxy.ProxyEmergencyAbort;
 import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyExploreArea;
+import crw.event.output.proxy.ProxyGotoPoint;
+import crw.event.output.proxy.ProxyResendWaypoints;
 import crw.event.output.proxy.ProxyStationKeep;
+import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
 import crw.ui.ImagePanel;
@@ -25,6 +31,7 @@ import edu.cmu.ri.crw.udp.UdpVehicleService;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
+import gov.nasa.worldwind.geom.coords.UTMCoord;
 import gov.nasa.worldwind.render.Polygon;
 import java.awt.Color;
 import java.net.InetSocketAddress;
@@ -115,6 +122,27 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
 //        } else if (oe instanceof ProxyExecuteTask) {
 //            //@todo simulator integration
+        } else if (oe instanceof ProxyGotoPoint) {
+            int numProxies = 0;
+            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    tokenProxies.add((BoatProxy) token.getProxy());
+                    numProxies++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has no tokens with proxies attached: " + oe);
+            } else if (numProxies > 1) {
+                LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has " + numProxies + " tokens with proxies attached: " + oe);
+            }
+            for (BoatProxy boatProxy : tokenProxies) {
+                // Listen to the proxy
+                boatProxy.addListener(this);
+                //@todo we never stop listening
+                // Send the path
+                boatProxy.handleEvent(oe);
+            }
         } else if (oe instanceof ProxyExploreArea) {
             // Get the lawnmower path for the whole area
             // How many meters the proxy should move north after each horizontal section of the lawnmower pattern
@@ -285,6 +313,52 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
                 listener.eventGenerated(responseEvent);
             }
+        } else if (oe instanceof ProxyCompareDistanceRequest) {
+            ProxyCompareDistanceRequest request = (ProxyCompareDistanceRequest) oe;
+            ArrayList<InputEvent> responses = new ArrayList<InputEvent>();
+
+            int numProxies = 0;
+            ArrayList<ProxyInt> relevantProxies;
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    BoatProxy boatProxy = (BoatProxy) token.getProxy();
+                    if (!request.getProxyCompareLocation().containsKey(boatProxy)) {
+                        LOGGER.severe("Passed in proxy token for " + boatProxy + " to place with ProxyCompareDistanceRequest, but there is no compare location entry for the proxy!");
+                    } else {
+                        Position stationKeepPosition = Conversion.locationToPosition(request.getProxyCompareLocation().get(boatProxy));
+                        UTMCoord stationKeepUtm = UTMCoord.fromLatLon(stationKeepPosition.latitude, stationKeepPosition.longitude);
+                        UtmPose stationKeepPose = new UtmPose(new Pose3D(stationKeepUtm.getEasting(), stationKeepUtm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(stationKeepUtm.getZone(), stationKeepUtm.getHemisphere().contains("North")));
+                        Position boatPosition = boatProxy.getPosition();
+                        UTMCoord boatUtm = UTMCoord.fromLatLon(boatPosition.latitude, boatPosition.longitude);
+                        UtmPose boatPose = new UtmPose(new Pose3D(boatUtm.getEasting(), boatUtm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(boatUtm.getZone(), boatUtm.getHemisphere().contains("North")));
+                        double distance = boatPose.pose.getEuclideanDistance(stationKeepPose.pose);
+
+                        InputEvent response;
+                        relevantProxies = new ArrayList<ProxyInt>();
+                        relevantProxies.add(boatProxy);
+                        if (distance > request.compareDistance) {
+                            response = new QuantityGreater(request.getId(), request.getMissionId(), relevantProxies);
+                        } else if (distance < request.compareDistance) {
+                            response = new QuantityLess(request.getId(), request.getMissionId(), relevantProxies);
+                        } else {
+                            response = new QuantityEqual(request.getId(), request.getMissionId(), relevantProxies);
+                        }
+                        responses.add(response);
+                    }
+                    numProxies++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyCompareDistanceRequest has no tokens with proxies attached: " + oe);
+            }
+
+            LOGGER.info("Handling ProxyCompareDistanceRequest, have responses: " + responses + ", have listeners: " + listeners);
+            for (GeneratedEventListenerInt listener : listeners) {
+                for (InputEvent response : responses) {
+                    LOGGER.log(Level.INFO, "\tSending response: " + response + " to listener: " + listener);
+                    listener.eventGenerated(response);
+                }
+            }
         } else if (oe instanceof ProxyAbortMission) {
             for (Token token : tokens) {
                 if (token.getProxy() != null) {
@@ -377,17 +451,39 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 //@todo we never stop listening
                 boatProxy.handleEvent(oe);
             }
+        } else if (oe instanceof ProxyResendWaypoints) {
+            int numProxies = 0;
+            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    tokenProxies.add((BoatProxy) token.getProxy());
+                    numProxies++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyResendWaypoints has no tokens with proxies attached: " + oe);
+            }
+            for (BoatProxy boatProxy : tokenProxies) {
+                // Listen to the proxy
+                boatProxy.addListener(this);
+                //@todo we never stop listening
+                boatProxy.handleEvent(oe);
+            }
         }
     }
 
     @Override
     public boolean offer(GeneratedInputEventSubscription sub) {
-        LOGGER.log(Level.INFO, "ProxyEventHandler offered subscription: " + sub);
+        LOGGER.log(Level.FINE, "ProxyEventHandler offered subscription: " + sub);
         if (sub.getSubscriptionClass() == ProxyPathCompleted.class
                 || sub.getSubscriptionClass() == ProxyPathFailed.class
                 || sub.getSubscriptionClass() == ProxyCreated.class
-                || sub.getSubscriptionClass() == AssembleLocationResponse.class) {
-            LOGGER.log(Level.INFO, "\tProxyEventHandler taking subscription: " + sub);
+                || sub.getSubscriptionClass() == AssembleLocationResponse.class
+                || sub.getSubscriptionClass() == QuantityGreater.class
+                || sub.getSubscriptionClass() == QuantityLess.class
+                || sub.getSubscriptionClass() == QuantityEqual.class
+                || sub.getSubscriptionClass() == ProxyPoseUpdated.class) {
+            LOGGER.log(Level.FINE, "\tProxyEventHandler taking subscription: " + sub);
             if (!listeners.contains(sub.getListener())) {
                 LOGGER.log(Level.FINE, "\t\tProxyEventHandler adding listener: " + sub.getListener());
                 listeners.add(sub.getListener());
@@ -406,7 +502,12 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         LOGGER.log(Level.FINE, "ProxyEventHandler asked to cancel subscription: " + sub);
         if ((sub.getSubscriptionClass() == ProxyPathCompleted.class
                 || sub.getSubscriptionClass() == ProxyPathFailed.class
-                || sub.getSubscriptionClass() == ProxyCreated.class)
+                || sub.getSubscriptionClass() == ProxyCreated.class
+                || sub.getSubscriptionClass() == AssembleLocationResponse.class
+                || sub.getSubscriptionClass() == QuantityGreater.class
+                || sub.getSubscriptionClass() == QuantityLess.class
+                || sub.getSubscriptionClass() == QuantityEqual.class
+                || sub.getSubscriptionClass() == ProxyPoseUpdated.class)
                 && listeners.contains(sub.getListener())) {
             LOGGER.log(Level.FINE, "\tProxyEventHandler canceling subscription: " + sub);
             if (listenerGCCount.get(sub.getListener()) == 1) {
