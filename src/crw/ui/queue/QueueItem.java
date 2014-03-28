@@ -30,7 +30,6 @@ import sami.event.ReflectedEventSpecification;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.toui.CreationMessage;
-import sami.uilanguage.toui.GetParamsMessage;
 import sami.uilanguage.toui.SelectionMessage;
 import sami.uilanguage.toui.ToUiMessage;
 
@@ -51,7 +50,7 @@ public class QueueItem {
     protected ToUiMessage decisionMessage;
     protected final AtomicBoolean viewed = new AtomicBoolean(false);
     List<Object> optionList = new ArrayList<Object>();
-    Hashtable<Field, MarkupComponent> componentTable = new Hashtable<Field, MarkupComponent>();
+    Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>> eventSpecToComponentTable = new Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>>();
     protected QueueThumbnail thumbnail = null;
     protected QueueContent content = null;
     protected MarkupManager markupManager = null;
@@ -78,42 +77,44 @@ public class QueueItem {
 
             if (decisionMessage instanceof CreationMessage) {
                 CreationMessage creationMessage = (CreationMessage) decisionMessage;
-                Hashtable<Field, ReflectedEventSpecification> fieldToEventSpec = null;
 
                 GroupLayout layout = new GroupLayout(content);
                 content.setLayout(layout);
                 GroupLayout.SequentialGroup rowSeqGroup = layout.createSequentialGroup();
                 GroupLayout.ParallelGroup rowParGroup1 = layout.createParallelGroup();
                 GroupLayout.SequentialGroup colSeqGroup = layout.createSequentialGroup();
-                int numRows = 2 * creationMessage.getFieldDescriptions().size() + 1;
+                int numRows = 1;
+                for (ReflectedEventSpecification eventSpec : creationMessage.getEventSpecToFieldDescriptions().keySet()) {
+                    Hashtable<Field, String> fieldDescriptions = creationMessage.getEventSpecToFieldDescriptions().get(eventSpec);
+                    numRows += (2 * fieldDescriptions.size());
+                }
                 GroupLayout.ParallelGroup[] colParGroupArr = new GroupLayout.ParallelGroup[numRows];
                 int row = 0;
                 int maxColWidth = BUTTON_WIDTH;
                 int cumulComponentHeight = 0;
-                if (decisionMessage instanceof GetParamsMessage) {
-                    fieldToEventSpec = ((GetParamsMessage) decisionMessage).getFieldToEventSpec();
-                }
-                for (Field field : creationMessage.getFieldDescriptions().keySet()) {
-                    // Add in description of item to be created
-                    String description = creationMessage.getFieldDescriptions().get(field);
-                    JLabel descriptionLabel = new JLabel(field.getName() + " (" + field.getType().getSimpleName() + "): " + description);
-                    rowParGroup1.addComponent(descriptionLabel);
-                    colParGroupArr[row] = layout.createParallelGroup();
-                    colParGroupArr[row].addComponent(descriptionLabel);
-                    maxColWidth = Math.max(maxColWidth, (int) descriptionLabel.getMaximumSize().getWidth() + BUTTON_WIDTH);
-                    cumulComponentHeight += Math.max((int) descriptionLabel.getMaximumSize().getHeight(), BUTTON_HEIGHT);
-                    row++;
+                for (ReflectedEventSpecification eventSpec : creationMessage.getEventSpecToFieldDescriptions().keySet()) {
+                    Hashtable<Field, String> fieldDescriptions = creationMessage.getEventSpecToFieldDescriptions().get(eventSpec);
+                    Hashtable<Field, MarkupComponent> componentTable = new Hashtable<Field, MarkupComponent>();
+                    eventSpecToComponentTable.put(eventSpec, componentTable);
+                    for (Field field : fieldDescriptions.keySet()) {
+                        // Add in description of item to be created
+                        String description = fieldDescriptions.get(field);
+                        JLabel descriptionLabel = new JLabel(field.getName() + " (" + field.getType().getSimpleName() + "): " + description);
+                        rowParGroup1.addComponent(descriptionLabel);
+                        colParGroupArr[row] = layout.createParallelGroup();
+                        colParGroupArr[row].addComponent(descriptionLabel);
+                        maxColWidth = Math.max(maxColWidth, (int) descriptionLabel.getMaximumSize().getWidth() + BUTTON_WIDTH);
+                        cumulComponentHeight += Math.max((int) descriptionLabel.getMaximumSize().getHeight(), BUTTON_HEIGHT);
+                        row++;
 
-                    // Add in component for creating the item
-                    MarkupComponent markupComponent = null;
-                    JComponent vizualization = null;
-                    markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), creationMessage.getMarkups());
-                    if (markupComponent == null) {
-                        LOGGER.severe("Got null creation component for field: " + field);
-                        vizualization = new JLabel("");
-                    } else {
-                        if (fieldToEventSpec != null) {
-                            ReflectedEventSpecification eventSpec = fieldToEventSpec.get(field);
+                        // Add in component for creating the item
+                        MarkupComponent markupComponent = null;
+                        JComponent vizualization = null;
+                        markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), creationMessage.getMarkups());
+                        if (markupComponent == null) {
+                            LOGGER.severe("Got null creation component for field: " + field);
+                            vizualization = new JLabel("");
+                        } else {
                             if (eventSpec != null) {
                                 Object definition = eventSpec.getFieldDefinition(field.getName());
                                 if (definition != null) {
@@ -122,16 +123,16 @@ public class QueueItem {
                             } else {
                                 LOGGER.severe("Failed to retrieve eventSpec for field: " + field.getName());
                             }
+                            componentTable.put(field, markupComponent);
+                            vizualization = markupComponent.getComponent();
                         }
-                        componentTable.put(field, markupComponent);
-                        vizualization = markupComponent.getComponent();
+                        rowParGroup1.addComponent(vizualization);
+                        colParGroupArr[row] = layout.createParallelGroup();
+                        colParGroupArr[row].addComponent(vizualization);
+                        maxColWidth = Math.max(maxColWidth, (int) vizualization.getMaximumSize().getWidth() + BUTTON_WIDTH);
+                        cumulComponentHeight += Math.max((int) vizualization.getMaximumSize().getHeight(), BUTTON_HEIGHT);
+                        row++;
                     }
-                    rowParGroup1.addComponent(vizualization);
-                    colParGroupArr[row] = layout.createParallelGroup();
-                    colParGroupArr[row].addComponent(vizualization);
-                    maxColWidth = Math.max(maxColWidth, (int) vizualization.getMaximumSize().getWidth() + BUTTON_WIDTH);
-                    cumulComponentHeight += Math.max((int) vizualization.getMaximumSize().getHeight(), BUTTON_HEIGHT);
-                    row++;
                 }
                 // Add "Done" button
                 JButton button = new JButton("Done");
@@ -184,7 +185,14 @@ public class QueueItem {
                 int cumulComponentHeight = 0;
                 for (final Object option : selectionMessage.getOptionsList()) {
                     MarkupComponent markupComponent = CrwUiComponentGenerator.getInstance().getSelectionComponent(option.getClass(), option, selectionMessage.getMarkups());
-                    JComponent visualization = markupComponent.getComponent();
+                    JComponent visualization;
+                    if (markupComponent != null) {
+                        visualization = markupComponent.getComponent();
+                    } else {
+                        LOGGER.severe("No component available");
+                        visualization = new JLabel("No component available");
+                    }
+
                     JComponent button;
                     if (selectionMessage.getAllowMultiple()) {
                         button = new JCheckBox("Use " + row, false);
@@ -293,7 +301,7 @@ public class QueueItem {
     }
 
     public void creationDone() {
-        FromUiMessage fromUiMessage = CrwFromUiMessageGenerator.getInstance().getFromUiMessage((CreationMessage) decisionMessage, componentTable);
+        FromUiMessage fromUiMessage = CrwFromUiMessageGenerator.getInstance().getFromUiMessage((CreationMessage) decisionMessage, eventSpecToComponentTable);
         if (Engine.getInstance().getUiServer() != null) {
             Engine.getInstance().getUiServer().UIMessage(fromUiMessage);
         } else {

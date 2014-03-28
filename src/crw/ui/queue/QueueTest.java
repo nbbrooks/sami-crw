@@ -74,11 +74,8 @@ public class QueueTest implements ResponseListener {
         ReflectedEventSpecification eventSpec = new ReflectedEventSpecification(ProxyExploreArea.class.getName());
         try {
             ArrayList<String> fieldNames = (ArrayList<String>) (eventClass.getField("fieldNames").get(null));
-            HashMap<String, String> fieldNameToDescription = (HashMap<String, String>) (eventClass.getField("fieldNameToDescription").get(null));
 
             for (String fieldName : fieldNames) {
-//                System.out.println("eventClass: " + eventClass + "\tfieldName: " + fieldName);
-//                final Field field = eventClass.getField(fieldName);
                 eventSpec.addFieldDefinition(fieldName, null);
             }
 
@@ -90,8 +87,13 @@ public class QueueTest implements ResponseListener {
             Logger.getLogger(ReflectedEventD.class.getName()).log(Level.SEVERE, null, ex);
         }
 
+        Hashtable<ReflectedEventSpecification, Hashtable<Field, String>> eventSpecToFieldDescriptions = new Hashtable<ReflectedEventSpecification, Hashtable<Field, String>>();
+        Hashtable<ReflectedEventSpecification, ArrayList<Field>> eventSpecToFields = new Hashtable<ReflectedEventSpecification, ArrayList<Field>>();
+
         Hashtable<Field, String> fieldDescriptions = new Hashtable<Field, String>();
-        Hashtable<Field, ReflectedEventSpecification> fieldToEventSpec = new Hashtable<Field, ReflectedEventSpecification>();
+        ArrayList<Field> fields = new ArrayList<Field>();
+        eventSpecToFieldDescriptions.put(eventSpec, fieldDescriptions);
+        eventSpecToFields.put(eventSpec, fields);
         HashMap<String, Object> instanceParams = eventSpec.getFieldDefinitions();
         for (String fieldName : instanceParams.keySet()) {
             System.out.println("\tfield name: " + fieldName);
@@ -100,7 +102,7 @@ public class QueueTest implements ResponseListener {
                     System.out.println("\t\tlooking for " + fieldName + " in class " + eventSpec.getClassName());
                     Field missingField = Class.forName(eventSpec.getClassName()).getField(fieldName);
                     fieldDescriptions.put(missingField, "");
-                    fieldToEventSpec.put(missingField, eventSpec);
+                    fields.add(missingField);
                 } catch (ClassNotFoundException cnfe) {
                     cnfe.printStackTrace();
                 } catch (NoSuchFieldException nsfe) {
@@ -108,22 +110,9 @@ public class QueueTest implements ResponseListener {
                 }
             }
         }
-        MissingParamsRequest oe = new MissingParamsRequest(null, fieldDescriptions, fieldToEventSpec);
-        GetParamsMessage msg = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, oe.getFieldDescriptions(), oe.getFieldToEventSpec());
+        MissingParamsRequest oe = new MissingParamsRequest(null, eventSpecToFieldDescriptions);
+        GetParamsMessage msg = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, oe.getFieldDescriptions());
         oif.ToUiMessage(msg);
-//        MissingParamsRequest msg = new MissingParamsRequest(null, null, null);
-//        AreaCreatedMessage acm = new AreaCreatedMessage(null, null);
-//
-//        try {
-//            Object object = Class.forName(AreaCreatedMessage.class.getName()).newInstance();
-//        } catch (ClassNotFoundException cnfe) {
-//            cnfe.printStackTrace();
-//        } catch (InstantiationException ie) {
-//            ie.printStackTrace();
-//        } catch (IllegalAccessException iae) {
-//            iae.printStackTrace();
-//        }
-//        oif.ToUiMessage(new CreateAreaMessage(UUID.randomUUID(), priority));
     }
 
     public ArrayList<ProxyInt> createProxies(int numProxies) {

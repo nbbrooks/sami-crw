@@ -20,7 +20,7 @@ public class QueueDatabase {
     UiClientInt uiClient;
     UiServerInt uiServer;
     private PriorityQueue<ToUiMessage> incomingDecisions = new PriorityQueue<ToUiMessage>(11, new MessageComparator());
-    
+
     // private
     public Hashtable<ToUiMessage, MarkupManager> parentLookup = new Hashtable<ToUiMessage, MarkupManager>();
 
@@ -43,8 +43,6 @@ public class QueueDatabase {
 
     public void addDecision(ToUiMessage decisionMessage, MarkupManager parent) {
         incomingDecisions.add(decisionMessage);
-        
-        
         parentLookup.put(decisionMessage, parent);
     }
 

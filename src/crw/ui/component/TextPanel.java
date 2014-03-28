@@ -264,6 +264,7 @@ public class TextPanel implements MarkupComponent {
 
     @Override
     public boolean setComponentValue(Object value) {
+        LOGGER.fine("setComponentValue: " + value + ", component: " + component);
         boolean success = false;
         if (component instanceof JTextField) {
             ((JTextField) component).setText(value.toString());

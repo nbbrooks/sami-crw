@@ -73,7 +73,7 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
             generatorEvent = new OperatorSelectsBoatList(m.getRelevantOutputEventId(), m.getMissionId(), ((BoatProxyListSelectedMessage) m).getBoatProxyList());
         } else if (m instanceof ParamsSelectedMessage) {
             ParamsSelectedMessage psm = (ParamsSelectedMessage) m;
-            generatorEvent = new MissingParamsReceived(psm.getRelevantOutputEventId(), psm.getMissionId(), psm.getFieldToValue(), psm.getFieldToEventSpec());
+            generatorEvent = new MissingParamsReceived(psm.getRelevantOutputEventId(), psm.getMissionId(), psm.getEventSpecToFieldValues());
 //        } else if (m instanceof AreaCreatedMessage) {
 //            generatorEvent = new OperatorCreatesArea(((AreaCreatedMessage) m).getArea(), ((AreaCreatedMessage) m).getUuid());
         } else {

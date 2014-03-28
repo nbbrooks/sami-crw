@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.logging.Logger;
 import sami.allocation.ResourceAllocation;
+import sami.event.ReflectedEventSpecification;
 import sami.path.Path;
 import sami.proxy.ProxyInt;
 import sami.uilanguage.MarkupComponent;
@@ -43,21 +44,27 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
         return CrwFromUiMessageGenerator.FromUiMessageGeneratorHolder.INSTANCE;
     }
 
-    public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<Field, MarkupComponent> componentTable) {
+    public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>> eventSpecToComponentTable) {
         CreationDoneMessage doneMessage = null;
         if (creationMessage instanceof GetParamsMessage) {
-            Hashtable<Field, Object> fieldToValue = new Hashtable<Field, Object>();
-            for (Field field : componentTable.keySet()) {
-                if (field != null) {
-                    Object value = CrwUiComponentGenerator.getInstance().getComponentValue(componentTable.get(field), field);
-                    if (value == null) {
-                        LOGGER.severe("Got null value for field: " + field);
-                    } else {
-                        fieldToValue.put(field, value);
+            LOGGER.fine("eventSpecToComponentTable: " + eventSpecToComponentTable);
+            Hashtable<ReflectedEventSpecification, Hashtable<Field, Object>> eventSpecToFieldValues = new Hashtable<ReflectedEventSpecification, Hashtable<Field, Object>>();
+            for (ReflectedEventSpecification eventSpec : eventSpecToComponentTable.keySet()) {
+                Hashtable<Field, Object> fieldToValue = new Hashtable<Field, Object>();
+                eventSpecToFieldValues.put(eventSpec, fieldToValue);
+                Hashtable<Field, MarkupComponent> componentTable = eventSpecToComponentTable.get(eventSpec);
+                for (Field field : componentTable.keySet()) {
+                    if (field != null) {
+                        Object value = CrwUiComponentGenerator.getInstance().getComponentValue(componentTable.get(field), field);
+                        if (value == null) {
+                            LOGGER.severe("Got null value for field: " + field);
+                        } else {
+                            fieldToValue.put(field, value);
+                        }
                     }
                 }
             }
-            doneMessage = new ParamsSelectedMessage(creationMessage.getRelevantOutputEventId(), creationMessage.getMissionId(), fieldToValue, ((GetParamsMessage) creationMessage).getFieldToEventSpec());
+            doneMessage = new ParamsSelectedMessage(creationMessage.getRelevantOutputEventId(), creationMessage.getMissionId(), eventSpecToFieldValues);
         }
         return doneMessage;
     }

@@ -85,7 +85,7 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
         } else if (oe instanceof MissingParamsRequest) {
             // Retreive AllocationOptionsMessage
             MissingParamsRequest mpr = (MissingParamsRequest) oe;
-            message = new GetParamsMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, mpr.getFieldDescriptions(), mpr.getFieldToEventSpec());
+            message = new GetParamsMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, mpr.getFieldDescriptions());
         } else if (oe instanceof DisplayMessage) {
             // Retreive AllocationOptionsMessage
             DisplayMessage dm = (DisplayMessage) oe;
