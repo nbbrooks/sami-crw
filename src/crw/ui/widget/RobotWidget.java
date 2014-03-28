@@ -371,7 +371,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (enabledModes.contains(ControlMode.STATION_KEEP)) {
             stationKeepButton = new JButton("Station");
             stationKeepButton.setEnabled(false);
-            btmPanel.add(stationKeepButton);
+//            btmPanel.add(stationKeepButton);
             stationKeepButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent ae) {
@@ -579,7 +579,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         }
         Hashtable<ProxyInt, Location> proxyPoint = new Hashtable<ProxyInt, Location>();
         proxyPoint.put(selectedProxy, location);
-        ProxyStationKeep proxyEvent = new ProxyStationKeep(eventId, null, proxyPoint, 3.0);
+        ProxyStationKeep proxyEvent = new ProxyStationKeep(eventId, null, proxyPoint, 20.0);
         selectedProxy.updateCurrentSeqEvent(proxyEvent);
         autoButton.setSelected(true);
     }

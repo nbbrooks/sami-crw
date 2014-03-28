@@ -18,6 +18,7 @@ import sami.markup.Markup;
 import sami.markup.NumberOptions;
 import sami.mission.Token;
 import sami.path.DestinationUtmObjective;
+import sami.path.Location;
 import sami.path.Path;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
@@ -56,6 +57,7 @@ public class PathHandler implements EventHandlerInt, InformationServiceProviderI
 
         if (oe instanceof PathUtmRequest) {
             PathUtmRequest request = (PathUtmRequest) oe;
+            Hashtable<ProxyInt, Location> proxyEndLocation = request.getEndLocation();
             int numOptions = NumberOptions.DEFAULT_NUM_OPTIONS;
             for (Markup markup : oe.getMarkups()) {
                 if (markup instanceof NumberOptions) {
@@ -72,36 +74,40 @@ public class PathHandler implements EventHandlerInt, InformationServiceProviderI
             for (final Token token : tokens) {
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
                     final BoatProxy boatProxy = (BoatProxy) token.getProxy();
-                    LOGGER.log(Level.FINE, "\tSubmitting PlanningServiceRequest for boat proxy " + boatProxy);
-                    DestinationUtmObjective objective = new DestinationUtmObjective(Conversion.positionToLocation(boatProxy.getPosition()), request.getEndLocation());
-                    PlanningServiceRequest req = new PlanningServiceRequest(null, objective, null, numOptions);
+                    if (proxyEndLocation.containsKey(boatProxy)) {
+                        LOGGER.log(Level.FINE, "\tSubmitting PlanningServiceRequest for boat proxy " + boatProxy);
+                        DestinationUtmObjective objective = new DestinationUtmObjective(Conversion.positionToLocation(boatProxy.getPosition()), proxyEndLocation.get(boatProxy));
+                        PlanningServiceRequest req = new PlanningServiceRequest(null, objective, null, numOptions);
 
-                    Engine.getInstance().getServiceServer().submitPlanningRequest(req, new PlanningServiceListenerInt() {
-                        @Override
-                        public void responseRecieved(PlanningServiceResponse response) {
-                            LOGGER.log(Level.FINE, "\tResponseListener recieved " + response);
-                            if (response.getPath() instanceof PathUtm) {
-                                proxyPathsChoices.get(0).put(boatProxy, (PathUtm) response.getPath());
-                            } else {
-                                LOGGER.severe("Expected PathUtm, got: " + response.getPath());
-                            }
-                            int counter = 1;
-                            for (Path altPath : response.getAlternatives()) {
-                                if (altPath instanceof PathUtm) {
-                                    proxyPathsChoices.get(counter).put(boatProxy, (PathUtm) altPath);
+                        Engine.getInstance().getServiceServer().submitPlanningRequest(req, new PlanningServiceListenerInt() {
+                            @Override
+                            public void responseRecieved(PlanningServiceResponse response) {
+                                LOGGER.log(Level.FINE, "\tResponseListener recieved " + response);
+                                if (response.getPath() instanceof PathUtm) {
+                                    proxyPathsChoices.get(0).put(boatProxy, (PathUtm) response.getPath());
                                 } else {
-                                    LOGGER.severe("Expected PathUtm, got: " + altPath);
+                                    LOGGER.severe("Expected PathUtm, got: " + response.getPath());
                                 }
-                                counter++;
+                                int counter = 1;
+                                for (Path altPath : response.getAlternatives()) {
+                                    if (altPath instanceof PathUtm) {
+                                        proxyPathsChoices.get(counter).put(boatProxy, (PathUtm) altPath);
+                                    } else {
+                                        LOGGER.severe("Expected PathUtm, got: " + altPath);
+                                    }
+                                    counter++;
+                                }
+                                relevantProxies.add(boatProxy);
+                                PathUtmResponse responseEvent = new PathUtmResponse(oe.getId(), oe.getMissionId(), proxyPathsChoices, relevantProxies);
+                                for (GeneratedEventListenerInt listener : listeners) {
+                                    LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
+                                    listener.eventGenerated(responseEvent);
+                                }
                             }
-                            relevantProxies.add(boatProxy);
-                            PathUtmResponse responseEvent = new PathUtmResponse(oe.getId(), oe.getMissionId(), proxyPathsChoices, relevantProxies);
-                            for (GeneratedEventListenerInt listener : listeners) {
-                                LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
-                                listener.eventGenerated(responseEvent);
-                            }
-                        }
-                    });
+                        });
+                    } else {
+                        LOGGER.severe("No entry for proxy: " + boatProxy + " in PathUtmRequest's proxyEndLocation: " + proxyEndLocation + "!");
+                    }
                 }
             }
         }

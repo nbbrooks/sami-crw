@@ -2,9 +2,11 @@ package crw.event.output.service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.UUID;
 import sami.event.OutputEvent;
 import sami.path.Location;
+import sami.proxy.ProxyInt;
 
 public class PathUtmRequest extends OutputEvent {
 
@@ -13,27 +15,27 @@ public class PathUtmRequest extends OutputEvent {
     // Description for each field
     public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
     // Fields
-    public Location endLocation;
+    public Hashtable<ProxyInt, Location> proxyEndLocation;
 
     static {
-        fieldNames.add("endLocation");
+        fieldNames.add("proxyEndLocation");
 
-        fieldNameToDescription.put("endLocation", "Destination location?");
+        fieldNameToDescription.put("proxyEndLocation", "Destination location?");
     }
 
     public PathUtmRequest() {
         id = UUID.randomUUID();
     }
 
-    public Location getEndLocation() {
-        return endLocation;
+    public Hashtable<ProxyInt, Location> getEndLocation() {
+        return proxyEndLocation;
     }
 
-    public void setEndLocation(Location endLocation) {
-        this.endLocation = endLocation;
+    public void setEndLocation(Hashtable<ProxyInt, Location> proxyEndLocation) {
+        this.proxyEndLocation = proxyEndLocation;
     }
 
     public String toString() {
-        return "PathUtmRequest: endLocation = " + endLocation;
+        return "PathUtmRequest: proxyEndLocation = " + proxyEndLocation;
     }
 }

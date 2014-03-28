@@ -19,7 +19,7 @@ public class LoggerFormatter extends Formatter {
 
         b.append(lr.getLevel());
         b.append(" ");
-        b.append(new Date(lr.getMillis()).getSeconds());
+        b.append(lr.getMillis());
         b.append(" ");
 //        b.append(lr.getSequenceNumber()
 //        b.append(" ");

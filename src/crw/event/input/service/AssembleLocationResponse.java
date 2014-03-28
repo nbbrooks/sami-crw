@@ -38,4 +38,11 @@ public class AssembleLocationResponse extends InputEvent {
         id = UUID.randomUUID();
     }
 
+    @Override
+    public AssembleLocationResponse copyForProxyTrigger() {
+        AssembleLocationResponse copy = new AssembleLocationResponse();
+        copy.setGeneratorEvent(getGeneratorEvent());
+        copy.setVariables(getVariables());
+        return copy;
+    }
 }

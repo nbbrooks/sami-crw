@@ -1,23 +1,27 @@
 package crw.event.input.proxy;
 
-import sami.proxy.ProxyInt;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
 import sami.event.InputEvent;
+import sami.proxy.ProxyInt;
 
-public class ProxyPathCompleted extends InputEvent {
+/**
+ *
+ * @author nbb
+ */
+public class ProxyPoseUpdated extends InputEvent {
 
     // List of fields for which a definition should be provided
     public static final ArrayList<String> fieldNames = new ArrayList<String>();
     // Description for each field
     public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
 
-    public ProxyPathCompleted() {
+    public ProxyPoseUpdated() {
         id = UUID.randomUUID();
     }
 
-    public ProxyPathCompleted(UUID relevantOutputEventUuid, UUID missionUuid, ProxyInt proxy) {
+    public ProxyPoseUpdated(UUID relevantOutputEventUuid, UUID missionUuid, ProxyInt proxy) {
         this.relevantOutputEventId = relevantOutputEventUuid;
         this.missionId = missionUuid;
         id = UUID.randomUUID();

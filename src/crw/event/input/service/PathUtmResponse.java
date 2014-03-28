@@ -13,17 +13,17 @@ import sami.proxy.ProxyInt;
  * @author nbb
  */
 public class PathUtmResponse extends BlockingInputEvent {
-    
+
     // List of fields for which a definition should be provided
     public static final ArrayList<String> fieldNames = new ArrayList<String>();
     // Description for each field
     public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
     // Fields
     public ArrayList<Hashtable<ProxyInt, PathUtm>> proxyPaths = null;
-    
+
     static {
         fieldNames.add("proxyPaths");
-        
+
         fieldNameToDescription.put("proxyPaths", "Returned path options.");
     }
 
