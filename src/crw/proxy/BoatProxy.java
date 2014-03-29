@@ -26,6 +26,8 @@ import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
 import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
@@ -48,6 +50,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
+import javax.swing.Timer;
 import robotutils.Pose3D;
 import sami.engine.Engine;
 import sami.event.InputEvent;
@@ -70,6 +73,8 @@ public class BoatProxy extends Thread implements ProxyInt {
     final double COMM_LOSS_PROB = 0.9;
     // Pose recorder file for offline analysis
     final boolean RECORD_POSE = false;
+    // InputEvent generation rates
+    final int EVENT_GENERATION_TIMER = 500; // ms
 
     public static final int NUM_SENSOR_PORTS = 4;
     // Identifiers
@@ -125,6 +130,8 @@ public class BoatProxy extends Thread implements ProxyInt {
     final Random COMM_LOSS_RANDOM = new Random(0L);
     // Pose recorder file for offline analysis
     private PrintWriter poseWriter;
+    // InputEvent generation
+    final AtomicBoolean sendEvent = new AtomicBoolean(true);
 
     // End stuff for simulated data creation
     public BoatProxy(final String name, Color color, final int boatNo, InetSocketAddress addr) {
@@ -143,6 +150,16 @@ public class BoatProxy extends Thread implements ProxyInt {
                 Logger.getLogger(BoatProxy.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+
+        Timer stateTimer = new Timer(EVENT_GENERATION_TIMER, new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                sendEvent.set(true);
+            }
+        });
+        stateTimer.setRepeats(true);
+        stateTimer.start();
 
         // this.masterURI = masterURI;
         this.name = name;
@@ -205,9 +222,12 @@ public class BoatProxy extends Thread implements ProxyInt {
                 }
 
                 // Send out event update
-                ProxyPoseUpdated ie = new ProxyPoseUpdated(null, null, bp);
-                for (ProxyListenerInt boatProxyListener : listeners) {
-                    boatProxyListener.eventOccurred(ie);
+                if (sendEvent.get()) {
+                    ProxyPoseUpdated ie = new ProxyPoseUpdated(null, null, bp);
+                    for (ProxyListenerInt boatProxyListener : listeners) {
+                        boatProxyListener.eventOccurred(ie);
+                    }
+                    sendEvent.set(false);
                 }
             }
         };

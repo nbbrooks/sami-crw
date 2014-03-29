@@ -60,6 +60,7 @@ import sami.path.UTMCoordinate;
 import sami.path.UTMCoordinate.Hemisphere;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyListenerInt;
+import sami.proxy.ProxyServerListenerInt;
 import sami.service.information.InformationServer;
 import sami.service.information.InformationServiceProviderInt;
 
@@ -67,7 +68,7 @@ import sami.service.information.InformationServiceProviderInt;
  *
  * @author pscerri
  */
-public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, InformationServiceProviderInt {
+public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, InformationServiceProviderInt, ProxyServerListenerInt {
 
     private static final Logger LOGGER = Logger.getLogger(ProxyEventHandler.class.getName());
     // For most of the interesting part of the planet, 1 degree latitude is something like 110,000m
@@ -86,6 +87,9 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     public ProxyEventHandler() {
         LOGGER.log(Level.FINE, "Adding ProxyEventHandler as service provider");
         InformationServer.addServiceProvider(this);
+        // Do not add as Proxy server listener here, will cause java.lang.ExceptionInInitializerError
+        // Engine will add this for us
+        //Engine.getInstance().getProxyServer().addListener(this);
     }
 
     @Override
@@ -114,9 +118,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has " + numProxies + " tokens with proxies attached: " + oe);
             }
             for (BoatProxy boatProxy : tokenProxies) {
-                // Listen to the proxy
-                boatProxy.addListener(this);
-                //@todo we never stop listening
                 // Send the path
                 boatProxy.handleEvent(oe);
             }
@@ -137,9 +138,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has " + numProxies + " tokens with proxies attached: " + oe);
             }
             for (BoatProxy boatProxy : tokenProxies) {
-                // Listen to the proxy
-                boatProxy.addListener(this);
-                //@todo we never stop listening
                 // Send the path
                 boatProxy.handleEvent(oe);
             }
@@ -210,9 +208,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     for (int i = 0; i < lawnmowerLocations.size() / MAX_SEGMENTS_PER_PROXY + 1; i++) {
 //                    LOGGER.info("i = " + i + " of " + (lawnmowerLocations.size() / MAX_SEGMENTS_PER_PROXY + 1) + ": sublist " + i * MAX_SEGMENTS_PER_PROXY + ", " + Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
                         proxyLocations = lawnmowerLocations.subList(i * MAX_SEGMENTS_PER_PROXY, Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
-                        // Listen to the proxy
-                        tokenProxies.get(proxyIndex).addListener(this);
-                        //@todo we never stop listening
                         // Send the path
 //                    LOGGER.log(Level.FINE, "Creating ProxyExecutePath with " + proxyLocations.size() + " waypoints for proxy " + tokenProxies.get(proxyIndex));
                         PathUtm path = new PathUtm(proxyLocations);
@@ -224,9 +219,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 } else {
                     // We have finished assigning all the lawnmower path segments
                     // Send a blank path to the remaining proxies otherwise we won't get a ProxyPathComplete InputEvent                        
-                    // Listen to the proxy
-                    tokenProxies.get(proxyIndex).addListener(this);
-                    //@todo we never stop listening
                     // Send the path
                     Hashtable<ProxyInt, Path> thisProxyPath = new Hashtable<ProxyInt, Path>();
                     thisProxyPath.put(tokenProxies.get(proxyIndex), new PathUtm(new ArrayList<Location>()));
@@ -428,9 +420,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyStationKeep has no tokens with proxies attached: " + oe);
             }
             for (BoatProxy boatProxy : tokenProxies) {
-                // Listen to the proxy
-                boatProxy.addListener(this);
-                //@todo we never stop listening
                 boatProxy.handleEvent(oe);
             }
         } else if (oe instanceof ProxyEmergencyAbort) {
@@ -446,9 +435,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyEmergencyAbort has no tokens with proxies attached: " + oe);
             }
             for (BoatProxy boatProxy : tokenProxies) {
-                // Listen to the proxy
-                boatProxy.addListener(this);
-                //@todo we never stop listening
                 boatProxy.handleEvent(oe);
             }
         } else if (oe instanceof ProxyResendWaypoints) {
@@ -464,9 +450,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyResendWaypoints has no tokens with proxies attached: " + oe);
             }
             for (BoatProxy boatProxy : tokenProxies) {
-                // Listen to the proxy
-                boatProxy.addListener(this);
-                //@todo we never stop listening
                 boatProxy.handleEvent(oe);
             }
         }
@@ -527,6 +510,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
 
     @Override
     public void eventOccurred(InputEvent proxyEventGenerated) {
+//        LOGGER.log(Level.INFO, "Event occurred: " + proxyEventGenerated + ", listeners: " + listeners);
         for (GeneratedEventListenerInt listener : listeners) {
             listener.eventGenerated(proxyEventGenerated);
         }
@@ -545,6 +529,15 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     @Override
     public void waypointsComplete() {
 //        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void proxyAdded(ProxyInt p) {
+        p.addListener(this);
+    }
+
+    @Override
+    public void proxyRemoved(ProxyInt p) {
     }
 
     private Color randomColor() {
