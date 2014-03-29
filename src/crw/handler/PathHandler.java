@@ -15,7 +15,7 @@ import sami.event.GeneratedInputEventSubscription;
 import sami.event.OutputEvent;
 import sami.handler.EventHandlerInt;
 import sami.markup.Markup;
-import sami.markup.NumberOptions;
+import sami.markup.NumberOfOptions;
 import sami.mission.Token;
 import sami.path.DestinationUtmObjective;
 import sami.path.Location;
@@ -58,10 +58,10 @@ public class PathHandler implements EventHandlerInt, InformationServiceProviderI
         if (oe instanceof PathUtmRequest) {
             PathUtmRequest request = (PathUtmRequest) oe;
             Hashtable<ProxyInt, Location> proxyEndLocation = request.getEndLocation();
-            int numOptions = NumberOptions.DEFAULT_NUM_OPTIONS;
+            int numOptions = NumberOfOptions.DEFAULT_NUM_OPTIONS;
             for (Markup markup : oe.getMarkups()) {
-                if (markup instanceof NumberOptions) {
-                    numOptions = ((NumberOptions) markup).numberOption.number;
+                if (markup instanceof NumberOfOptions) {
+                    numOptions = ((NumberOfOptions) markup).numberOption.number;
                     break;
                 }
             }

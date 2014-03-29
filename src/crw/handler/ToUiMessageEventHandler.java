@@ -17,6 +17,7 @@ import sami.event.OutputEvent;
 import sami.handler.EventHandlerInt;
 import sami.markup.Markup;
 import sami.markup.Priority;
+import sami.markup.RelevantArea;
 import sami.markup.RelevantProxy;
 import sami.mission.Token;
 import sami.proxy.ProxyInt;
@@ -37,14 +38,11 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
     public void invoke(final OutputEvent oe, ArrayList<Token> tokens) {
         LOGGER.log(Level.FINE, "ToUiMessageEventHandler invoked with " + oe);
         ToUiMessage message = null;
-        
-        
+
         // list of things to viz
         // list of things to create
         // list of markups
-        
         // how would teleop be handled? markup?
-
         if (oe.getId() == null) {
             LOGGER.log(Level.WARNING, "\tOutputEvent has null UUID: " + oe);
         }
@@ -81,9 +79,6 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                 }
             }
             message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, proxyOptionsList, true);
-//        } else if (oe instanceof OperatorCreateArea) {
-//            // Retreive AllocationOptionsMessage
-//            Engine.getInstance().getUiClient().UIMessage(new CreateAreaMessage(oe.getUuid(), 1));
         } else if (oe instanceof MissingParamsRequest) {
             // Retreive AllocationOptionsMessage
             MissingParamsRequest mpr = (MissingParamsRequest) oe;
@@ -101,19 +96,30 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
         }
 
         // Handle markups
-        for(Markup markup : oe.getMarkups()) {
-            if(markup instanceof RelevantProxy) {
+        for (Markup markup : oe.getMarkups()) {
+            if (markup instanceof RelevantProxy) {
+                // Needs to be copied
+                RelevantProxy copy = ((RelevantProxy) markup).copy();
                 ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
-                for(Token t : tokens) {
-                    if(t.getProxy() != null && !relevantProxies.contains(t.getProxy())) {
+                for (Token t : tokens) {
+                    if (t.getProxy() != null && !relevantProxies.contains(t.getProxy())) {
                         relevantProxies.add(t.getProxy());
                     }
                 }
-                ((RelevantProxy)markup).setRelevantProxies(relevantProxies);
+                copy.setRelevantProxies(relevantProxies);
+                message.addMarkup(copy);
+            } else if (markup instanceof RelevantArea) {
+                // Needs to be copied
+                //@todo implement
+                RelevantArea copy = ((RelevantArea) markup).copy();
+                message.addMarkup(copy);
+            } else if (markup instanceof Priority) {
+                message.setPriority(Priority.getPriority(((Priority) markup).ranking));
+                message.addMarkup(markup);
+            } else {
+                message.addMarkup(markup);
             }
         }
-        message.setMarkups(oe.getMarkups());
-
         Engine.getInstance().getUiClient().UIMessage(message);
     }
 }
