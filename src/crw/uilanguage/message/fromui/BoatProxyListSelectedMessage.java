@@ -13,9 +13,8 @@ public class BoatProxyListSelectedMessage extends FromUiMessage {
 
     protected ArrayList<BoatProxy> boatProxyList;
 
-    public BoatProxyListSelectedMessage(UUID relevantOutputEventId, UUID missionId, ArrayList<BoatProxy> boatProxyList) {
-        this.relevantOutputEventId = relevantOutputEventId;
-        this.missionId = missionId;
+    public BoatProxyListSelectedMessage(UUID relevantToUiMessageId, UUID relevantOutputEventId, UUID missionId, ArrayList<BoatProxy> boatProxyList) {
+        super(relevantToUiMessageId, relevantOutputEventId, missionId);
         this.boatProxyList = boatProxyList;
     }
 

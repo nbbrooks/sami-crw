@@ -10,11 +10,17 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.util.LinkedList;
+import java.util.UUID;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import sami.engine.PlanManager;
+import sami.engine.PlanManagerListenerInt;
+import sami.mission.MissionPlanSpecification;
+import sami.mission.Place;
 import sami.uilanguage.UiClientInt;
 import sami.uilanguage.UiClientListenerInt;
 import sami.uilanguage.UiFrame;
@@ -27,7 +33,7 @@ import sami.uilanguage.toui.ToUiMessage;
  *
  * @author nbb
  */
-public class QueueFrame extends UiFrame implements UiClientListenerInt {
+public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanManagerListenerInt {
 
     private final static Logger LOGGER = Logger.getLogger(QueueFrame.class.getName());
     private Dimension frameDim = new Dimension(DecisionQueuePanel.NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 600);
@@ -67,6 +73,8 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt {
         pack();
         setVisible(true);
 
+        Engine.getInstance().addListener(this);
+
         setUiClient(Engine.getInstance().getUiClient());
         setUiServer(Engine.getInstance().getUiServer());
     }
@@ -76,10 +84,10 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt {
         topPanel.removeAll();
         bottomPanel.removeAll();
         queuePanels.remove(decisionQueuePanel);
-        queuePanels.remove(curPanel);   // in case of curPanel == interactionQueuePanel, fails silently
+        queuePanels.remove(curPanel);   // in case of curPanel == decisionQueuePanel, fails silently
         curPanel.showContentPanel();
         topPanel.add((JComponent) curPanel);
-        if (curPanel != decisionQueuePanel) {   // don't add interactionQueuePanel to bottom if it's on top
+        if (curPanel != decisionQueuePanel) {   // don't add decisionQueuePanel to bottom if it's on top
             queuePanels.addFirst(decisionQueuePanel);
         }
         for (QueuePanelInt qPanel : queuePanels) {
@@ -95,13 +103,35 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt {
     }
 
     @Override
-    public void ToUiMessage(ToUiMessage toUiMsg) {
+    public void toUiMessageReceived(ToUiMessage toUiMsg) {
         if (toUiMsg instanceof SelectionMessage
                 || toUiMsg instanceof CreationMessage) {
             MarkupManager manager = new MarkupManager(toUiMsg);
             manager.addComponent(this);
             qdb.addDecision(toUiMsg, manager);
 
+        }
+    }
+
+    @Override
+    public void toUiMessageHandled(UUID toUiMessageId) {
+        // If this item is in the queue, remove it as it has been handled externally (ex: MI autonomy made the decision)
+        boolean removed;
+        removed = qdb.removeMessageId(toUiMessageId);
+        if (removed) {
+            LOGGER.fine("Removed 1+ items from queue DB due matching ToUiMessage id: " + toUiMessageId);
+        }
+
+        removed = expandedPanel.removeMessageId(toUiMessageId);
+        if (removed) {
+            LOGGER.fine("Removed 1+ items from " + expandedPanel + " due matching ToUiMessage id: " + toUiMessageId);
+        }
+
+        for (QueuePanelInt queuePanel : queuePanels) {
+            removed = queuePanel.removeMessageId(toUiMessageId);
+            if (removed) {
+                LOGGER.fine("Removed 1+ items from " + queuePanel + " due matching ToUiMessage id: " + toUiMessageId);
+            }
         }
     }
 
@@ -129,5 +159,53 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt {
     @Override
     public void setUiServer(UiServerInt uiServer) {
         this.uiServer = uiServer;
+    }
+
+    @Override
+    public void planCreated(PlanManager planManager, MissionPlanSpecification mSpec) {
+    }
+
+    @Override
+    public void planStarted(PlanManager planManager) {
+    }
+
+    @Override
+    public void planEnteredPlace(PlanManager planManager, Place place) {
+    }
+
+    @Override
+    public void planLeftPlace(PlanManager planManager, Place place) {
+    }
+
+    @Override
+    public void planFinished(PlanManager planManager) {
+        // Remove any items associated with this plan
+        int numRemoved;
+        numRemoved = qdb.removeMissionId(planManager.missionId);
+        LOGGER.fine("Removed " + numRemoved + " items from queue DB due to plan " + planManager.getPlanName() + " finishing");
+
+        numRemoved = expandedPanel.removeMissionId(planManager.missionId);
+        LOGGER.fine("Removed 1+ items from " + expandedPanel + " due to plan " + planManager.getPlanName() + " finishing");
+
+        for (QueuePanelInt queuePanel : queuePanels) {
+            numRemoved = queuePanel.removeMissionId(planManager.missionId);
+            LOGGER.fine("Removed " + numRemoved + " items from " + queuePanel + " due to plan " + planManager.getPlanName() + " finishing");
+        }
+    }
+
+    @Override
+    public void planAborted(PlanManager planManager) {
+        // Remove any items associated with this plan
+        int numRemoved;
+        numRemoved = qdb.removeMissionId(planManager.missionId);
+        LOGGER.fine("Removed " + numRemoved + " items from queue DB due to plan " + planManager.getPlanName() + " aborting");
+
+        numRemoved = expandedPanel.removeMissionId(planManager.missionId);
+        LOGGER.fine("Removed " + numRemoved + " items from " + expandedPanel + " due to plan " + planManager.getPlanName() + " aborting");
+
+        for (QueuePanelInt queuePanel : queuePanels) {
+            numRemoved = queuePanel.removeMissionId(planManager.missionId);
+            LOGGER.fine("Removed " + numRemoved + " items from " + queuePanel + " due to plan " + planManager.getPlanName() + " aborting");
+        }
     }
 }

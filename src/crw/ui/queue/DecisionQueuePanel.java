@@ -1,9 +1,6 @@
 package crw.ui.queue;
 
-import crw.ui.queue.QueueDatabase;
 import crw.ui.component.QueueFrame;
-import crw.ui.queue.QueueItem;
-import crw.ui.queue.QueuePanelInt;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;
@@ -22,6 +19,7 @@ import java.awt.event.ActionListener;
 import java.text.DecimalFormat;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.GroupLayout;
@@ -35,7 +33,7 @@ import sami.uilanguage.toui.ToUiMessage;
  * @author owens
  * @author nbb
  */
-public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWheelListener, MarkupManagerListener {
+public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWheelListener {
 
     private final static Logger LOGGER = Logger.getLogger(DecisionQueuePanel.class.getName());
     final static int MISC_BORDER = 15;
@@ -299,16 +297,16 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         DecisionQueuePanel.this.repaint();
     }
 
-    @Override
-    public void autonomyTriggered(ToUiMessage toMessage, FromUiMessage fromMessage) {
-        // If the message has a thumbnail/content panel, remove them from the loaded lists
-        QueueItem component = messageToItem.remove(toMessage);
-        messageToItem.remove(toMessage);
-        if (component != null) {
-            createImageIcon();
-//            component.viewed.set(true);
-        }
-    }
+//    @Override
+//    public void autonomyTriggered(ToUiMessage toMessage, FromUiMessage fromMessage) {
+//        // If the message has a thumbnail/content panel, remove them from the loaded lists
+//        QueueItem component = messageToItem.remove(toMessage);
+//        messageToItem.remove(toMessage);
+//        if (component != null) {
+//            createImageIcon();
+////            component.viewed.set(true);
+//        }
+//    }
 
     private class HeaderPanel extends JPanel implements MouseListener {
 
@@ -405,5 +403,48 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         this.setPreferredSize(expandedStateDim);
         this.setMaximumSize(expandedStateDim);
         revalidate();
+    }
+
+    @Override
+    public boolean removeMessageId(UUID messageId) {
+        ArrayList<ToUiMessage> messagesToRemove = new ArrayList<ToUiMessage>();
+        synchronized (loadedMessages) {
+            for (ToUiMessage message : loadedMessages) {
+                if (message.getMessageId().equals(messageId)) {
+                    messagesToRemove.add(message);
+                }
+            }
+            for (ToUiMessage message : messagesToRemove) {
+                loadedMessages.remove(message);
+                messageToItem.remove(message);
+            }
+        }
+        if (!messagesToRemove.isEmpty()) {
+            // Redraw thumbnail list if we removed anything
+            createImageIcon();
+        }
+
+        return !messagesToRemove.isEmpty();
+    }
+
+    @Override
+    public int removeMissionId(UUID missionId) {
+        ArrayList<ToUiMessage> messagesToRemove = new ArrayList<ToUiMessage>();
+        synchronized (loadedMessages) {
+            for (ToUiMessage message : loadedMessages) {
+                if (message.getMissionId().equals(missionId)) {
+                    messagesToRemove.add(message);
+                }
+            }
+            for (ToUiMessage message : messagesToRemove) {
+                loadedMessages.remove(message);
+            }
+        }
+        if (!messagesToRemove.isEmpty()) {
+            // Redraw thumbnail list if we removed anything
+            createImageIcon();
+        }
+
+        return messagesToRemove.size();
     }
 }

@@ -112,7 +112,7 @@ public class QueueTest implements ResponseListener {
         }
         MissingParamsRequest oe = new MissingParamsRequest(null, eventSpecToFieldDescriptions);
         GetParamsMessage msg = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, oe.getFieldDescriptions());
-        oif.ToUiMessage(msg);
+        oif.toUiMessageReceived(msg);
     }
 
     public ArrayList<ProxyInt> createProxies(int numProxies) {
@@ -145,26 +145,22 @@ public class QueueTest implements ResponseListener {
     }
 
     public void getBP(ArrayList<ProxyInt> boatProxyList) {
-        ProxyOptionsMessage msg = new ProxyOptionsMessage(null, null, randomPri.nextInt(3) + 1, boatProxyList, true);
+        ProxyOptionsMessage msg = new ProxyOptionsMessage(null, null, randomPri.nextInt(3) + 1, true, boatProxyList);
         Attention a = new Attention();
         a.attentionType = Attention.AttentionType.BLINK;
         a.blink = new BlinkOption();
         a.attentionTarget = Attention.AttentionTarget.PANEL;
         a.attentionEnd = Attention.AttentionEnd.ON_CLICK;
-        ArrayList<Markup> ms = new ArrayList<Markup>();
-        ms.add(a);
-        msg.setMarkups(ms);
-        oif.ToUiMessage(msg);
+        msg.addMarkup(a);
+        oif.toUiMessageReceived(msg);
 
-        msg = new ProxyOptionsMessage(null, null, randomPri.nextInt(3) + 1, boatProxyList, true);
+        msg = new ProxyOptionsMessage(null, null, randomPri.nextInt(3) + 1, true, boatProxyList);
         a = new Attention();
         a.attentionType = Attention.AttentionType.HIGHLIGHT;
         a.attentionTarget = Attention.AttentionTarget.PANEL;
         a.attentionEnd = Attention.AttentionEnd.ON_CLICK;
-        ms = new ArrayList<Markup>();
-        ms.add(a);
-        msg.setMarkups(ms);
-        oif.ToUiMessage(msg);
+        msg.addMarkup(a);
+        oif.toUiMessageReceived(msg);
     }
 
     @Override
@@ -174,7 +170,7 @@ public class QueueTest implements ResponseListener {
         for (int i = 0; i < 3; i++) {
             allocs.add(new ResourceAllocation(list.get(0).getAllocation(), list.get(0).getTaskTimings()));
             AllocationOptionsMessage msg = new AllocationOptionsMessage(null, null, randomPri.nextInt(3) + 1, allocs);
-            oif.ToUiMessage(msg);
+            oif.toUiMessageReceived(msg);
         }
     }
 

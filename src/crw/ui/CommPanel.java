@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.UUID;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -62,7 +63,7 @@ public class CommPanel extends JPanel implements UiClientListenerInt, ProxyServe
     }
 
     @Override
-    public void ToUiMessage(sami.uilanguage.toui.ToUiMessage toUiMsg) {
+    public void toUiMessageReceived(sami.uilanguage.toui.ToUiMessage toUiMsg) {
         boolean proxyMarkup = false;
         boolean statusMarkup = false;
         if (toUiMsg instanceof InformationMessage) {
@@ -79,6 +80,10 @@ public class CommPanel extends JPanel implements UiClientListenerInt, ProxyServe
             }
 
         }
+    }
+
+    @Override
+    public void toUiMessageHandled(UUID toUiMessageId) {
     }
 
     public void handleMessage(InformationMessage informationMessage) {

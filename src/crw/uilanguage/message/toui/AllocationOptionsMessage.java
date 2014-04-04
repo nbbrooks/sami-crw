@@ -12,11 +12,6 @@ import java.util.UUID;
 public class AllocationOptionsMessage extends SelectionMessage {
 
     public AllocationOptionsMessage(UUID relevantOutputEventId, UUID missionId, int priority, List<ResourceAllocation> optionsList) {
-        this.relevantOutputEventId = relevantOutputEventId;
-        this.missionId = missionId;
-        this.priority = priority;
-        this.optionsList = optionsList;
-        allowRejection = true;
-        showOptionsIndividually = true;
+        super(relevantOutputEventId, missionId, priority, false, true, true, optionsList);
     }
 }

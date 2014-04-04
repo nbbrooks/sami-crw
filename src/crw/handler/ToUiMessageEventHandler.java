@@ -13,6 +13,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import sami.engine.Engine;
 import sami.event.MissingParamsRequest;
+import sami.event.OperatorApprove;
 import sami.event.OutputEvent;
 import sami.handler.EventHandlerInt;
 import sami.markup.Markup;
@@ -24,6 +25,7 @@ import sami.proxy.ProxyInt;
 import sami.uilanguage.toui.GetParamsMessage;
 import sami.uilanguage.toui.InformationMessage;
 import sami.uilanguage.toui.ToUiMessage;
+import sami.uilanguage.toui.YesNoOptionsMessage;
 
 /**
  *
@@ -46,20 +48,26 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
         if (oe.getId() == null) {
             LOGGER.log(Level.WARNING, "\tOutputEvent has null UUID: " + oe);
         }
+        int priority = DEFAULT_PRIORITY;
+        for (Markup markup : oe.getMarkups()) {
+            if (markup instanceof Priority) {
+                priority = Priority.priorityToInt.get(((Priority) markup).ranking);
+            }
+        }
 
         if (oe instanceof OperatorPathOptions) {
             // Retreive PathOptionsMessage
             if (((OperatorPathOptions) oe).getOptions() == null) {
                 LOGGER.log(Level.SEVERE, "Getting plan options message failed!");
             } else {
-                message = new PathOptionsMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, ((OperatorPathOptions) oe).getOptions());
+                message = new PathOptionsMessage(oe.getId(), oe.getMissionId(), priority, ((OperatorPathOptions) oe).getOptions());
             }
         } else if (oe instanceof OperatorAllocationOptions) {
             // Retreive AllocationOptionsMessage
             if (((OperatorAllocationOptions) oe).getOptions() == null) {
                 LOGGER.log(Level.SEVERE, "Getting plan options message failed!");
             } else {
-                message = new AllocationOptionsMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, ((OperatorAllocationOptions) oe).getOptions());
+                message = new AllocationOptionsMessage(oe.getId(), oe.getMissionId(), priority, ((OperatorAllocationOptions) oe).getOptions());
             }
         } else if (oe instanceof OperatorSelectBoat) {
             // Retreive AllocationOptionsMessage
@@ -69,7 +77,7 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                     proxyOptionsList.add(token.getProxy());
                 }
             }
-            message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, proxyOptionsList, false);
+            message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, false, proxyOptionsList);
         } else if (oe instanceof OperatorSelectBoatList) {
             // Retreive AllocationOptionsMessage
             ArrayList<ProxyInt> proxyOptionsList = new ArrayList<ProxyInt>();
@@ -78,15 +86,19 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                     proxyOptionsList.add(token.getProxy());
                 }
             }
-            message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, proxyOptionsList, true);
+            message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, true, proxyOptionsList);
         } else if (oe instanceof MissingParamsRequest) {
             // Retreive AllocationOptionsMessage
             MissingParamsRequest mpr = (MissingParamsRequest) oe;
-            message = new GetParamsMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, mpr.getFieldDescriptions());
+            message = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, mpr.getFieldDescriptions());
         } else if (oe instanceof DisplayMessage) {
             // Retreive AllocationOptionsMessage
             DisplayMessage dm = (DisplayMessage) oe;
-            message = new InformationMessage(oe.getId(), oe.getMissionId(), DEFAULT_PRIORITY, dm.getMessage());
+            message = new InformationMessage(oe.getId(), oe.getMissionId(), priority, dm.getMessage());
+        } else if (oe instanceof OperatorApprove) {
+            // Retreive AllocationOptionsMessage
+            OperatorApprove oa = (OperatorApprove) oe;
+            message = new YesNoOptionsMessage(oe.getId(), oe.getMissionId(), priority);
         } else {
             LOGGER.log(Level.SEVERE, "Unhandled message type: " + oe, this);
         }
@@ -113,13 +125,10 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                 //@todo implement
                 RelevantArea copy = ((RelevantArea) markup).copy();
                 message.addMarkup(copy);
-            } else if (markup instanceof Priority) {
-                message.setPriority(Priority.getPriority(((Priority) markup).ranking));
-                message.addMarkup(markup);
             } else {
                 message.addMarkup(markup);
             }
         }
-        Engine.getInstance().getUiClient().UIMessage(message);
+        Engine.getInstance().getUiClient().toUiMessageReceived(message);
     }
 }

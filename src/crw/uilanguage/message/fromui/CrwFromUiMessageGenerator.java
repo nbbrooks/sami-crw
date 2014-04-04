@@ -20,9 +20,11 @@ import sami.uilanguage.fromui.CreationDoneMessage;
 import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.fromui.ParamsSelectedMessage;
 import sami.uilanguage.fromui.PathSelectedMessage;
+import sami.uilanguage.fromui.YesNoSelectedMessage;
 import sami.uilanguage.toui.CreationMessage;
 import sami.uilanguage.toui.GetParamsMessage;
 import sami.uilanguage.toui.SelectionMessage;
+import sami.uilanguage.toui.YesNoOptionsMessage;
 
 /**
  *
@@ -64,7 +66,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                     }
                 }
             }
-            doneMessage = new ParamsSelectedMessage(creationMessage.getRelevantOutputEventId(), creationMessage.getMissionId(), eventSpecToFieldValues);
+            doneMessage = new ParamsSelectedMessage(creationMessage.getMessageId(), creationMessage.getRelevantOutputEventId(), creationMessage.getMissionId(), eventSpecToFieldValues);
         }
         return doneMessage;
     }
@@ -73,15 +75,15 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
         FromUiMessage fromUiMessage = null;
         if (selectionMessage instanceof AllocationOptionsMessage) {
             if (option == null) {
-                fromUiMessage = new AllocationSelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
+                fromUiMessage = new AllocationSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
             } else if (option instanceof ResourceAllocation) {
-                fromUiMessage = new AllocationSelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (ResourceAllocation) option);
+                fromUiMessage = new AllocationSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (ResourceAllocation) option);
             }
         } else if (selectionMessage instanceof PathOptionsMessage) {
             if (option == null) {
-                fromUiMessage = new PathSelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
+                fromUiMessage = new PathSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
             } else if (option instanceof Hashtable) {
-                fromUiMessage = new PathSelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (Hashtable<ProxyInt, Path>) option);
+                fromUiMessage = new PathSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (Hashtable<ProxyInt, Path>) option);
             }
         } else if (selectionMessage instanceof ProxyOptionsMessage) {
             if (selectionMessage.getAllowMultiple() && (option instanceof ArrayList || option == null)) {
@@ -89,7 +91,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                 //@todo how to check element type of list? needs to be BoatProxy
 
                 if (option == null) {
-                    fromUiMessage = new BoatProxyListSelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
+                    fromUiMessage = new BoatProxyListSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
                 } else {
                     ArrayList<?> list = (ArrayList<?>) option;
                     ArrayList<BoatProxy> selectedProxies = new ArrayList<BoatProxy>();
@@ -100,17 +102,23 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                             LOGGER.warning("List contained something other than BoatProxy!");
                         }
                     }
-                    fromUiMessage = new BoatProxyListSelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), selectedProxies);
+                    fromUiMessage = new BoatProxyListSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), selectedProxies);
                 }
             } else if (!selectionMessage.getAllowMultiple() && (option instanceof BoatProxy || option == null)) {
                 // Single boat selection
                 if (option == null) {
-                    fromUiMessage = new BoatProxySelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
+                    fromUiMessage = new BoatProxySelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
                 } else {
-                    fromUiMessage = new BoatProxySelectedMessage(selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (BoatProxy) option);
+                    fromUiMessage = new BoatProxySelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (BoatProxy) option);
                 }
             }
-        }
+        } else if (selectionMessage instanceof YesNoOptionsMessage) {
+            if (selectionMessage.getOptionsList().get(0) == option) {
+                fromUiMessage = new YesNoSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), true);
+            } else {
+                fromUiMessage = new YesNoSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), false);
+            }
+        } 
         if (fromUiMessage == null) {
             LOGGER.warning("Got SelectionMessage " + selectionMessage + " with option " + option + ", don't know what to do with it!");
         }

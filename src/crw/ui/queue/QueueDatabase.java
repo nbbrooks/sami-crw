@@ -1,10 +1,12 @@
 package crw.ui.queue;
 
+import java.util.ArrayList;
 import sami.uilanguage.MarkupManager;
 import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.UUID;
 import java.util.logging.Logger;
 import sami.uilanguage.UiClientInt;
 import sami.uilanguage.UiServerInt;
@@ -48,6 +50,32 @@ public class QueueDatabase {
 
     public MarkupManager getParent(ToUiMessage decisionMessage) {
         return parentLookup.get(decisionMessage);
+    }
+
+    public boolean removeMessageId(UUID messageId) {
+        ArrayList<ToUiMessage> messagesToRemove = new ArrayList<ToUiMessage>();
+        for (ToUiMessage message : incomingDecisions) {
+            if (message.getMessageId().equals(messageId)) {
+                messagesToRemove.add(message);
+            }
+        }
+        for (ToUiMessage message : messagesToRemove) {
+            incomingDecisions.remove(message);
+        }
+        return !messagesToRemove.isEmpty();
+    }
+
+    public int removeMissionId(UUID missionId) {
+        ArrayList<ToUiMessage> messagesToRemove = new ArrayList<ToUiMessage>();
+        for (ToUiMessage message : incomingDecisions) {
+            if (message.getMissionId().equals(missionId)) {
+                messagesToRemove.add(message);
+            }
+        }
+        for (ToUiMessage message : messagesToRemove) {
+            incomingDecisions.remove(message);
+        }
+        return messagesToRemove.size();
     }
 
     public class MessageComparator implements Comparator<ToUiMessage> {

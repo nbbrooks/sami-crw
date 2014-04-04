@@ -158,7 +158,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                 sendEvent.set(true);
             }
         });
-        stateTimer.setRepeats(true);
         stateTimer.start();
 
         // this.masterURI = masterURI;

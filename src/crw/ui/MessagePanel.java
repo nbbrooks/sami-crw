@@ -2,11 +2,14 @@ package crw.ui;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import sami.engine.Engine;
 import java.util.Comparator;
 import java.util.Hashtable;
-import java.util.PriorityQueue;
+import java.util.TreeSet;
+import java.util.UUID;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.Timer;
 import sami.markup.Keyword;
@@ -31,10 +34,11 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
     UiServerInt uiServer;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JList messageList;
-    private final PriorityQueue<ToUiMessage> messageQueue = new PriorityQueue<ToUiMessage>(1, new MessageComparator());
+    private final TreeSet<ToUiMessage> messageTree = new TreeSet<ToUiMessage>(new MessageComparator());
     int lastSize = 0;
     Hashtable<String, ToUiMessage> keywordToNoProxyMessage = new Hashtable<String, ToUiMessage>();
     Hashtable<String, Hashtable<ProxyInt, ToUiMessage>> keywordToProxyToMessage = new Hashtable<String, Hashtable<ProxyInt, ToUiMessage>>();
+    SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm");
 
     public MessagePanel() {
         initComponents();
@@ -59,7 +63,7 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
 
         jScrollPane1 = new javax.swing.JScrollPane();
         messageList = new javax.swing.JList();
-        messageList.setListData(messageQueue.toArray());
+        messageList.setListData(messageTree.toArray());
         jScrollPane1.setViewportView(messageList);
 
         org.jdesktop.layout.GroupLayout layout = new org.jdesktop.layout.GroupLayout(this);
@@ -122,16 +126,16 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
 
         }
 
-        synchronized (messageQueue) {
-            messageQueue.removeAll(messagesToRemove);
-            messageQueue.add(infoMessage);
+        synchronized (messageTree) {
+            messageTree.removeAll(messagesToRemove);
+            messageTree.add(infoMessage);
         }
     }
 
     public void checkUpdateList() {
         int queueSize;
-        synchronized (messageQueue) {
-            queueSize = messageQueue.size();
+        synchronized (messageTree) {
+            queueSize = messageTree.size();
         }
         if (lastSize != queueSize) {
             // We have a new message
@@ -143,8 +147,8 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
 
     public Object[] getMessageArray() {
         Object[] messageArray;
-        synchronized (messageQueue) {
-            messageArray = messageQueue.toArray();
+        synchronized (messageTree) {
+            messageArray = messageTree.toArray();
         }
         ArrayList<Object> messageListUpdate = new ArrayList<Object>();
         boolean rpMarkup, keywordMarkup;
@@ -180,7 +184,7 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
                                     // Add the message
                                     messageListUpdate.add("<html>"
                                             + "<font color=rgb(188,6,6)>" + Priority.getPriority(infoMessage.getPriority()).toString() + "</font>&nbsp;&nbsp;&nbsp;"
-                                            + "<html><font color=rgb(0,0,0)>" + proxy.getProxyName() + ": " + infoMessage.getMessage() + "</font>"
+                                            + "<font color=rgb(0,0,0)>" + timeFormat.format(infoMessage.getCreationTime()) + "&nbsp;&nbsp;&nbsp;" + infoMessage.getMessage() + "</font>"
                                             + "</html>");
                                 }
                             } else {
@@ -194,20 +198,25 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
                     // Just add the message
                     messageListUpdate.add("<html>"
                             + "<font color=rgb(188,6,6)>" + Priority.getPriority(infoMessage.getPriority()).toString() + "</font>&nbsp;&nbsp;&nbsp;"
-                            + "<html><font color=rgb(0,0,0)>" + infoMessage.getMessage() + "</font>"
+                            + "<font color=rgb(0,0,0)>" + timeFormat.format(infoMessage.getCreationTime()) + "&nbsp;&nbsp;&nbsp;" + infoMessage.getMessage() + "</font>"
                             + "</html>");
                 }
             }
         }
         Object[] ret = messageListUpdate.toArray();
+        LOGGER.info("@STAT messageListUpdate: " + messageListUpdate);
         return ret;
     }
 
     @Override
-    public void ToUiMessage(sami.uilanguage.toui.ToUiMessage m) {
+    public void toUiMessageReceived(sami.uilanguage.toui.ToUiMessage m) {
         if (m instanceof InformationMessage) {
             addMessage((InformationMessage) m);
         }
+    }
+
+    @Override
+    public void toUiMessageHandled(UUID toUiMessageId) {
     }
 
     public UiClientInt getUiClient() {
@@ -237,12 +246,26 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
         @Override
         public int compare(ToUiMessage oi1, ToUiMessage oi2) {
             if (oi1 != null && oi2 != null) {
+                // First sort by priority
                 if (oi1.getPriority() < oi2.getPriority()) {
                     return 1;
                 } else if (oi1.getPriority() > oi2.getPriority()) {
                     return -1;
                 } else {
-                    return 0;
+                    // Second sort by creation time
+                    if (oi1.getCreationTime() < oi2.getCreationTime()) {
+                        return 1;
+                    } else if (oi1.getCreationTime() > oi2.getCreationTime()) {
+                        return -1;
+                    } else {
+                        // Third check if messages are unique and arbitrarily sort
+                        if (oi1 != oi2) {
+                            return 1;
+                        } else {
+                            // This is the same message, don't need to add to set
+                            return 0;
+                        }
+                    }
                 }
 
             } else {

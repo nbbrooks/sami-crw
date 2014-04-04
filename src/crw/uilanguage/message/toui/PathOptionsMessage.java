@@ -14,19 +14,10 @@ import sami.uilanguage.toui.SelectionMessage;
 public class PathOptionsMessage extends SelectionMessage {
 
     public PathOptionsMessage(UUID relevantOutputEventId, UUID missionId, int priority, List<Hashtable<ProxyInt, Path>> optionsList) {
-        this.relevantOutputEventId = relevantOutputEventId;
-        this.missionId = missionId;
-        this.priority = priority;
-        this.optionsList = optionsList;
-        allowRejection = true;
-        showOptionsIndividually = true;
+        super(relevantOutputEventId, missionId, priority, false, true, true, optionsList);
     }
 
     public List<Hashtable<ProxyInt, Path>> getOptions() {
         return (List<Hashtable<ProxyInt, Path>>) optionsList;
-    }
-
-    public void setOptions(List<Hashtable<ProxyInt, Path>> optionsList) {
-        this.optionsList = optionsList;
     }
 }
