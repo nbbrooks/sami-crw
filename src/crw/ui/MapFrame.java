@@ -8,6 +8,7 @@ import crw.ui.widget.RobotTrackWidget;
 import crw.ui.widget.RobotWidget;
 import crw.ui.widget.RobotWidget.ControlMode;
 import crw.ui.component.WorldWindPanel;
+import crw.ui.widget.ObstacleWidget;
 import crw.ui.widget.SelectGeometryWidget;
 import java.util.Arrays;
 import java.util.List;
@@ -41,6 +42,8 @@ public class MapFrame extends UiFrame {
         wwPanel.addWidget(robot);
         RobotTrackWidget robotTrack = new RobotTrackWidget(wwPanel);
         wwPanel.addWidget(robotTrack);
+        ObstacleWidget obstacle = new ObstacleWidget(wwPanel);
+        wwPanel.addWidget(obstacle);
 
         pack();
         setVisible(true);
