@@ -36,6 +36,6 @@ public class PathUtmRequest extends OutputEvent {
     }
 
     public String toString() {
-        return "PathUtmRequest: proxyEndLocation = " + proxyEndLocation;
+        return "PathUtmRequest [" + proxyEndLocation + "]";
     }
 }

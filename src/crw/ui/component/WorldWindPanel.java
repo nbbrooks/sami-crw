@@ -327,8 +327,7 @@ public class WorldWindPanel implements MarkupComponent {
                     area = (SurfacePolygon) renderable;
                 }
             }
-            if (area
-                    != null) {
+            if (area != null) {
                 ArrayList<Location> locationList = new ArrayList<Location>();
                 for (LatLon latLon : area.getLocations()) {
                     locationList.add(Conversion.latLonToLocation(latLon));

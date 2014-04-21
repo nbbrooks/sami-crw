@@ -23,4 +23,8 @@ public class ProxyResendWaypoints extends OutputEvent {
         this.id = uuid;
         this.missionId = missionUuid;
     }
+    
+    public String toString() {
+        return "ProxyResendWaypoints";
+    }
 }

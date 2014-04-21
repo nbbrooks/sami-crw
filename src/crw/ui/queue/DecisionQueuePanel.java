@@ -24,8 +24,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.GroupLayout;
 import sami.uilanguage.MarkupManager;
-import sami.uilanguage.MarkupManagerListener;
-import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.toui.ToUiMessage;
 
 /**
@@ -137,10 +135,8 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
                             }
                         });
                     } catch (InterruptedException e) {
-                        LOGGER.log(Level.INFO, "constructor thread: invokeAndWait was interrupted, e=" + e);
                         e.printStackTrace();
                     } catch (java.lang.reflect.InvocationTargetException e) {
-                        LOGGER.log(Level.INFO, "constructor thread: invokeAndWait threw an exception, e=" + e);
                         e.printStackTrace();
                     }
 //                    System.out.println("sleep");
@@ -254,11 +250,11 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
                 }
             }
             // If we don't have at least ITEMS_PER_FETCH left after the current index, get some more items
-//            LOGGER.log(Level.INFO, "UpdateIndex: Image index=" + index);
+//            LOGGER.info("UpdateIndex: Image index=" + index);
             int imagesLeft = loadedMessages.size() - index;
             if (imagesLeft < ITEMS_PER_FETCH) {
                 int fetched = queueDatabase.getHighPriorityInteractions(loadedMessages, ITEMS_PER_FETCH);
-//                LOGGER.log(Level.INFO, "Fetched " + fetched + " images from VidDB, wanted " + (ITEMS_PER_FETCH) + ", list size = " + loadedInteractions.size() + ", index=" + index);
+//                LOGGER.info("Fetched " + fetched + " images from VidDB, wanted " + (ITEMS_PER_FETCH) + ", list size = " + loadedInteractions.size() + ", index=" + index);
                 // Create the components for the newly loaded messages
                 for (int i = 1; i <= fetched; i++) {
                     ToUiMessage message = loadedMessages.get(loadedMessages.size() - i);
@@ -296,17 +292,6 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         createImageIcon();
         DecisionQueuePanel.this.repaint();
     }
-
-//    @Override
-//    public void autonomyTriggered(ToUiMessage toMessage, FromUiMessage fromMessage) {
-//        // If the message has a thumbnail/content panel, remove them from the loaded lists
-//        QueueItem component = messageToItem.remove(toMessage);
-//        messageToItem.remove(toMessage);
-//        if (component != null) {
-//            createImageIcon();
-////            component.viewed.set(true);
-//        }
-//    }
 
     private class HeaderPanel extends JPanel implements MouseListener {
 

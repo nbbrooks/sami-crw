@@ -40,4 +40,8 @@ public class ProxyExecutePath extends OutputEvent {
     public void setProxyPaths(Hashtable<ProxyInt, Path> proxyPaths) {
         this.proxyPaths = proxyPaths;
     }
+
+    public String toString() {
+        return "ProxyEmergencyAbort [" + proxyPaths + "]";
+    }
 }

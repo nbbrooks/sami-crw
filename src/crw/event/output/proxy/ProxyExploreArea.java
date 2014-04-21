@@ -38,4 +38,8 @@ public class ProxyExploreArea extends OutputEvent {
     public void setArea(Area2D area) {
         this.area = area;
     }
+
+    public String toString() {
+        return "ProxyEmergencyAbort [" + area + "]";
+    }
 }

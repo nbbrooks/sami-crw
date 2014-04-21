@@ -27,4 +27,8 @@ public class DisplayMessage extends OutputEvent {
     public String getMessage() {
         return message;
     }
+    
+    public String toString() {
+        return "DisplayMessage [" + message + "]";
+    }
 }

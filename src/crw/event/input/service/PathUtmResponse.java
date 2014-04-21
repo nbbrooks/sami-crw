@@ -53,4 +53,8 @@ public class PathUtmResponse extends BlockingInputEvent {
         copy.setVariables(getVariables());
         return copy;
     }
+    
+    public String toString() {
+        return "PathUtmResponse [" + proxyPaths + "]";
+    }
 }

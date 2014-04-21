@@ -107,4 +107,8 @@ public class AllocationRequest extends OutputEvent {
 //    public void setConstraints(ArrayList<Constraint> constraints) {
 //        this.constraints = constraints;
 //    }
+    
+    public String toString() {
+        return "AllocationRequest [" + tasks + ", " + assets + ", " + availableTime + ", " + noOptions + "]";
+    }
 }

@@ -58,6 +58,6 @@ public class ProxyCompareDistanceRequest extends OutputEvent {
     }
 
     public String toString() {
-        return "ProxyCompareDistanceRequest: proxyCompareLocation = " + proxyCompareLocation + ", compareDistance = " + compareDistance;
+        return "ProxyCompareDistanceRequest [" + proxyCompareLocation + ", " + compareDistance + "]";
     }
 }

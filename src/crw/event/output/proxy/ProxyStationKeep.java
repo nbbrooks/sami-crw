@@ -53,4 +53,8 @@ public class ProxyStationKeep extends OutputEvent {
     public void setProxyPoints(Hashtable<ProxyInt, Location> proxyPoints) {
         this.proxyPoints = proxyPoints;
     }
+
+    public String toString() {
+        return "ProxyStationKeep [" + proxyPoints + ", " + threshold + "]";
+    }
 }

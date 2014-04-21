@@ -50,4 +50,8 @@ public class BatteryLevelSubscription extends OutputEvent {
     public int getProxyId() {
         return proxyId;
     }
+
+    public String toString() {
+        return "BatteryLevelSubscription [" + lowFuelFraction + ", " + criticalFuelFraction + ", " + proxyId + "]";
+    }
 }

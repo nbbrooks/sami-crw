@@ -28,4 +28,8 @@ public class ProxyPoseUpdated extends InputEvent {
         relevantProxyList = new ArrayList<ProxyInt>();
         relevantProxyList.add(proxy);
     }
+    
+    public String toString() {
+        return "ProxyPoseUpdated, relevantProxyList: " + relevantProxyList;
+    }
 }

@@ -164,11 +164,11 @@ public class BoatSensor implements ObserverInt, SensorListener {
     @Override
     public void addListener(ObservationListenerInt l) {
         if (!listenerCounter.containsKey(l)) {
-            LOGGER.log(Level.INFO, "First addition of listener " + l);
+            LOGGER.fine("First addition of listener " + l);
             listenerCounter.put(l, 1);
             listeners.add(l);
         } else {
-            LOGGER.log(Level.INFO, "Count is now " + (listenerCounter.get(l) + 1) + " for " + l);
+            LOGGER.fine("Count is now " + (listenerCounter.get(l) + 1) + " for " + l);
             listenerCounter.put(l, listenerCounter.get(l) + 1);
         }
     }
@@ -176,13 +176,13 @@ public class BoatSensor implements ObserverInt, SensorListener {
     @Override
     public void removeListener(ObservationListenerInt l) {
         if (!listenerCounter.containsKey(l)) {
-            LOGGER.log(Level.WARNING, "Tried to remove ObservationListener that is not in the list!" + l);
+            LOGGER.log(Level.WARNING, "Tried to remove ObservationListener [" + l + "] that is not in the list!");
         } else if (listenerCounter.get(l) == 1) {
-            LOGGER.log(Level.INFO, "Last count of listener, removing " + l);
+            LOGGER.fine("Last count of listener, removing " + l);
             listenerCounter.remove(l);
             listeners.remove(l);
         } else {
-            LOGGER.log(Level.INFO, listenerCounter.get(l) - 1 + " counts remaining for " + l);
+            LOGGER.fine(listenerCounter.get(l) - 1 + " counts remaining for " + l);
             listenerCounter.put(l, listenerCounter.get(l) - 1);
         }
     }

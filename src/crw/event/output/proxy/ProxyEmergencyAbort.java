@@ -23,4 +23,8 @@ public class ProxyEmergencyAbort extends OutputEvent {
         this.id = uuid;
         this.missionId = missionUuid;
     }
+
+    public String toString() {
+        return "ProxyEmergencyAbort";
+    }
 }

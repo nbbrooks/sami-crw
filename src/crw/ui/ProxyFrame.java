@@ -50,7 +50,7 @@ public class ProxyFrame extends UiFrame {
         colorB.setForeground(color);
 
         try {
-            LOGGER.log(Level.INFO, "SecurityManager: " + System.getSecurityManager());
+            LOGGER.info("SecurityManager: " + System.getSecurityManager());
 
             physicalServerF.setText(Preferences.userRoot().get(LAST_URI_KEY, "http://168.192.1.X:11411"));
             imagesDirF.setText(Preferences.userRoot().get(LAST_IMG_DIR_KEY, "/tmp"));
@@ -305,7 +305,7 @@ public class ProxyFrame extends UiFrame {
 
             // Create a ROS proxy server that accesses the same object
             // RosVehicleProxy proxyServer = new RosVehicleProxy(masterUri, "vehicle_client");
-            LOGGER.log(Level.INFO, "Initialization of vehicle server complete");
+            LOGGER.info("Initialization of vehicle server complete");
             UTMCoord utm = UTMCoord.fromLatLon(Angle.fromDegrees(lat), Angle.fromDegrees(lon));
             UtmPose p1 = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
             server.setPose(p1);
@@ -320,7 +320,7 @@ public class ProxyFrame extends UiFrame {
             p.put(LAT_SIM, latSimF.getText());
             p.put(LON_SIM, lonSimF.getText());
         } catch (AccessControlException e) {
-            LOGGER.log(Level.INFO, "Failed to save preferences");
+            LOGGER.info("Failed to save preferences");
         }
 
     }

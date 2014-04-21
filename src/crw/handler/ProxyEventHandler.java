@@ -206,7 +206,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     }
                     List<Location> proxyLocations;
                     for (int i = 0; i < lawnmowerLocations.size() / MAX_SEGMENTS_PER_PROXY + 1; i++) {
-//                    LOGGER.info("i = " + i + " of " + (lawnmowerLocations.size() / MAX_SEGMENTS_PER_PROXY + 1) + ": sublist " + i * MAX_SEGMENTS_PER_PROXY + ", " + Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
+//                    LOGGER.log(Level.FINE, "i = " + i + " of " + (lawnmowerLocations.size() / MAX_SEGMENTS_PER_PROXY + 1) + ": sublist " + i * MAX_SEGMENTS_PER_PROXY + ", " + Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
                         proxyLocations = lawnmowerLocations.subList(i * MAX_SEGMENTS_PER_PROXY, Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
                         // Send the path
 //                    LOGGER.log(Level.FINE, "Creating ProxyExecutePath with " + proxyLocations.size() + " waypoints for proxy " + tokenProxies.get(proxyIndex));
@@ -344,10 +344,9 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyCompareDistanceRequest has no tokens with proxies attached: " + oe);
             }
 
-            LOGGER.info("Handling ProxyCompareDistanceRequest, have responses: " + responses + ", have listeners: " + listeners);
             for (GeneratedEventListenerInt listener : listeners) {
                 for (InputEvent response : responses) {
-                    LOGGER.log(Level.INFO, "\tSending response: " + response + " to listener: " + listener);
+                    LOGGER.log(Level.FINE, "\tSending response: " + response + " to listener: " + listener);
                     listener.eventGenerated(response);
                 }
             }
@@ -510,7 +509,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
 
     @Override
     public void eventOccurred(InputEvent proxyEventGenerated) {
-//        LOGGER.log(Level.INFO, "Event occurred: " + proxyEventGenerated + ", listeners: " + listeners);
+        LOGGER.log(Level.FINE, "Event occurred: " + proxyEventGenerated + ", rp: " + proxyEventGenerated.getRelevantProxyList() + ", listeners: " + listeners);
         for (GeneratedEventListenerInt listener : listeners) {
             listener.eventGenerated(proxyEventGenerated);
         }

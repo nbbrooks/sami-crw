@@ -37,4 +37,8 @@ public class ConnectExistingProxy extends OutputEvent {
     public ConnectExistingProxy() {
         id = UUID.randomUUID();
     }
+
+    public String toString() {
+        return "ConnectExistingProxy [" + name + ", " + color + ", " + server + ", " + imageStorageDirectory + "]";
+    }
 }

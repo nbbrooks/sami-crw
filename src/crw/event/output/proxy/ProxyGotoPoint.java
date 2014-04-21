@@ -40,4 +40,8 @@ public class ProxyGotoPoint extends OutputEvent {
     public void setProxyPoints(Hashtable<ProxyInt, Location> proxyPoints) {
         this.proxyPoints = proxyPoints;
     }
+    
+    public String toString() {
+        return "ProxyGotoPoint [" + proxyPoints + "]";
+    }
 }

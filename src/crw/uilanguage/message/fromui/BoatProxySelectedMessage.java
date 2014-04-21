@@ -25,4 +25,8 @@ public class BoatProxySelectedMessage extends FromUiMessage {
     public UUID getRelevantOutputEventId() {
         return relevantOutputEventId;
     }
+    
+    public String toString() {
+        return "BoatProxySelectedMessage [" + boatProxy + "]";
+    }
 }

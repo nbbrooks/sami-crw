@@ -50,4 +50,8 @@ public class AssembleLocationRequest extends OutputEvent {
     public void setSpacing(double spacing) {
         this.spacing = spacing;
     }
+    
+    public String toString() {
+        return "AssembleLocationRequest [" + assemblyLocation + ", " + spacing + "]";
+    }
 }

@@ -31,7 +31,7 @@ public class QueueDatabase {
 
     public int getHighPriorityInteractions(List<ToUiMessage> interactionList, int numToFetch) {
         int numFetched = 0;
-//        LOGGER.log(Level.INFO, "Asked for interactions, have " + incomingMessages.size());
+//        LOGGER.info("Asked for interactions, have " + incomingMessages.size());
         while (!incomingDecisions.isEmpty() && (numFetched < numToFetch)) {
             interactionList.add(incomingDecisions.remove());
             numFetched++;

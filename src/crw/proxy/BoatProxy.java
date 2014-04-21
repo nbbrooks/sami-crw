@@ -231,7 +231,7 @@ public class BoatProxy extends Thread implements ProxyInt {
             }
         };
 
-        LOGGER.log(Level.INFO, "New boat created, boat # " + _boatNo);
+        LOGGER.info("New boat created, boat # " + _boatNo);
 
         //add Listeners
         _server.addPoseListener(_stateListener, null);
@@ -241,7 +241,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
                 if (ws.equals(WaypointState.DONE)) {
 
-                    LOGGER.log(Level.INFO, "BoatProxy " + getName() + " got waypoint update " + ws + " (WaypointState.DONE)");
+                    LOGGER.log(Level.FINE, "BoatProxy " + getName() + " got waypoint update " + ws + " (WaypointState.DONE)");
 
                     // Handle the go slow
                     if (goSlowExecuting) {
@@ -276,12 +276,12 @@ public class BoatProxy extends Thread implements ProxyInt {
 
                         updateWaypoints(true, true);
 
-                        LOGGER.log(Level.INFO, "BoatProxy " + getName() + " completed sequential OE " + oe + ", sending out IE " + ie);
+                        LOGGER.log(Level.FINE, "BoatProxy " + getName() + " completed sequential OE " + oe + ", sending out IE " + ie);
                         for (ProxyListenerInt boatProxyListener : listeners) {
                             boatProxyListener.eventOccurred(ie);
                         }
                         if (!sequentialOutputEvents.isEmpty()) {
-                            LOGGER.log(Level.INFO, "Sequential OE list is not empty, do the next one!");
+                            LOGGER.log(Level.FINE, "Sequential OE list is not empty, do the next one!");
                             sendCurrentWaypoints();
                         }
                     }
@@ -295,7 +295,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                 // Take a picture, and put the resulting image into the panel
                 try {
                     BufferedImage image = ImageIO.read(new java.io.ByteArrayInputStream(ci));
-                    LOGGER.log(Level.INFO, "Got image ... ");
+                    LOGGER.log(Level.FINE, "Got image ... ");
 
                     if (image != null) {
                         // Flip the image vertically
@@ -340,11 +340,11 @@ public class BoatProxy extends Thread implements ProxyInt {
     @Override
     public void addListener(ProxyListenerInt l) {
         if (!listenerCounter.containsKey(l)) {
-            LOGGER.log(Level.INFO, "First addition of listener " + l);
+            LOGGER.log(Level.FINE, "First addition of listener " + l);
             listenerCounter.put(l, 1);
             listeners.add(l);
         } else {
-            LOGGER.log(Level.INFO, "Count is now " + (listenerCounter.get(l) + 1) + " for " + l);
+            LOGGER.log(Level.FINE, "Count is now " + (listenerCounter.get(l) + 1) + " for " + l);
             listenerCounter.put(l, listenerCounter.get(l) + 1);
         }
     }
@@ -354,11 +354,11 @@ public class BoatProxy extends Thread implements ProxyInt {
         if (!listenerCounter.containsKey(l)) {
             LOGGER.log(Level.WARNING, "Tried to remove ProxyListener that is not in the list!" + l);
         } else if (listenerCounter.get(l) == 1) {
-            LOGGER.log(Level.INFO, "Last count of listener, removing " + l);
+            LOGGER.log(Level.FINE, "Last count of listener, removing " + l);
             listenerCounter.remove(l);
             listeners.remove(l);
         } else {
-            LOGGER.log(Level.INFO, listenerCounter.get(l) - 1 + " counts remaining for " + l);
+            LOGGER.log(Level.FINE, listenerCounter.get(l) - 1 + " counts remaining for " + l);
             listenerCounter.put(l, listenerCounter.get(l) - 1);
         }
     }
@@ -391,7 +391,7 @@ public class BoatProxy extends Thread implements ProxyInt {
      * @param index
      */
     public void handleEvent(OutputEvent oe, int index) {
-        LOGGER.log(Level.INFO, "BoatProxy " + getName() + " was sent OutputEvent " + oe + " with index " + index);
+        LOGGER.info("BoatProxy [" + toString() + "] was sent OutputEvent [" + oe + "] with index [" + index + "]");
 
         boolean sendWps = false;
         if (oe instanceof ProxyExecutePath) {
@@ -427,14 +427,14 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     @Override
     public void abortEvent(UUID eventId) {
-        LOGGER.info("Abort Event called with event id: " + eventId);
+        LOGGER.info("Abort Event called with event id [" + eventId + "] on proxy [" + toString() + "]");
         int numRemoved = 0;
         ArrayList<OutputEvent> outputEventsToRemove = new ArrayList<OutputEvent>();
         ArrayList<InputEvent> inputEventsToRemove = new ArrayList<InputEvent>();
         boolean removeFirst = false, removedEvent = false;
         for (int i = 0; i < sequentialOutputEvents.size(); i++) {
             if (sequentialOutputEvents.get(i).getId() == null) {
-                LOGGER.warning("Output event: " + sequentialOutputEvents.get(i) + " has no event id!");
+                LOGGER.warning("Output event [" + sequentialOutputEvents.get(i) + "] on proxy [" + toString() + "] has no event id!");
             } else if (sequentialOutputEvents.get(i).getId().equals(eventId)) {
                 outputEventsToRemove.add(sequentialOutputEvents.get(i));
                 inputEventsToRemove.add(sequentialInputEvents.get(i));
@@ -455,23 +455,23 @@ public class BoatProxy extends Thread implements ProxyInt {
         updateWaypoints(removeFirst, numRemoved > 0);
         if (removeFirst) {
             // If we modified the first set of waypoints, start them
-            LOGGER.info("\t Removed " + numRemoved + " events while aborting eventId: " + eventId + ", including current event");
+            LOGGER.info("\t Removed " + numRemoved + " events while aborting eventId [" + eventId + "] on proxy [" + toString() + "], including current event");
             sendCurrentWaypoints();
         } else {
-            LOGGER.info("\t Removed " + numRemoved + " events while aborting eventId: " + eventId + ", but not the current event");
+            LOGGER.info("\t Removed " + numRemoved + " events while aborting eventId [" + eventId + "] on proxy [" + toString() + "], but not the current event");
         }
     }
 
     @Override
     public void abortMission(UUID missionId) {
-        LOGGER.info("Abort Mission called with mission id: " + missionId);
+        LOGGER.info("Abort Mission called with mission id [" + missionId + "] on proxy [" + toString() + "]");
         int numRemoved = 0;
         ArrayList<OutputEvent> outputEventsToRemove = new ArrayList<OutputEvent>();
         ArrayList<InputEvent> inputEventsToRemove = new ArrayList<InputEvent>();
         boolean removeFirst = false, removedEvent = false;
         for (int i = 0; i < sequentialOutputEvents.size(); i++) {
             if (sequentialOutputEvents.get(i).getMissionId() == null) {
-                LOGGER.warning("Output event: " + sequentialOutputEvents.get(i) + " has no mission id!");
+                LOGGER.warning("Output event [" + sequentialOutputEvents.get(i) + "] on proxy [" + toString() + "] has no mission id!");
             } else if (sequentialOutputEvents.get(i).getMissionId().equals(missionId)) {
                 outputEventsToRemove.add(sequentialOutputEvents.get(i));
                 inputEventsToRemove.add(sequentialInputEvents.get(i));
@@ -492,10 +492,10 @@ public class BoatProxy extends Thread implements ProxyInt {
         updateWaypoints(removeFirst, removedEvent);
         if (removeFirst) {
             // If we modified the first set of waypoints, start them
-            LOGGER.info("Removed " + numRemoved + " events while aborting missionId: " + missionId + ", including current event");
+            LOGGER.info("Removed " + numRemoved + " events while aborting missionId [" + missionId + "] on proxy [" + toString() + "], including current event");
             sendCurrentWaypoints();
         } else {
-            LOGGER.info("Removed " + numRemoved + " events while aborting missionId: " + missionId + ", but not the current event");
+            LOGGER.info("Removed " + numRemoved + " events while aborting missionId [" + missionId + "] on proxy [" + toString() + "], but not the current event");
         }
     }
 
@@ -571,15 +571,15 @@ public class BoatProxy extends Thread implements ProxyInt {
             public void run() {
 
                 try {
-                    LOGGER.log(Level.INFO, "SLEEPING BEFORE CAMERA START");
+                    LOGGER.log(Level.FINE, "SLEEPING BEFORE CAMERA START");
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                 }
-                LOGGER.log(Level.INFO, "DONE SLEEPING BEFORE CAMERA START");
+                LOGGER.log(Level.FINE, "DONE SLEEPING BEFORE CAMERA START");
 
                 _server.startCamera(0, 30.0, 640, 480, null);
 
-                LOGGER.log(Level.INFO, "Image listener started");
+                LOGGER.log(Level.FINE, "Image listener started");
             }
         }).start();
     }
@@ -603,7 +603,7 @@ public class BoatProxy extends Thread implements ProxyInt {
             InputEvent stationKeepComplete = sequentialInputEvents.remove(0);
             stationKeepShutdown();
 
-            LOGGER.log(Level.INFO, "BoatProxy " + getName() + " completed sequential OE " + stationKeep + ", sending out IE " + stationKeepComplete);
+            LOGGER.fine("BoatProxy " + getName() + " completed sequential OE " + stationKeep + ", sending out IE " + stationKeepComplete);
             for (ProxyListenerInt boatProxyListener : listeners) {
                 boatProxyListener.eventOccurred(stationKeepComplete);
             }
@@ -663,7 +663,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                         LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + gotoPoint.getProxyPoints());
                     }
                 } else if (sequentialOutputEvents.get(0) instanceof ProxyStationKeep) {
-                    LOGGER.info("curSequentialEvent IS SK");
                     ProxyStationKeep stationKeep = (ProxyStationKeep) sequentialOutputEvents.get(0);
                     if (stationKeep.getProxyPoints().containsKey(this)) {
                         // Do nothing - when the threshold triggers it will handle this
@@ -701,9 +700,9 @@ public class BoatProxy extends Thread implements ProxyInt {
                             }
                         } else {
                             if (!executePath.getProxyPaths().containsKey(this)) {
-                                LOGGER.severe("Proxy Paths has no entry for this proxy: " + this + ": " + executePath.getProxyPaths());
+                                LOGGER.severe("Proxy paths [" + executePath.getProxyPaths() + "] has no entry for proxy [" + toString() + "]!");
                             } else {
-                                LOGGER.severe("Can't handle Path of class " + executePath.getProxyPaths().get(this).getClass().getSimpleName());
+                                LOGGER.severe("Can't handle Path of class [" + executePath.getProxyPaths().get(this).getClass().getSimpleName() + "]!");
                             }
                         }
                     } else if (sequentialOutputEvents.get(i) instanceof ProxyGotoPoint) {
@@ -712,12 +711,12 @@ public class BoatProxy extends Thread implements ProxyInt {
                             Location location = gotoPoint.getProxyPoints().get(this);
                             positions.add(Conversion.locationToPosition(location));
                         } else {
-                            LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + gotoPoint.getProxyPoints());
+                            LOGGER.severe("Proxy points [" + gotoPoint.getProxyPoints() + "] has no entry for proxy [" + toString() + "]!");
                         }
                     } else if (sequentialOutputEvents.get(i) instanceof ProxyStationKeep) {
                         // Station keep just finished moving back to the location
                     } else {
-                        LOGGER.severe("Can't handle OutputEvent of class " + sequentialOutputEvents.get(i).getClass().getSimpleName());
+                        LOGGER.severe("BoatProxy can't handle OutputEvent of class [" + sequentialOutputEvents.get(i).getClass().getSimpleName() + "]");
                     }
                 }
                 _futureWaypointsPos = positions;
@@ -762,7 +761,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                 curSequentialEvent = updatedEvent;
                 updateWaypoints(true, false);
             } else {
-                LOGGER.log(Level.INFO, "BoatProxy can't handle OutputEvent of class " + updatedEvent.getClass().getSimpleName());
+                LOGGER.severe("BoatProxy can't handle OutputEvent of class [" + updatedEvent.getClass().getSimpleName() + "]!");
                 handled = false;
             }
         } else {
@@ -781,7 +780,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                 curSequentialEvent = updatedEvent;
                 updateWaypoints(true, true);
             } else {
-                LOGGER.severe("Can't handle OutputEvent of class " + updatedEvent.getClass().getSimpleName());
+                LOGGER.severe("BoatProxy can't handle OutputEvent of class [" + updatedEvent.getClass().getSimpleName() + "]!");
                 handled = false;
             }
         }
@@ -818,6 +817,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                 LOGGER.fine("*** Dropping _server.stopWaypoints");
             } else {
                 LOGGER.fine("*** Sending _server.stopWaypoints");
+                LOGGER.info("BoatProxy [" + toString() + "] stopWaypoints");
                 _server.stopWaypoints(null);
             }
         } else {
@@ -838,6 +838,7 @@ public class BoatProxy extends Thread implements ProxyInt {
             LOGGER.fine("*** Dropping _server.startWaypoints");
         } else {
             LOGGER.fine("*** Sending _server.startWaypoints");
+            LOGGER.info("BoatProxy [" + toString() + "] startWaypoints [" + _curWaypoints.toString() + "]");
             _server.startWaypoints(_curWaypoints.toArray(new UtmPose[_curWaypoints.size()]), "POINT_AND_SHOOT", new FunctionObserver() {
                 int completedCounter = 0;
 
@@ -979,7 +980,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                 }
 
                 public void failed(FunctionError fe) {
-                    LOGGER.severe("Set velocity failed");
+                    LOGGER.severe("Set velocity failed!");
                 }
             });
         }
@@ -1001,7 +1002,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
                 @Override
                 public void failed(FunctionError fe) {
-                    LOGGER.severe("Set autonomous to " + activate + " failed");
+                    LOGGER.severe("Set autonomous to " + activate + " failed!");
                 }
             });
         }

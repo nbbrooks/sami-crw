@@ -38,4 +38,8 @@ public class CreateSimulatedProxy extends OutputEvent {
     public CreateSimulatedProxy() {
         id = UUID.randomUUID();
     }
+
+    public String toString() {
+        return "CreateSimulatedProxy [" + name + ", " + color + ", " + startLocation + ", " + numberToCreate + "]";
+    }
 }
