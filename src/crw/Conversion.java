@@ -43,4 +43,9 @@ public class Conversion {
                 null),
                 altitude);
     }
+    
+    // Linearly scale a value from one value range to another
+    public static double convertRange(double valueIn, double minIn, double maxIn, double minOut, double maxOut) {
+        return (valueIn - minIn) / (maxIn - minIn) * (maxOut - minOut) + minOut;
+    }
 }

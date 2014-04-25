@@ -1,5 +1,6 @@
 package crw.ui.widget;
 
+import crw.Conversion;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.Helper;
@@ -7,8 +8,10 @@ import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyStationKeep;
 import crw.proxy.BoatProxy;
 import crw.ui.BoatMarker;
-import crw.ui.BoatTeleopPanel;
 import crw.ui.VideoFeedPanel;
+import crw.ui.teleop.VelocityPanel;
+import edu.cmu.ri.crw.AsyncVehicleServer;
+import edu.cmu.ri.crw.data.Twist;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
@@ -36,7 +39,9 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import sami.engine.Engine;
@@ -65,7 +70,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     public enum ControlMode {
 
-        TELEOP, POINT, PATH, STATION_KEEP, NONE
+        TELEOP, POINT, PATH, NONE
     };
     // MarkupComponentWidget variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
@@ -78,7 +83,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private ArrayList<Marker> markers = new ArrayList<Marker>();
     private ArrayList<Position> selectedPositions = new ArrayList<Position>();
     private BoatProxy selectedProxy = null;
-    private BoatTeleopPanel teleopP;
+    private VelocityPanel velocityP;
     private ControlMode controlMode = ControlMode.NONE;
     private Hashtable<GeneratedEventListenerInt, UUID> listenerTable = new Hashtable<GeneratedEventListenerInt, UUID>();
     private Hashtable<BoatProxy, BoatMarker> proxyToMarker = new Hashtable<BoatProxy, BoatMarker>();
@@ -95,6 +100,23 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private RenderableLayer renderableLayer;
     private VideoFeedPanel videoP;
     private WorldWindPanel wwPanel;
+    
+    
+    // new stuff
+    // Velocity to be sent to the boat
+    public double telRudderFrac = 0.0, telThrustFrac = 0;
+    protected AsyncVehicleServer _vehicle = null;
+    // Sets up a flag limiting the rate of velocity command transmission
+    public AtomicBoolean _sentVelCommand = new AtomicBoolean(false);
+    public AtomicBoolean _queuedVelCommand = new AtomicBoolean(false);
+    protected java.util.Timer _timer = new java.util.Timer();
+    public static final int DEFAULT_UPDATE_MS = 750;
+    public static final int DEFAULT_COMMAND_MS = 200;
+    // Ranges for thrust and rudder signals
+    public static final double THRUST_MIN = 0.0;
+    public static final double THRUST_MAX = 1.0;
+    public static final double RUDDER_MIN = 1.0;
+    public static final double RUDDER_MAX = -1.0;
 
     public RobotWidget() {
         populateLists();
@@ -176,13 +198,6 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                         clearPath();
                         setControlMode(ControlMode.NONE);
                     }
-                    return true;
-                }
-                break;
-            case STATION_KEEP:
-                if (clickPosition != null) {
-                    stationKeep(clickPosition);
-                    setControlMode(ControlMode.NONE);
                     return true;
                 }
                 break;
@@ -368,17 +383,6 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                 }
             });
         }
-        if (enabledModes.contains(ControlMode.STATION_KEEP)) {
-            stationKeepButton = new JButton("Station");
-            stationKeepButton.setEnabled(false);
-//            btmPanel.add(stationKeepButton);
-            stationKeepButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent ae) {
-                    setControlMode(ControlMode.STATION_KEEP);
-                }
-            });
-        }
         if (enabledModes.size() > 0) {
             cancelButton = new JButton("Cancel");
             cancelButton.setEnabled(false);
@@ -413,17 +417,17 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     public void initExpandables() {
         videoP = new VideoFeedPanel();
-        teleopP = new BoatTeleopPanel(autoButton);
+        velocityP = new VelocityPanel(this);
         videoP.setVisible(false);
-        teleopP.setVisible(false);
+        velocityP.setVisible(false);
         topPanel.add(videoP);
-        topPanel.add(teleopP);
+        topPanel.add(velocityP);
         wwPanel.buttonPanels.revalidate();
     }
 
     public void hideExpandables() {
         videoP.setVisible(false);
-        teleopP.setVisible(false);
+        velocityP.setVisible(false);
         cancelButton.setText("Cancel");
         wwPanel.revalidate();
     }
@@ -431,36 +435,45 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     public void showExpandables() {
         Dimension mapDim = wwPanel.wwCanvas.getSize();
         int height = Math.min(mapDim.width, mapDim.height) / 4;
-        teleopP.setPreferredSize(new Dimension(mapDim.width / 2, height));
+        velocityP.setPreferredSize(new Dimension(mapDim.width / 2, height));
         videoP.setPreferredSize(new Dimension(mapDim.width / 2, height));
         videoP.setVisible(true);
-        teleopP.setVisible(true);
+        velocityP.setVisible(true);
         cancelButton.setText("Collapse");
         wwPanel.revalidate();
     }
 
     public void setControlMode(ControlMode controlMode) {
         clearPath();
-        teleopP.stopTeleop();
+        velocityP.stopBoat();
         this.controlMode = controlMode;
         switch (controlMode) {
             case TELEOP:
                 cancelAssignedWaypoints();
                 showExpandables();
+                enableTeleop();
                 break;
             case POINT:
                 hideExpandables();
+                disableTeleop();
                 break;
             case PATH:
                 hideExpandables();
-                break;
-            case STATION_KEEP:
-                hideExpandables();
+                disableTeleop();
                 break;
             case NONE:
                 hideExpandables();
+                disableTeleop();
                 break;
         }
+    }
+
+    public void enableTeleop() {
+        velocityP.enableTeleop(true);
+    }
+
+    public void disableTeleop() {
+        velocityP.enableTeleop(false);
     }
 
     public void selectMarker(Marker boatMarker) {
@@ -490,7 +503,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         // Proxy stuff
         if (selectedProxy != null) {
             // Stop previous boat if it is locked in teleoperation mode
-            teleopP.stopTeleop();
+            disableTeleop();
         }
         BoatProxy boatProxy = null;
         boolean enabled = false;
@@ -498,10 +511,12 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             boatProxy = markerToProxy.get(boatMarker);
             enabled = true;
             // Update teleop panel's proxy 
-            teleopP.setProxy(boatProxy);
+            _vehicle = boatProxy.getVehicleServer();
+            velocityP.setVehicle(boatProxy.getVehicleServer());
         } else {
             // Remove teleop panel's proxy and hide teleop panel
-            teleopP.setProxy(null);
+            _vehicle = null;
+            velocityP.setVehicle(null);
             setControlMode(ControlMode.NONE);
             hideExpandables();
         }
@@ -694,5 +709,50 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     @Override
     public void disableMarkup(Markup markup) {
+    }
+
+    // Callback that handles GUI events that change velocity
+    public void updateVelocity() {
+        // Check if there is already a command queued up, if not, queue one up
+        if (!_sentVelCommand.getAndSet(true)) {
+            // Send one command immediately
+            sendVelocity();
+            // Queue up a command at the end of the refresh timestep
+            _timer.schedule(new UpdateVelTask(), DEFAULT_COMMAND_MS);
+        } else {
+            _queuedVelCommand.set(true);
+        }
+    }
+
+    // Simple update task that periodically checks whether velocity needs updating
+    class UpdateVelTask extends TimerTask {
+
+        @Override
+        public void run() {
+            if (_queuedVelCommand.getAndSet(false)) {
+                sendVelocity();
+                _timer.schedule(new UpdateVelTask(), DEFAULT_COMMAND_MS);
+            } else {
+                _sentVelCommand.set(false);
+            }
+        }
+    }
+
+    // Sets velocities from sliders to control proxy
+    protected void sendVelocity() {
+        if (_vehicle != null) {
+            Twist twist = new Twist();
+            twist.dx(telThrustFrac);
+            twist.drz(telRudderFrac);
+            _vehicle.setVelocity(twist, null);
+        }
+    }
+
+    public void stopBoat() {
+        if (_vehicle != null) {
+            telRudderFrac = 0.0;
+            telThrustFrac = 0;
+            updateVelocity();
+        }
     }
 }

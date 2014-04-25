@@ -169,7 +169,7 @@ public class BoatProxy extends Thread implements ProxyInt {
         _boatNo = boatNo;
 
         if (addr == null) {
-            LOGGER.severe("$$$$$$$$$$$$$$$$$$$$$ addr falied");
+            LOGGER.severe("INetAddress is null!");
         }
 
         _server = new UdpVehicleServer(addr);
