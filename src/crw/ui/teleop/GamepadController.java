@@ -119,6 +119,7 @@ public class GamepadController implements GamepadListener, TeleopSourceInt {
 
         // Check for serpentine - only activate if it is the only rudder input
         if (ge.leftBumper && !receivedRudderInput) {
+            receivedRudderInput = true;
             if (serpentineLeft) {
                 // Turn to the left
                 telRudderFrac = Math.max(telRudderFrac - ACTIVE_AMOUNT, CTLR_RUDDER_MIN);
