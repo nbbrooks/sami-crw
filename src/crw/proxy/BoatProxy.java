@@ -3,12 +3,10 @@ package crw.proxy;
 import crw.Conversion;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPoseUpdated;
-import crw.event.input.proxy.ProxyStationKeepCompleted;
 import crw.event.output.proxy.ProxyEmergencyAbort;
 import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyResendWaypoints;
-import crw.event.output.proxy.ProxyStationKeep;
 import crw.sensor.CrwObserverServer;
 import edu.cmu.ri.crw.FunctionObserver;
 import edu.cmu.ri.crw.FunctionObserver.FunctionError;
@@ -119,13 +117,6 @@ public class BoatProxy extends Thread implements ProxyInt {
     long goSlowRestTime = 20000L;
     long goSlowToWaypointTime = 20000L;
     double maxWPDist = 30.0;
-    // Station keeping
-    final AtomicBoolean stationKeepRunning = new AtomicBoolean(false);
-    Thread stationKeepThread;
-    private Position stationKeepPosition; // Position to station keep around
-    private double stationKeepThreshold = 2 * maxWPDist; // Threshold for sending a waypoint (m)
-    private Location stationKeepLocation;
-    private UtmPose stationKeepPose;
     // Lossy comms simulation
     final Random COMM_LOSS_RANDOM = new Random(0L);
     // Pose recorder file for offline analysis
@@ -256,17 +247,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                             boatProxyListener.waypointsComplete();
                         }
                     }
-                    if (curSequentialEvent instanceof ProxyStationKeep) {
-                        // Return now - we don't want completion of a path to trigger station keep to end
-                        LOGGER.fine("Station keeping returned to the point");
-                        _curWaypointsPos = null;
-                        _curWaypoints.clear();
-
-                        // Notify listeners
-                        for (ProxyListenerInt boatProxyListener : listeners) {
-                            boatProxyListener.waypointsUpdated();
-                        }
-                    } else if (sequentialOutputEvents.isEmpty()) {
+                    if (sequentialOutputEvents.isEmpty()) {
                         LOGGER.severe("Got a waypoints done message, but sequentialOutputEvents is empty!");
                     } else {
                         // Remove the OutputEvent that held this path
@@ -400,9 +381,6 @@ public class BoatProxy extends Thread implements ProxyInt {
         } else if (oe instanceof ProxyGotoPoint) {
             sequentialOutputEvents.add(index, oe);
             sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-        } else if (oe instanceof ProxyStationKeep) {
-            sequentialOutputEvents.add(index, oe);
-            sequentialInputEvents.add(index, new ProxyStationKeepCompleted(oe.getId(), oe.getMissionId(), this));
         } else if (oe instanceof ProxyEmergencyAbort) {
             // Clear out all events and stop
             LOGGER.severe("Handling ProxyEmergencyAbort! sequentialOutputEvents were: " + sequentialOutputEvents + ", sequentialInputEvents were: " + sequentialInputEvents);
@@ -595,31 +573,13 @@ public class BoatProxy extends Thread implements ProxyInt {
      * after the current event's
      */
     public void updateWaypoints(boolean updateCurrent, boolean updateFuture) {
-        // Station keeping shutdown
-        if (stationKeepRunning.get() && sequentialOutputEvents.size() > 1 && sequentialOutputEvents.get(0) instanceof ProxyStationKeep) {
-            // We have a new event, cancel station keeping
-            OutputEvent stationKeep = sequentialOutputEvents.remove(0);
-            // Send out the InputEvent associated with this path
-            InputEvent stationKeepComplete = sequentialInputEvents.remove(0);
-            stationKeepShutdown();
-
-            LOGGER.fine("BoatProxy " + getName() + " completed sequential OE " + stationKeep + ", sending out IE " + stationKeepComplete);
-            for (ProxyListenerInt boatProxyListener : listeners) {
-                boatProxyListener.eventOccurred(stationKeepComplete);
-            }
-        } else if (stationKeepRunning.get() && sequentialOutputEvents.isEmpty()) {
-            // May get here from Abort
-            LOGGER.severe("How did we get here? (stationKeepRunning.get() && sequentialOutputEvents.isEmpty())");
-            stationKeepShutdown();
-        }
-
         // Current
         if (updateCurrent) {
             _curWaypointsPos = null;
             _curWaypoints.clear();
             curSequentialEvent = null;
 
-            if (sequentialOutputEvents.size() == 0) {
+            if (sequentialOutputEvents.isEmpty()) {
                 // Have no events to process
             } else {
                 if (sequentialOutputEvents.get(0) instanceof ProxyExecutePath) {
@@ -662,18 +622,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                     } else {
                         LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + gotoPoint.getProxyPoints());
                     }
-                } else if (sequentialOutputEvents.get(0) instanceof ProxyStationKeep) {
-                    ProxyStationKeep stationKeep = (ProxyStationKeep) sequentialOutputEvents.get(0);
-                    if (stationKeep.getProxyPoints().containsKey(this)) {
-                        // Do nothing - when the threshold triggers it will handle this
-                        curSequentialEvent = sequentialOutputEvents.get(0);
-                        stationKeepLocation = stationKeep.getProxyPoints().get(this);
-                        stationKeepPosition = Conversion.locationToPosition(stationKeep.getProxyPoints().get(this));
-                        stationKeepThreshold = stationKeep.getThreshold();
-                        stationKeepStart();
-                    } else {
-                        LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + stationKeep.getProxyPoints());
-                    }
                 } else {
                     LOGGER.severe("Can't handle OutputEvent of class " + sequentialOutputEvents.get(0).getClass().getSimpleName());
                 }
@@ -713,8 +661,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                         } else {
                             LOGGER.severe("Proxy points [" + gotoPoint.getProxyPoints() + "] has no entry for proxy [" + toString() + "]!");
                         }
-                    } else if (sequentialOutputEvents.get(i) instanceof ProxyStationKeep) {
-                        // Station keep just finished moving back to the location
                     } else {
                         LOGGER.severe("BoatProxy can't handle OutputEvent of class [" + sequentialOutputEvents.get(i).getClass().getSimpleName() + "]");
                     }
@@ -756,10 +702,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                 curSequentialEvent = updatedEvent;
                 updateWaypoints(true, false);
                 sendCurrentWaypoints();
-            } else if (updatedEvent instanceof ProxyStationKeep) {
-                sequentialOutputEvents.set(0, updatedEvent);
-                curSequentialEvent = updatedEvent;
-                updateWaypoints(true, false);
             } else {
                 LOGGER.severe("BoatProxy can't handle OutputEvent of class [" + updatedEvent.getClass().getSimpleName() + "]!");
                 handled = false;
@@ -774,11 +716,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                 curSequentialEvent = updatedEvent;
                 updateWaypoints(true, true);
                 sendCurrentWaypoints();
-            } else if (updatedEvent instanceof ProxyStationKeep) {
-                sequentialOutputEvents.add(0, updatedEvent);
-                sequentialInputEvents.add(0, new ProxyStationKeepCompleted());
-                curSequentialEvent = updatedEvent;
-                updateWaypoints(true, true);
             } else {
                 LOGGER.severe("BoatProxy can't handle OutputEvent of class [" + updatedEvent.getClass().getSimpleName() + "]!");
                 handled = false;
@@ -797,10 +734,6 @@ public class BoatProxy extends Thread implements ProxyInt {
         }
         OutputEvent removedEvent = sequentialOutputEvents.remove(0);
         sequentialInputEvents.remove(0);
-
-        if (removedEvent instanceof ProxyStationKeep) {
-            stationKeepShutdown();
-        }
 
         updateWaypoints(true, true);
         sendCurrentWaypoints();
@@ -932,30 +865,30 @@ public class BoatProxy extends Thread implements ProxyInt {
                     LOGGER.fine("*** Sending _server.startWaypoints");
                     _server.startWaypoints(_curWaypoints.toArray(new UtmPose[_curWaypoints.size()]), "POINT_AND_SHOOT", new FunctionObserver() {
                         public void completed(Object v) {
-                            System.out.println("Successfully sent a waypoint in Go Slow: " + _curWaypoints.peek());
+                            LOGGER.info("Successfully sent a waypoint in Go Slow: " + _curWaypoints.peek());
                         }
 
                         public void failed(FunctionError fe) {
                             // @todo Do something when start waypoints fails
-                            System.out.println("START WAYPOINTS FAILED");
+                            LOGGER.warning("Start waypoints failed");
                         }
                     });
                 }
 
             } catch (NoSuchElementException e) {
-                System.out.println("Go slow is done! " + e);
+                LOGGER.info("Go slow is done! " + e);
                 goSlowExecuting = false;
             }
 
         } else {
 
-            System.out.println("Too soon to send next waypoint");
+            LOGGER.info("Too soon to send next waypoint");
 
             (new Thread() {
                 public void run() {
                     try {
                         sleep(goSlowRestTime / 2);
-                        System.out.println("Thread awoke");
+                        LOGGER.info("Thread awoke");
                     } catch (InterruptedException e) {
                     }
                     goSlowRun();
@@ -1034,70 +967,5 @@ public class BoatProxy extends Thread implements ProxyInt {
     public String toString() {
         return name + "@" + _server.getVehicleService();
         // (masterURI == null ? "Unknown" : masterURI.toString());
-    }
-
-    private class StationKeepRunnable implements Runnable {
-
-        public static final int STATION_KEEP_SLEEP = 1000;
-
-        public StationKeepRunnable() {
-        }
-
-        @Override
-        public void run() {
-            while (stationKeepRunning.get()) {
-                if (curSequentialEvent instanceof ProxyStationKeep) {
-                    UTMCoord stationKeepUtm = UTMCoord.fromLatLon(stationKeepPosition.latitude, stationKeepPosition.longitude);
-                    stationKeepPose = new UtmPose(new Pose3D(stationKeepUtm.getEasting(), stationKeepUtm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(stationKeepUtm.getZone(), stationKeepUtm.getHemisphere().contains("North")));
-                    double dist = _pose.pose.getEuclideanDistance(stationKeepPose.pose);
-
-                    if (!_curWaypoints.isEmpty()) {
-                        // Are already moving to the station keep position
-                        sendCurrentWaypoints();
-                    } else if (stationKeepPosition == null) {
-                        LOGGER.severe("Station keep is running, but has no position!");
-                    } else if (stationKeepThreshold < 0) {
-                        LOGGER.severe("Station keep is running, but has a negative threshold!");
-                    } else {
-                        // Check if we are outside the threshold
-                        if (dist >= stationKeepThreshold) {
-                            // Move back to the station keep waypoint assuming no obstacles
-                            _curWaypoints.add(stationKeepPose.clone());
-                            ArrayList<Position> positions = new ArrayList<Position>();
-                            positions.add(Conversion.locationToPosition(stationKeepLocation));
-                            _curWaypointsPos = positions;
-
-                            // Notify listeners
-                            for (ProxyListenerInt boatProxyListener : listeners) {
-                                boatProxyListener.waypointsUpdated();
-                            }
-                            sendCurrentWaypoints();
-                        }
-                    }
-                } else {
-                    LOGGER.severe("StationKeepRunnable is running, but current event is not for station keeping: " + curSequentialEvent);
-                }
-
-                try {
-                    Thread.sleep(STATION_KEEP_SLEEP);
-                } catch (InterruptedException ex) {
-                }
-            }
-        }
-    }
-
-    public void stationKeepStart() {
-        if (!stationKeepRunning.get()) {
-            stationKeepRunning.set(true);
-            stationKeepThread = new Thread(new StationKeepRunnable());
-            stationKeepThread.start();
-        }
-    }
-
-    public void stationKeepShutdown() {
-        if (stationKeepRunning.get()) {
-            stationKeepRunning.set(false);
-            stationKeepThread.interrupt();
-        }
     }
 }

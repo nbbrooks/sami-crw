@@ -49,7 +49,7 @@ public class CrwProxyServer implements ProxyServerInt {
     public ProxyInt createProxy(String name, Color color, InetSocketAddress addr) {
         try {
             // Create proxy
-            if(color == null) {
+            if (color == null) {
                 LOGGER.severe("Boat proxy's color was null, using white");
                 color = Color.WHITE;
             }
@@ -154,7 +154,7 @@ public class CrwProxyServer implements ProxyServerInt {
     }
 
     public void setCameraRates(double d) {
-        System.out.println("Setting camera on all boats to have time between frames = " + d);
+        LOGGER.info("Setting camera on all boats to have time between frames = " + d);
         for (ProxyInt p : proxies) {
             if (p instanceof BoatProxy) {
                 ((BoatProxy) p)._server.stopCamera(null);

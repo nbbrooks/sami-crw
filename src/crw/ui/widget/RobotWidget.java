@@ -5,7 +5,6 @@ import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.Helper;
 import crw.event.output.proxy.ProxyExecutePath;
-import crw.event.output.proxy.ProxyStationKeep;
 import crw.proxy.BoatProxy;
 import crw.ui.BoatMarker;
 import crw.ui.VideoFeedPanel;
@@ -89,7 +88,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private Hashtable<BoatProxy, BoatMarker> proxyToMarker = new Hashtable<BoatProxy, BoatMarker>();
     private Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
     private Hashtable<BoatProxy, UUID> proxyToWpEventId = new Hashtable<BoatProxy, UUID>();
-    private JButton teleopButton, pointButton, pathButton, stationKeepButton, cancelButton, autoButton;
+    private JButton teleopButton, pointButton, pathButton, cancelButton, autoButton;
     private JPanel topPanel, btmPanel, buttonPanel;
     private List<ControlMode> enabledModes;
     private Marker selectedMarker = null;
@@ -531,9 +530,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (pathButton != null) {
             pathButton.setEnabled(enabled);
         }
-        if (stationKeepButton != null) {
-            stationKeepButton.setEnabled(enabled);
-        }
+//        if (stationKeepButton != null) {
+//            stationKeepButton.setEnabled(enabled);
+//        }
         if (cancelButton != null) {
             cancelButton.setEnabled(enabled);
         }
@@ -582,23 +581,23 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         autoButton.setSelected(true);
     }
 
-    public void stationKeep(Position point) {
-        Location location = new Location(point.latitude.degrees, point.longitude.degrees, 0);
-
-        UUID eventId = null;
-        if (proxyToWpEventId.containsKey(selectedProxy)) {
-            eventId = proxyToWpEventId.get(selectedProxy);
-        } else {
-            eventId = UUID.randomUUID();
-            proxyToWpEventId.put(selectedProxy, eventId);
-        }
-        Hashtable<ProxyInt, Location> proxyPoint = new Hashtable<ProxyInt, Location>();
-        proxyPoint.put(selectedProxy, location);
-        ProxyStationKeep proxyEvent = new ProxyStationKeep(eventId, null, proxyPoint, 20.0);
-        selectedProxy.updateCurrentSeqEvent(proxyEvent);
-        autoButton.setSelected(true);
-    }
-
+//    public void stationKeep(Position point) {
+//        Location location = new Location(point.latitude.degrees, point.longitude.degrees, 0);
+//
+//        UUID eventId = null;
+//        if (proxyToWpEventId.containsKey(selectedProxy)) {
+//            eventId = proxyToWpEventId.get(selectedProxy);
+//        } else {
+//            eventId = UUID.randomUUID();
+//            proxyToWpEventId.put(selectedProxy, eventId);
+//        }
+//        Hashtable<ProxyInt, Location> proxyPoint = new Hashtable<ProxyInt, Location>();
+//        proxyPoint.put(selectedProxy, location);
+//        ProxyStationKeep proxyEvent = new ProxyStationKeep(eventId, null, proxyPoint, 20.0);
+//        selectedProxy.updateCurrentSeqEvent(proxyEvent);
+//        autoButton.setSelected(true);
+//    }
+//
     public void clearPath() {
         if (polyline != null) {
             renderableLayer.removeRenderable(polyline);

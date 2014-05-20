@@ -18,7 +18,6 @@ import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyResendWaypoints;
-import crw.event.output.proxy.ProxyStationKeep;
 import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
@@ -406,21 +405,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     listener.eventGenerated(proxyCreated);
                 }
             }
-        } else if (oe instanceof ProxyStationKeep) {
-            int numProxies = 0;
-            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
-            for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    tokenProxies.add((BoatProxy) token.getProxy());
-                    numProxies++;
-                }
-            }
-            if (numProxies == 0) {
-                LOGGER.log(Level.WARNING, "Place with ProxyStationKeep has no tokens with proxies attached: " + oe);
-            }
-            for (BoatProxy boatProxy : tokenProxies) {
-                boatProxy.handleEvent(oe);
-            }
         } else if (oe instanceof ProxyEmergencyAbort) {
             int numProxies = 0;
             ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
@@ -656,13 +640,5 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             p1 = p2;
         }
         return result;
-    }
-
-    public static void main(String[] args) {
-        for (int i = 0; i < 10; i++) {
-            System.out.println("" + i);
-            System.out.println("\t" + ((int) i % 6));
-            System.out.println("\t" + ((int) i / 6));
-        }
     }
 }

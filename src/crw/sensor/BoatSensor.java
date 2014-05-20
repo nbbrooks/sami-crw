@@ -49,12 +49,10 @@ public class BoatSensor implements ObserverInt, SensorListener {
         this.channel = channel;
         proxy.getVehicleServer().addSensorListener(channel, this, null);
 
-
         // Cheating dummy data, another version of this is in SimpleBoatSimulator, 
         // effectively overridden by overridding addSensorListener in FastSimpleBoatSimulator
         // because no access to that code from here.
         // @todo Only should be on for simulation
-
         // ABHINAV COMMENT OUT THIS THREAD BEFORE RUNNING ON THE REAL BOATS!!
         if (GENERATE_FAKE_DATA) {
             (new Thread() {
@@ -62,7 +60,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
 
                 public void run() {
 
-                    System.out.println("\n\n\nGENERATING FAKE SENSOR DATA for simulated boat\n\n\n");
+                    LOGGER.info("Generating fake sensor data for " + proxy);
 
                     while (true) {
 
@@ -99,7 +97,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
                                 synchronized (xs) {
                                     // Possibly add another
                                     if ((rand.nextDouble() < addRate && xs.size() < 20) || (xs.size() == 0)) {
-                                        System.out.println(">>>>>>>>>>>>>> Creating fake boat sensor data");
+                                        LOGGER.info("Added a fake sensor data point for " + proxy);
                                         double lon = currLoc.longitude.degrees + (distFactor * (rand.nextDouble() - 0.5));
                                         double lat = currLoc.latitude.degrees + (distFactor * (rand.nextDouble() - 0.5));
                                         double value = rand.nextDouble() * valueFactor;
@@ -118,7 +116,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
                                         sigmas.set(i, sigmas.get(i) + sigmaIncreaseRate);
                                         vs.set(i, vs.get(i) * valueDecreaseRate);
                                         if (Math.abs(vs.get(i)) <= 0.001) {
-                                            System.out.println("xxxxxxxxxxxxxxxxxxxxxxx Removing");
+                                            LOGGER.info("Removing a fake sensor data point from " + proxy);
                                             xs.remove(i);
                                             ys.remove(i);
                                             vs.remove(i);

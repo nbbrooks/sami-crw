@@ -21,7 +21,7 @@ import sami.handler.EventHandlerInt;
 import sami.markup.Markup;
 import sami.markup.NumberOfOptions;
 import sami.mission.Token;
-import sami.mission.TokenSpecification.TokenType;
+import sami.mission.Token.TokenType;
 import sami.service.information.InformationServer;
 import sami.service.information.InformationServiceProviderInt;
 

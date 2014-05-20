@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.UUID;
-import sami.event.BlockingInputEvent;
+import sami.event.InputEvent;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
 
@@ -12,7 +12,7 @@ import sami.proxy.ProxyInt;
  *
  * @author nbb
  */
-public class PathUtmResponse extends BlockingInputEvent {
+public class PathUtmResponse extends InputEvent {
 
     // List of fields for which a definition should be provided
     public static final ArrayList<String> fieldNames = new ArrayList<String>();
@@ -53,7 +53,7 @@ public class PathUtmResponse extends BlockingInputEvent {
         copy.setVariables(getVariables());
         return copy;
     }
-    
+
     public String toString() {
         return "PathUtmResponse [" + proxyPaths + "]";
     }
