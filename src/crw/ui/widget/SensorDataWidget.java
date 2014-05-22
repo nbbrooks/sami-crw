@@ -170,8 +170,8 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
         wwPanel.wwCanvas.getModel().getLayers().add(lowAltRenderableLayer);
 
         highAltMarkerLayer = new MarkerLayer();
-        highAltMarkerLayer.setOverrideMarkerElevation(true);
-        highAltMarkerLayer.setElevation(10d);
+//        highAltMarkerLayer.setOverrideMarkerElevation(true);
+//        highAltMarkerLayer.setElevation(10d);
 //        highAltMarkerLayer.setKeepSeparated(false);
         highAltMarkerLayer.setPickEnabled(false);
         highAltMarkerLayer.setMinActiveAltitude(ALT_THRESH);

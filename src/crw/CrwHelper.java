@@ -13,9 +13,9 @@ import javax.swing.JFrame;
  *
  * @author nbb
  */
-public class Helper {
+public class CrwHelper {
 
-    private static final Logger LOGGER = Logger.getLogger(Helper.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(CrwHelper.class.getName());
 
     public static String getUniqueName(String name, ArrayList<String> existingNames) {
         boolean invalidName = existingNames.contains(name);
@@ -86,6 +86,37 @@ public class Helper {
         return Math.abs(p1.distanceTo3(p2));
     }
 
+    public static Position getPositionAsl(Globe globe, Position zeroElevationPosition) {
+        // Return click position with elevation m ASL (above sea level)
+        double elevationAsl = (globe.getElevation(Angle.fromDegrees(zeroElevationPosition.getLatitude().degrees), Angle.fromDegrees(zeroElevationPosition.getLongitude().degrees)));
+        return new Position(zeroElevationPosition.getLatitude(), zeroElevationPosition.getLongitude(), elevationAsl);
+    }
+
+    public static boolean positionBetween(Position position, Position northWest, Position southEast) {
+        if (position == null || northWest == null || southEast == null) {
+            return false;
+        }
+        Angle latNorth = northWest.latitude;
+        Angle latSouth = southEast.latitude;
+        Angle lonWest = northWest.longitude;
+        Angle lonEast = southEast.longitude;
+        if (latSouth.compareTo(latNorth) > 0) {
+            // Latitude wrapped around globe
+            latSouth = latSouth.subtract(Angle.POS360);
+        }
+        if (lonWest.compareTo(lonEast) > 0) {
+            // Longitude wrapped around globe
+            lonWest = lonWest.subtract(Angle.POS180);
+        }
+        if (latSouth.compareTo(position.latitude) <= 0
+                && position.latitude.compareTo(latNorth) <= 0
+                && lonWest.compareTo(position.longitude) <= 0
+                && position.longitude.compareTo(lonEast) <= 0) {
+            return true;
+        }
+        return false;
+    }
+    
     public static void main(String[] args) throws InterruptedException {
         JFrame frame = new JFrame();
         WorldWindPanel www = new WorldWindPanel();

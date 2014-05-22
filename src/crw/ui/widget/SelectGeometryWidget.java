@@ -2,11 +2,11 @@ package crw.ui.widget;
 
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.Conversion;
+import crw.CrwHelper;
 import crw.proxy.BoatProxy;
 import crw.ui.component.WorldWindPanel;
 import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.WorldWindow;
-import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.MarkerLayer;
 import gov.nasa.worldwind.layers.RenderableLayer;
@@ -25,7 +25,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -132,17 +131,17 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
 
     @Override
     public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
-        Position clickPosition = wwd.getCurrentPosition();
+        Position clickPositionAsl = CrwHelper.getPositionAsl(wwd.getView().getGlobe(), wwd.getCurrentPosition());
         // Continue creating a new area?
         switch (selectMode) {
             case POINT:
-                if (clickPosition != null) {
+                if (clickPositionAsl != null) {
                     BasicMarkerAttributes attributes = new BasicMarkerAttributes();
                     attributes.setShapeType(BasicMarkerShape.SPHERE);
                     attributes.setMinMarkerSize(50);
                     attributes.setMaterial(Material.YELLOW);
                     attributes.setOpacity(1);
-                    BasicMarker circle = new BasicMarker(clickPosition, attributes);
+                    BasicMarker circle = new BasicMarker(clickPositionAsl, attributes);
                     markers.add(circle);
                     setSelectMode(SelectMode.NONE);
 
@@ -160,8 +159,8 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 }
                 break;
             case PATH:
-                if (clickPosition != null) {
-                    selectedPositions.add(clickPosition);
+                if (clickPositionAsl != null) {
+                    selectedPositions.add(clickPositionAsl);
                     // Update temporary path
                     if (polyline != null) {
                         renderableLayer.removeRenderable(polyline);
@@ -189,8 +188,8 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 }
                 break;
             case AREA:
-                if (clickPosition != null) {
-                    selectedPositions.add(clickPosition);
+                if (clickPositionAsl != null) {
+                    selectedPositions.add(clickPositionAsl);
                     // Update temporary area
                     if (area != null) {
                         renderableLayer.removeRenderable(area);
@@ -213,43 +212,18 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 }
                 break;
             case NONE:
-                for (Marker marker : markers) {
-                    Point clickPoint = evt.getPoint();
-                    Position tlPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x - marker.getAttributes().getMarkerPixels(), clickPoint.y - marker.getAttributes().getMarkerPixels());
-                    Position brPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x + marker.getAttributes().getMarkerPixels(), clickPoint.y + marker.getAttributes().getMarkerPixels());
-                    Position markerPos = marker.getPosition();
-                    if (positionBetween(markerPos, tlPos, brPos)) {
-                        return true;
-                    }
-                }
+//                for (Marker marker : markers) {
+//                    Point clickPoint = evt.getPoint();
+//                    Position tlPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x - marker.getAttributes().getMarkerPixels(), clickPoint.y - marker.getAttributes().getMarkerPixels());
+//                    Position brPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x + marker.getAttributes().getMarkerPixels(), clickPoint.y + marker.getAttributes().getMarkerPixels());
+//                    Position markerPos = marker.getPosition();
+//                    if (CrwHelper.positionBetween(markerPos, tlPos, brPos)) {
+//                        return true;
+//                    }
+//                }
                 return false;
         }
 
-        return false;
-    }
-
-    public boolean positionBetween(Position position, Position northWest, Position southEast) {
-        if (position == null || northWest == null || southEast == null) {
-            return false;
-        }
-        Angle latNorth = northWest.latitude;
-        Angle latSouth = southEast.latitude;
-        Angle lonWest = northWest.longitude;
-        Angle lonEast = southEast.longitude;
-        if (latSouth.compareTo(latNorth) > 0) {
-            // Latitude wrapped around globe
-            latSouth = latSouth.subtract(Angle.POS360);
-        }
-        if (lonWest.compareTo(lonEast) > 0) {
-            // Longitude wrapped around globe
-            lonWest = lonWest.subtract(Angle.POS180);
-        }
-        if (latSouth.compareTo(position.latitude) <= 0
-                && position.latitude.compareTo(latNorth) <= 0
-                && lonWest.compareTo(position.longitude) <= 0
-                && position.longitude.compareTo(lonEast) <= 0) {
-            return true;
-        }
         return false;
     }
 
@@ -351,8 +325,8 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
         }
 
         markerLayer = new MarkerLayer();
-        markerLayer.setOverrideMarkerElevation(true);
-        markerLayer.setElevation(10d);
+//        markerLayer.setOverrideMarkerElevation(true);
+//        markerLayer.setElevation(10d);
 //        highAltMarkerLayer.setKeepSeparated(false);
         markerLayer.setPickEnabled(false);
         markerLayer.setMarkers(markers);

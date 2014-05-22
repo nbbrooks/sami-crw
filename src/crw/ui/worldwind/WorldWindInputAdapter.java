@@ -86,6 +86,7 @@ public class WorldWindInputAdapter extends OrbitViewInputHandler {
 
         // If no one "claims" the mouse click, translate the view
         if (wwd.getCurrentPosition() == null) {
+            LOGGER.warning("wwd.getCurrentPosition() is NULL");
             return;
         }
         Position newPos = new Position(wwd.getCurrentPosition().getLatitude(), wwd.getCurrentPosition().getLongitude(), wwd.getView().getCurrentEyePosition().getElevation());

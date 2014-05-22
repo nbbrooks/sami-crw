@@ -1,7 +1,7 @@
 package crw.handler;
 
 import crw.Conversion;
-import crw.Helper;
+import crw.CrwHelper;
 import crw.event.input.proxy.ProxyCreated;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPathFailed;
@@ -386,7 +386,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 UTMCoordinate utmc = createEvent.startLocation.getCoordinate();
                 UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(Hemisphere.NORTH)));
                 server.setPose(p1);
-                name = Helper.getUniqueName(name, proxyNames);
+                CrwHelper.getUniqueName(name, proxyNames);
                 proxyNames.add(name);
                 ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, new InetSocketAddress("localhost", 11411 + portCounter));
                 color = randomColor();

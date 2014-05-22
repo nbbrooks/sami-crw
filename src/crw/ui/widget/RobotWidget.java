@@ -1,9 +1,8 @@
 package crw.ui.widget;
 
-import crw.Conversion;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
-import crw.Helper;
+import crw.CrwHelper;
 import crw.event.output.proxy.ProxyExecutePath;
 import crw.proxy.BoatProxy;
 import crw.ui.BoatMarker;
@@ -12,6 +11,8 @@ import crw.ui.teleop.VelocityPanel;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.data.Twist;
 import gov.nasa.worldwind.WorldWindow;
+import gov.nasa.worldwind.event.SelectEvent;
+import gov.nasa.worldwind.event.SelectListener;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.MarkerLayer;
@@ -26,7 +27,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import sami.engine.Engine;
@@ -71,6 +72,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
         TELEOP, POINT, PATH, NONE
     };
+    private static final Logger LOGGER = Logger.getLogger(RobotWidget.class.getName());
     // MarkupComponentWidget variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
     public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
@@ -99,8 +101,11 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private RenderableLayer renderableLayer;
     private VideoFeedPanel videoP;
     private WorldWindPanel wwPanel;
-    
-    
+    // BoatMarker selection
+    private final Object highlightedLock = new Object();
+    private boolean highlightedBoatMarkerChanged = false;
+    private BoatMarker highlightedBoatMarker = null;
+
     // new stuff
     // Velocity to be sent to the boat
     public double telRudderFrac = 0.0, telThrustFrac = 0;
@@ -125,7 +130,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         this(wwPanel, null);
     }
 
-    public RobotWidget(WorldWindPanel wwPanel, List<ControlMode> enabledModes) {
+    public RobotWidget(final WorldWindPanel wwPanel, List<ControlMode> enabledModes) {
         this.wwPanel = wwPanel;
         this.enabledModes = enabledModes;
         if (enabledModes == null) {
@@ -135,6 +140,35 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         initButtons();
         initExpandables();
         Engine.getInstance().getProxyServer().addListener(this);
+
+        // Set up a SelectListener to know when the cursor is over a BoatMarker
+        wwPanel.wwCanvas.addSelectListener(new SelectListener() {
+
+            @Override
+            public void selected(SelectEvent event) {
+                // Click type SelectEvents are only generated if an event is generated, and
+                //  are handled before MouseEvents, which makes deselecting a BoatMarker impossible from a SelectEvent
+                // Instead, keep track of if the cursor is over a BoatMarker and let the MouseListener handle selection/deselection
+
+                if (event.getEventAction().equals(SelectEvent.ROLLOVER)
+                        && event.hasObjects()
+                        && event.getTopObject() instanceof BoatMarker) {
+                    if (event.getTopObject() != highlightedBoatMarker) {
+                        synchronized (highlightedLock) {
+                            highlightedBoatMarker = (BoatMarker) event.getTopObject();
+                            highlightedBoatMarkerChanged = true;
+                        }
+                    }
+                } else if (event.getEventAction().equals(SelectEvent.ROLLOVER)) {
+                    if (highlightedBoatMarker != null) {
+                        synchronized (highlightedLock) {
+                            highlightedBoatMarker = null;
+                            highlightedBoatMarkerChanged = true;
+                        }
+                    }
+                }
+            }
+        });
     }
 
     @Override
@@ -168,72 +202,46 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     @Override
     public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
-        Position clickPosition = wwd.getView().computePositionFromScreenPoint(evt.getX(), evt.getY());
+        if (wwd.getCurrentPosition() == null) {
+            LOGGER.warning("wwd.getCurrentPosition() is NULL");
+            return false;
+        }
+
         switch (controlMode) {
             case POINT:
-                if (clickPosition != null) {
-                    doPoint(clickPosition);
-                    setControlMode(ControlMode.NONE);
-                    return true;
-                }
-                break;
+                // Calculate elevation above sea level at click position
+                doPoint(CrwHelper.getPositionAsl(wwd.getView().getGlobe(), wwd.getCurrentPosition()));
+                setControlMode(ControlMode.NONE);
+                return true;
             case PATH:
-                if (clickPosition != null) {
-                    selectedPositions.add(clickPosition);
-                    // Update temporary path
-                    if (polyline != null) {
-                        renderableLayer.removeRenderable(polyline);
-                    }
-                    polyline = new Polyline(selectedPositions);
-                    polyline.setColor(Color.yellow);
-                    polyline.setLineWidth(8);
-                    polyline.setFollowTerrain(true);
-                    renderableLayer.addRenderable(polyline);
+                // Calculate elevation above sea level at click position
+                selectedPositions.add(CrwHelper.getPositionAsl(wwd.getView().getGlobe(), wwd.getCurrentPosition()));
+                // Update temporary path
+                if (polyline != null) {
+                    renderableLayer.removeRenderable(polyline);
+                }
+                polyline = new Polyline(selectedPositions);
+                polyline.setColor(Color.yellow);
+                polyline.setLineWidth(8);
+                polyline.setFollowTerrain(true);
+                renderableLayer.addRenderable(polyline);
 
-                    wwd.redraw();
-                    if (evt.getClickCount() > 1) {
-                        // Finish path
-                        doPath(selectedPositions);
-                        clearPath();
-                        setControlMode(ControlMode.NONE);
-                    }
-                    return true;
+                wwd.redraw();
+                if (evt.getClickCount() > 1) {
+                    // Finish path
+                    doPath(selectedPositions);
+                    clearPath();
+                    setControlMode(ControlMode.NONE);
                 }
-                break;
+                return true;
             case NONE:
-                // Selected a proxy?
-                ArrayList<Marker> markersCopy;
-                synchronized (markers) {
-                    markersCopy = (ArrayList<Marker>) markers.clone();
-                }
-                boolean clickedProxy = false;
-                double minDistanceFromClick = Double.MAX_VALUE;
-                Marker closestMarker = null;
-                for (Marker marker : markersCopy) {
-                    Point clickPoint = evt.getPoint();
-                    // Do this because we want grabbing to be pixel based and not m based
-                    Position tlPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x - CLICK_RADIUS, clickPoint.y - CLICK_RADIUS);
-                    Position brPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x + CLICK_RADIUS, clickPoint.y + CLICK_RADIUS);
-                    // Do this so we can then select the closest proxy to the click in case there are multiple proxies within the above area
-                    Position clickPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x, clickPoint.y);
-                    Position markerPos = marker.getPosition();
-                    if (Helper.isPositionBetween(markerPos, tlPos, brPos)) {
-                        clickedProxy = true;
-                        double distanceFromClick = Helper.calculateDistance(wwd.getView().getGlobe(), markerPos, clickPos);
-                        if (distanceFromClick < minDistanceFromClick) {
-                            minDistanceFromClick = distanceFromClick;
-                            closestMarker = marker;
-                        }
+                // Selected or deselected a proxy?
+                synchronized (highlightedLock) {
+                    if (highlightedBoatMarkerChanged) {
+                        selectMarker(highlightedBoatMarker);
+                        highlightedBoatMarkerChanged = false;
+                        return true;
                     }
-                }
-                if (clickedProxy) {
-                    // Select the marker
-                    selectMarker(closestMarker);
-                    return true;
-                } else if (selectedMarker != null) {
-                    // Click away from the previously selected marker, deselect it
-                    selectMarker(null);
-                    return true;
                 }
                 break;
         }
@@ -329,10 +337,10 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         }
 
         markerLayer = new MarkerLayer();
-        markerLayer.setOverrideMarkerElevation(true);
-        markerLayer.setElevation(10d);
+//        markerLayer.setOverrideMarkerElevation(true);
+//        markerLayer.setElevation(10d);
 //        markerLayer.setKeepSeparated(false);
-        markerLayer.setPickEnabled(false);
+        markerLayer.setPickEnabled(true);
         markerLayer.setMarkers(markers);
         wwPanel.wwCanvas.getModel().getLayers().add(markerLayer);
         renderableLayer = new RenderableLayer();
