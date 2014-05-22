@@ -62,8 +62,8 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
     //
     private static final Logger LOGGER = Logger.getLogger(SensorDataWidget.class.getName());
-    // Altitude to switch from rectangles that are fixed size in m (< ALT_THRESH) to spheres that are fixed size in pixels (> ALT_THRESH)
-    static final double ALT_THRESH = 2500.0;
+//    // Altitude to switch from rectangles that are fixed size in m (< ALT_THRESH) to spheres that are fixed size in pixels (> ALT_THRESH)
+//    static final double ALT_THRESH = 2500.0;
     // What percent difference in data range to trigger a recalculation of heatmap colors for data values
     static final double HEATMAP_THRESH = 10.0;
     // How far (m) from the last measurement recorded a new measurement must be in order to add it to the visualization
@@ -77,16 +77,16 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     private Hashtable<String, Integer> sensorNameToIndex = new Hashtable<String, Integer>();
     private Hashtable<Integer, String> indexToSensorName = new Hashtable<Integer, String>();
     private ArrayList<ArrayList<Renderable>> lowAltRenderables = new ArrayList<ArrayList<Renderable>>();
-    private ArrayList<ArrayList<Marker>> highAltMarkers = new ArrayList<ArrayList<Marker>>();
+//    private ArrayList<ArrayList<Marker>> highAltMarkers = new ArrayList<ArrayList<Marker>>();
     private ArrayList<ArrayList<Observation>> observations = new ArrayList<ArrayList<Observation>>();
     private Hashtable<String, UTMCoord> sourceToLastObsUtm = new Hashtable<String, UTMCoord>();
     private ArrayList<double[]> dataMinMax = new ArrayList<double[]>();
     private ArrayList<Renderable> activeLowAltRenderables = null;
-    private ArrayList<Marker> activeHighAltMarkers = null;
+//    private ArrayList<Marker> activeHighAltMarkers = null;
     private double[] activeDataMinMax = null;
     private ArrayList<Observation> activeObservations = null;
     private RenderableLayer lowAltRenderableLayer;
-    private MarkerLayer highAltMarkerLayer;
+//    private MarkerLayer highAltMarkerLayer;
     JLabel sourceL;
     JComboBox sourceCB;
     private boolean visible = true;
@@ -165,18 +165,18 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
 
         lowAltRenderableLayer = new RenderableLayer();
         lowAltRenderableLayer.setPickEnabled(false);
-        lowAltRenderableLayer.setMaxActiveAltitude(ALT_THRESH);
+//        lowAltRenderableLayer.setMaxActiveAltitude(ALT_THRESH);
         lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
         wwPanel.wwCanvas.getModel().getLayers().add(lowAltRenderableLayer);
 
-        highAltMarkerLayer = new MarkerLayer();
+//        highAltMarkerLayer = new MarkerLayer();
 //        highAltMarkerLayer.setOverrideMarkerElevation(true);
-//        highAltMarkerLayer.setElevation(10d);
+////        highAltMarkerLayer.setElevation(10d);
 //        highAltMarkerLayer.setKeepSeparated(false);
-        highAltMarkerLayer.setPickEnabled(false);
-        highAltMarkerLayer.setMinActiveAltitude(ALT_THRESH);
-        highAltMarkerLayer.setMarkers(activeHighAltMarkers);
-        wwPanel.wwCanvas.getModel().getLayers().add(highAltMarkerLayer);
+//        highAltMarkerLayer.setPickEnabled(false);
+//        highAltMarkerLayer.setMinActiveAltitude(ALT_THRESH);
+//        highAltMarkerLayer.setMarkers(activeHighAltMarkers);
+//        wwPanel.wwCanvas.getModel().getLayers().add(highAltMarkerLayer);
     }
 
     protected void initButtons() {
@@ -196,7 +196,7 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
         indexToSensorName.put(0, noSensor);
 
         lowAltRenderables.add(null);
-        highAltMarkers.add(null);
+//        highAltMarkers.add(null);
         dataMinMax.add(null);
         observations.add(null);
 
@@ -206,7 +206,7 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
             indexToSensorName.put(i + 1, sensorTypes[i].toString());
 
             lowAltRenderables.add(new ArrayList<Renderable>());
-            highAltMarkers.add(new ArrayList<Marker>());
+//            highAltMarkers.add(new ArrayList<Marker>());
             dataMinMax.add(new double[]{Double.MAX_VALUE, Double.MIN_VALUE, 0.0});
             observations.add(new ArrayList<Observation>());
         }
@@ -252,13 +252,14 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     public UTMCoord checkObservation(Observation observation) {
         int sensorIndex = sensorNameToIndex.get(observation.getVariable());
         ArrayList<Renderable> sensorLowAltRenderables = lowAltRenderables.get(sensorIndex);
-        ArrayList<Marker> sensorHighAltMarkers = highAltMarkers.get(sensorIndex);
+//        ArrayList<Marker> sensorHighAltMarkers = highAltMarkers.get(sensorIndex);
 
-        if (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers) {
+        if (sensorLowAltRenderables == activeLowAltRenderables) {
+//        if (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers) {
             // If we are visualizing the dataset this measurement belongs to,
             //  clone the list WW is rendering to avoid concurrent modification exceptions
             lowAltRenderableLayer.setRenderables((ArrayList<Renderable>) sensorLowAltRenderables.clone());
-            highAltMarkerLayer.setMarkers((ArrayList<Marker>) sensorHighAltMarkers.clone());
+//            highAltMarkerLayer.setMarkers((ArrayList<Marker>) sensorHighAltMarkers.clone());
             wwPanel.wwCanvas.redrawNow();
         }
         // Compute adjusted center location for grid-like visualization
@@ -287,7 +288,7 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     public void addObservation(Observation observation, UTMCoord adjUtm) {
         int sensorIndex = sensorNameToIndex.get(observation.getVariable());
         ArrayList<Renderable> sensorLowAltRenderables = lowAltRenderables.get(sensorIndex);
-        ArrayList<Marker> sensorHighAltMarkers = highAltMarkers.get(sensorIndex);
+//        ArrayList<Marker> sensorHighAltMarkers = highAltMarkers.get(sensorIndex);
         ArrayList<Observation> sensorObservations = observations.get(sensorIndex);
         double[] sensorDataMinMax = dataMinMax.get(sensorIndex);
         boolean rangeChanged = false;
@@ -319,17 +320,17 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
         // Compute heatmap color from current heatmap bounds
         Color dataColor = dataToColor(observation.value, sensorDataMinMax[0], sensorDataMinMax[1]);
         Material material = new Material(dataColor);
-        // Create high altitude sphere
-        BasicMarkerAttributes markerAtt = new BasicMarkerAttributes();
-        markerAtt.setShapeType(BasicMarkerShape.SPHERE);
-        markerAtt.setMinMarkerSize(SPHERE_SIZE);
-        markerAtt.setMaterial(material);
-        markerAtt.setOpacity(SPHERE_OPACITY);
-        Position curP = new Position(adjLatLon, 0);
-        BasicMarker marker = new BasicMarker(curP, markerAtt);
-        synchronized (sensorHighAltMarkers) {
-            sensorHighAltMarkers.add(marker);
-        }
+//        // Create high altitude sphere
+//        BasicMarkerAttributes markerAtt = new BasicMarkerAttributes();
+//        markerAtt.setShapeType(BasicMarkerShape.SPHERE);
+//        markerAtt.setMinMarkerSize(SPHERE_SIZE);
+//        markerAtt.setMaterial(material);
+//        markerAtt.setOpacity(SPHERE_OPACITY);
+//        Position curP = new Position(adjLatLon, 0);
+//        BasicMarker marker = new BasicMarker(curP, markerAtt);
+//        synchronized (sensorHighAltMarkers) {
+//            sensorHighAltMarkers.add(marker);
+//        }
         // Create low altitude square
         SurfaceQuad rect = new SurfaceQuad(adjLatLon, DIST_THRESH, DIST_THRESH);
         ShapeAttributes rectAtt = new BasicShapeAttributes();
@@ -344,7 +345,8 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
 
         boolean recompute = false;
-        if (rangeChanged && (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers)) {
+        if (rangeChanged && (sensorLowAltRenderables == activeLowAltRenderables)) {
+//        if (rangeChanged && (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers)) {
             // If a observation was outside of the current heatmap min/max bounds and is from the sensor being visualized, check if the heatmap needs updating
             double[] activeDataMinMaxClone;
             synchronized (activeDataMinMax) {
@@ -356,10 +358,11 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
                 recomputeHeatmap();
             }
         }
-        if (!recompute && (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers)) {
+        if (!recompute && (sensorLowAltRenderables == activeLowAltRenderables)) {
+//        if (!recompute && (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers)) {
             // Heatmap was not updated, switch back from cloned version of list to original list with the received observation added
             lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
-            highAltMarkerLayer.setMarkers(activeHighAltMarkers);
+//            highAltMarkerLayer.setMarkers(activeHighAltMarkers);
             wwPanel.wwCanvas.redrawNow();
         }
     }
@@ -389,21 +392,22 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
                 activeDataMinMax[2] = activeDataMinMax[1] - activeDataMinMax[0];
                 Iterator obsIt = activeObservations.iterator();
                 Iterator lowAltIt = activeLowAltRenderables.iterator();
-                Iterator highAltIt = activeHighAltMarkers.iterator();
+//                Iterator highAltIt = activeHighAltMarkers.iterator();
 
-                while (obsIt.hasNext() && lowAltIt.hasNext() && highAltIt.hasNext()) {
+                while (obsIt.hasNext() && lowAltIt.hasNext()) {
+//                while (obsIt.hasNext() && lowAltIt.hasNext() && highAltIt.hasNext()) {
                     Observation o = (Observation) obsIt.next();
                     Renderable r = (Renderable) lowAltIt.next();
-                    Marker m = (Marker) highAltIt.next();
+//                    Marker m = (Marker) highAltIt.next();
 
                     Color dataColor = dataToColor(o.getValue(), activeDataMinMax[0], activeDataMinMax[1]);
                     Material material = new Material(dataColor);
-                    ((BasicMarker) m).getAttributes().setMaterial(material);
+//                    ((BasicMarker) m).getAttributes().setMaterial(material);
                     ((SurfaceQuad) r).getAttributes().setInteriorMaterial(material);
                     ((SurfaceQuad) r).getAttributes().setOutlineMaterial(material);
                 }
                 lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
-                highAltMarkerLayer.setMarkers(activeHighAltMarkers);
+//                highAltMarkerLayer.setMarkers(activeHighAltMarkers);
                 wwPanel.wwCanvas.redrawNow();
 
             }
@@ -487,7 +491,7 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
             String sensorChoice = (String) cb.getSelectedItem();
             int index = sensorNameToIndex.get(sensorChoice);
             activeLowAltRenderables = lowAltRenderables.get(index);
-            activeHighAltMarkers = highAltMarkers.get(index);
+//            activeHighAltMarkers = highAltMarkers.get(index);
             activeDataMinMax = dataMinMax.get(index);
             activeObservations = observations.get(index);
 
@@ -503,12 +507,12 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
                     recomputeHeatmap();
                 } else {
                     lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
-                    highAltMarkerLayer.setMarkers(activeHighAltMarkers);
+//                    highAltMarkerLayer.setMarkers(activeHighAltMarkers);
                     wwPanel.wwCanvas.redrawNow();
                 }
             } else {
                 lowAltRenderableLayer.setRenderables(null);
-                highAltMarkerLayer.setMarkers(null);
+//                highAltMarkerLayer.setMarkers(null);
                 wwPanel.wwCanvas.redraw();
             }
         }

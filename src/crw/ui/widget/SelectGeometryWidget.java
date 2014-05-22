@@ -325,9 +325,9 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
         }
 
         markerLayer = new MarkerLayer();
-//        markerLayer.setOverrideMarkerElevation(true);
+        markerLayer.setOverrideMarkerElevation(true);
 //        markerLayer.setElevation(10d);
-//        highAltMarkerLayer.setKeepSeparated(false);
+        markerLayer.setKeepSeparated(false);
         markerLayer.setPickEnabled(false);
         markerLayer.setMarkers(markers);
         wwPanel.wwCanvas.getModel().getLayers().add(markerLayer);

@@ -337,9 +337,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         }
 
         markerLayer = new MarkerLayer();
-//        markerLayer.setOverrideMarkerElevation(true);
+        markerLayer.setOverrideMarkerElevation(true);
 //        markerLayer.setElevation(10d);
-//        markerLayer.setKeepSeparated(false);
+        markerLayer.setKeepSeparated(false);
         markerLayer.setPickEnabled(true);
         markerLayer.setMarkers(markers);
         wwPanel.wwCanvas.getModel().getLayers().add(markerLayer);
