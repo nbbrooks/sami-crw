@@ -20,8 +20,8 @@ public class AssembleLocationRequest extends OutputEvent {
         fieldNames.add("assemblyLocation");
         fieldNames.add("spacing");
 
-        fieldNameToDescription.put("assemblyLocation", "Location to assembl around?");
-        fieldNameToDescription.put("spacing", "Spacing between boats?");
+        fieldNameToDescription.put("assemblyLocation", "Location to assemble around?");
+        fieldNameToDescription.put("spacing", "Spacing between boats (m)?");
     }
 
     public AssembleLocationRequest() {

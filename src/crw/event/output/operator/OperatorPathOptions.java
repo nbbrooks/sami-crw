@@ -44,8 +44,8 @@ public class OperatorPathOptions extends OutputEvent {
     public String toString() {
         return "OperatorPathOptions [" + options + "]";
     }
-    
+
     public static void main(String[] args) {
-        
+
     }
 }

@@ -116,7 +116,7 @@ public class QueueItem {
                             vizualization = new JLabel("");
                         } else {
                             if (eventSpec != null) {
-                                Object definition = eventSpec.getFieldDefinition(field.getName());
+                                Object definition = eventSpec.getFieldValues().get(field.getName());
                                 if (definition != null) {
                                     CrwUiComponentGenerator.getInstance().setComponentValue(markupComponent, definition);
                                 }

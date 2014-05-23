@@ -20,16 +20,14 @@ import java.util.Random;
 import crw.task.DoMeasTask;
 import crw.uilanguage.message.toui.AllocationOptionsMessage;
 import crw.uilanguage.message.toui.ProxyOptionsMessage;
-import dreaam.developer.ReflectedEventD;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import sami.event.MissingParamsRequest;
 import sami.event.ReflectedEventSpecification;
+import sami.event.ReflectionHelper;
 import sami.markup.Attention;
-import sami.markup.Markup;
 import sami.markup.Priority;
 import sami.markupOption.BlinkOption;
 import sami.uilanguage.toui.GetParamsMessage;
@@ -40,6 +38,7 @@ import sami.uilanguage.toui.GetParamsMessage;
  */
 public class QueueTest implements ResponseListener {
 
+    private final static Logger LOGGER = Logger.getLogger(QueueTest.class.getName());
     public static Random randomOpt = new Random(0);
     public static Random randomPri = new Random(0);
     public QueueFrame oif;
@@ -74,45 +73,35 @@ public class QueueTest implements ResponseListener {
         ReflectedEventSpecification eventSpec = new ReflectedEventSpecification(ProxyExploreArea.class.getName());
         try {
             ArrayList<String> fieldNames = (ArrayList<String>) (eventClass.getField("fieldNames").get(null));
+            HashMap<String, Object> fieldValues = eventSpec.getFieldValues();
+            HashMap<String, String> fieldReadVariables = eventSpec.getReadVariables();
+            HashMap<String, String> fieldDescriptions = (HashMap<String, String>) (eventClass.getField("fieldNameToDescription").get(null));
+
+            Hashtable<ReflectedEventSpecification, Hashtable<Field, String>> eventSpecToFieldDescriptions = new Hashtable<ReflectedEventSpecification, Hashtable<Field, String>>();
+            Hashtable<ReflectedEventSpecification, ArrayList<Field>> eventSpecToFields = new Hashtable<ReflectedEventSpecification, ArrayList<Field>>();
+            ArrayList<Field> missingFields = new ArrayList<Field>();
+            Hashtable<Field, String> missingFieldDescriptions = new Hashtable<Field, String>();
+
+            eventSpecToFieldDescriptions.put(eventSpec, missingFieldDescriptions);
+            eventSpecToFields.put(eventSpec, missingFields);
 
             for (String fieldName : fieldNames) {
-                eventSpec.addFieldDefinition(fieldName, null);
-            }
-
-        } catch (NoSuchFieldException ex) {
-            Logger.getLogger(ReflectedEventD.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (SecurityException ex) {
-            Logger.getLogger(ReflectedEventD.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            Logger.getLogger(ReflectedEventD.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-        Hashtable<ReflectedEventSpecification, Hashtable<Field, String>> eventSpecToFieldDescriptions = new Hashtable<ReflectedEventSpecification, Hashtable<Field, String>>();
-        Hashtable<ReflectedEventSpecification, ArrayList<Field>> eventSpecToFields = new Hashtable<ReflectedEventSpecification, ArrayList<Field>>();
-
-        Hashtable<Field, String> fieldDescriptions = new Hashtable<Field, String>();
-        ArrayList<Field> fields = new ArrayList<Field>();
-        eventSpecToFieldDescriptions.put(eventSpec, fieldDescriptions);
-        eventSpecToFields.put(eventSpec, fields);
-        HashMap<String, Object> instanceParams = eventSpec.getFieldDefinitions();
-        for (String fieldName : instanceParams.keySet()) {
-            System.out.println("\tfield name: " + fieldName);
-            if (instanceParams.get(fieldName) == null) {
-                try {
+                System.out.println("\tfield name: " + fieldName);
+                if (!fieldValues.containsKey(fieldName) && !fieldReadVariables.containsKey(fieldName)) {
                     System.out.println("\t\tlooking for " + fieldName + " in class " + eventSpec.getClassName());
-                    Field missingField = Class.forName(eventSpec.getClassName()).getField(fieldName);
-                    fieldDescriptions.put(missingField, "");
-                    fields.add(missingField);
-                } catch (ClassNotFoundException cnfe) {
-                    cnfe.printStackTrace();
-                } catch (NoSuchFieldException nsfe) {
-                    nsfe.printStackTrace();
+                    Field missingField = ReflectionHelper.getField(eventClass, fieldName);
+                    missingFieldDescriptions.put(missingField, fieldDescriptions.get(fieldName));
+                    missingFields.add(missingField);
                 }
             }
+            MissingParamsRequest oe = new MissingParamsRequest(null, eventSpecToFieldDescriptions);
+            GetParamsMessage msg = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, oe.getFieldDescriptions());
+            oif.toUiMessageReceived(msg);
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
         }
-        MissingParamsRequest oe = new MissingParamsRequest(null, eventSpecToFieldDescriptions);
-        GetParamsMessage msg = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, oe.getFieldDescriptions());
-        oif.toUiMessageReceived(msg);
     }
 
     public ArrayList<ProxyInt> createProxies(int numProxies) {

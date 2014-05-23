@@ -54,10 +54,12 @@ public class TextPanel implements MarkupComponent {
         supportedCreationClasses.add(Float.class);
         supportedCreationClasses.add(Integer.class);
         supportedCreationClasses.add(Long.class);
+        supportedCreationClasses.add(Boolean.class);
         supportedCreationClasses.add(double.class);
         supportedCreationClasses.add(float.class);
         supportedCreationClasses.add(int.class);
         supportedCreationClasses.add(long.class);
+        supportedCreationClasses.add(boolean.class);
         supportedCreationClasses.add(Enum.class);
         supportedCreationClasses.add(Color.class);
         // Visualization
@@ -66,10 +68,12 @@ public class TextPanel implements MarkupComponent {
         supportedSelectionClasses.add(Float.class);
         supportedSelectionClasses.add(Integer.class);
         supportedSelectionClasses.add(Long.class);
+        supportedSelectionClasses.add(Boolean.class);
         supportedSelectionClasses.add(double.class);
         supportedSelectionClasses.add(float.class);
         supportedSelectionClasses.add(int.class);
         supportedSelectionClasses.add(long.class);
+        supportedSelectionClasses.add(boolean.class);
         supportedSelectionClasses.add(Enum.class);
         supportedSelectionClasses.add(Color.class);
         supportedSelectionClasses.add(ResourceAllocation.class);
@@ -97,7 +101,7 @@ public class TextPanel implements MarkupComponent {
     public MarkupComponent useCreationComponent(Type type, ArrayList<Markup> markups) {
         if (type instanceof ParameterizedType) {
             ParameterizedType pt = (ParameterizedType) type;
-            if(pt.getRawType() instanceof Class && Hashtable.class.isAssignableFrom((Class)pt.getRawType())) {
+            if (pt.getRawType() instanceof Class && Hashtable.class.isAssignableFrom((Class) pt.getRawType())) {
                 component = handleCreationHashtable(pt);
             }
             return this;
@@ -117,6 +121,9 @@ public class TextPanel implements MarkupComponent {
                     || objectClass.equals(long.class)) {
                 component = new JTextField();
                 component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
+            } else if (objectClass.equals(Boolean.class)
+                    || objectClass.equals(boolean.class)) {
+                component = new JComboBox(new Object[]{true, false});
             } else if (objectClass.isEnum()) {
                 component = new JComboBox(objectClass.getEnumConstants());
             } else {
@@ -186,12 +193,8 @@ public class TextPanel implements MarkupComponent {
                 || object instanceof Double
                 || object instanceof Float
                 || object instanceof Integer
-                || object instanceof Long //
-                // || object instanceof double
-                // || object instanceof float
-                // || object instanceof int
-                // || object instanceof long
-                ) {
+                || object instanceof Long
+                || object instanceof Boolean) {
             component = new JLabel(object.toString());
         } else {
             component = new JLabel("No component found");
@@ -237,6 +240,8 @@ public class TextPanel implements MarkupComponent {
                         value = new Integer(text);
                     } else if (field.getType().equals(Long.class)) {
                         value = new Long(text);
+                    } else if (field.getType().equals(Boolean.class)) {
+                        value = Boolean.valueOf(text);
                     } else if (field.getType().equals(double.class)) {
                         value = Double.parseDouble(text);
                     } else if (field.getType().equals(float.class)) {
@@ -245,6 +250,8 @@ public class TextPanel implements MarkupComponent {
                         value = Integer.parseInt(text);
                     } else if (field.getType().equals(long.class)) {
                         value = Long.parseLong(text);
+                    } else if (field.getType().equals(boolean.class)) {
+                        value = Boolean.parseBoolean(text);
                     }
                 } catch (Exception e) {
                     LOGGER.warning("Exception encountered when trying to get value for field type: " + field.getType() + " from text: " + text + ", setting value to null with exception: " + e);
@@ -256,7 +263,7 @@ public class TextPanel implements MarkupComponent {
 
         } else if (component instanceof ColorSlider) {
             if (field.getType().equals(Color.class)) {
-                value = ((ColorSlider)component).getColor();
+                value = ((ColorSlider) component).getColor();
             }
         }
         return value;

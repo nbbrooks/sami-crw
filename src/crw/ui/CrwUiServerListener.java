@@ -53,7 +53,7 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
     }
 
     public void FromUiMessage(FromUiMessage m) {
-        LOGGER.log(Level.INFO, "CrwUiServerListener message received: " + m);
+        LOGGER.info("@STAT CrwUiServerListener message received: " + m);
         InputEvent generatorEvent = null;
 
         if (m instanceof AllocationSelectedMessage) {

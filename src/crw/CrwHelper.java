@@ -116,7 +116,7 @@ public class CrwHelper {
         }
         return false;
     }
-    
+
     public static void main(String[] args) throws InterruptedException {
         JFrame frame = new JFrame();
         WorldWindPanel www = new WorldWindPanel();

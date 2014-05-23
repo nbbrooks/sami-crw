@@ -18,13 +18,17 @@ public class AssembleLocationResponse extends InputEvent {
     public static final ArrayList<String> fieldNames = new ArrayList<String>();
     // Description for each field
     public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
-    // Fields
+    // List of fields for which a variable name should be provided
+    public static final ArrayList<String> variableNames = new ArrayList<String>();
+    // Description for each variable
+    public static final HashMap<String, String> variableNameToDescription = new HashMap<String, String>();
+    // Variables
     public Hashtable<ProxyInt, Location> proxyPoints = null;
 
     static {
-        fieldNames.add("proxyPoints");
+        variableNames.add("proxyPoints");
 
-        fieldNameToDescription.put("proxyPoints", "Returned assembly locations.");
+        variableNameToDescription.put("proxyPoints", "Returned assembly locations.");
     }
 
     public AssembleLocationResponse() {
@@ -36,13 +40,5 @@ public class AssembleLocationResponse extends InputEvent {
         this.proxyPoints = proxyPoints;
         this.relevantProxyList = relevantProxyList;
         id = UUID.randomUUID();
-    }
-
-    @Override
-    public AssembleLocationResponse copyForProxyTrigger() {
-        AssembleLocationResponse copy = new AssembleLocationResponse();
-        copy.setGeneratorEvent(getGeneratorEvent());
-        copy.setVariables(getVariables());
-        return copy;
     }
 }

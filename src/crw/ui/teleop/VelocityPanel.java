@@ -14,7 +14,6 @@ import java.awt.Point;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.font.FontRenderContext;
 import java.awt.font.LineBreakMeasurer;
@@ -23,6 +22,7 @@ import java.awt.font.TextLayout;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
 import javax.swing.JPanel;
 
 /**
@@ -31,6 +31,7 @@ import javax.swing.JPanel;
  */
 public class VelocityPanel extends JPanel implements VelocityListener, FocusListener, MouseMotionListener {
 
+    private static final Logger LOGGER = Logger.getLogger(VelocityPanel.class.getName());
     // Last velocity received from the boat
     double recRudderFrac, recThrustFrac, vizRecRudderFrac, vizRecThrustFrac;
     Point origin = new Point();
@@ -194,7 +195,7 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
             for (TeleopSourceInt source : teleopSources) {
                 source.setActive(source == teleopSource);
             }
-            System.out.println("### Changed teleop source from " + activeTeleopSource + " to " + teleopSource);
+            LOGGER.fine("Changed teleop source from " + activeTeleopSource + " to " + teleopSource);
             activeTeleopSource = teleopSource;
         }
         this.teleLock = teleLock;
@@ -251,7 +252,7 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
             // Return now to avoid adding/removing listeners multiple times
             return;
         }
-        System.out.println("### Changed enableTeleop from " + teleopEnabled + " to " + enable);
+        LOGGER.fine("Changed enableTeleop from " + teleopEnabled + " to " + enable);
         this.teleopEnabled = enable;
         if (teleopEnabled) {
             requestFocus();

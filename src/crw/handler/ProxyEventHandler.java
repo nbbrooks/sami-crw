@@ -205,10 +205,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     }
                     List<Location> proxyLocations;
                     for (int i = 0; i < lawnmowerLocations.size() / MAX_SEGMENTS_PER_PROXY + 1; i++) {
-//                    LOGGER.log(Level.FINE, "i = " + i + " of " + (lawnmowerLocations.size() / MAX_SEGMENTS_PER_PROXY + 1) + ": sublist " + i * MAX_SEGMENTS_PER_PROXY + ", " + Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
+//                        LOGGER.log(Level.FINE, "i = " + i + " of " + (lawnmowerLocations.size() / MAX_SEGMENTS_PER_PROXY + 1) + ": sublist " + i * MAX_SEGMENTS_PER_PROXY + ", " + Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
                         proxyLocations = lawnmowerLocations.subList(i * MAX_SEGMENTS_PER_PROXY, Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
                         // Send the path
-//                    LOGGER.log(Level.FINE, "Creating ProxyExecutePath with " + proxyLocations.size() + " waypoints for proxy " + tokenProxies.get(proxyIndex));
+//                        LOGGER.log(Level.FINE, "Creating ProxyExecutePath with " + proxyLocations.size() + " waypoints for proxy " + tokenProxies.get(proxyIndex));
                         PathUtm path = new PathUtm(proxyLocations);
                         Hashtable<ProxyInt, Path> thisProxyPath = new Hashtable<ProxyInt, Path>();
                         thisProxyPath.put(tokenProxies.get(proxyIndex), path);
@@ -237,7 +237,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
             for (Token token : tokens) {
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    Location assembleLocation = null;
+                    Location assembleLocation;
                     if (assembleCounter == 0) {
                         assembleLocation = request.getLocation();
                     } else {
@@ -386,7 +386,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 UTMCoordinate utmc = createEvent.startLocation.getCoordinate();
                 UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(Hemisphere.NORTH)));
                 server.setPose(p1);
-                CrwHelper.getUniqueName(name, proxyNames);
+                name = CrwHelper.getUniqueName(name, proxyNames);
                 proxyNames.add(name);
                 ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, new InetSocketAddress("localhost", 11411 + portCounter));
                 color = randomColor();

@@ -9,7 +9,6 @@ import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.TreeSet;
 import java.util.UUID;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.Timer;
 import sami.markup.Keyword;
@@ -123,7 +122,6 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
                     keywordToNoProxyMessage.put(keyword, infoMessage);
                 }
             }
-
         }
 
         synchronized (messageTree) {
@@ -146,6 +144,7 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
     }
 
     public Object[] getMessageArray() {
+        int[] priorities = new int[5];
         Object[] messageArray;
         synchronized (messageTree) {
             messageArray = messageTree.toArray();
@@ -184,7 +183,9 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
                                     // Add the message
                                     messageListUpdate.add("<html>"
                                             + "<font color=rgb(188,6,6)>" + Priority.getPriority(infoMessage.getPriority()).toString() + "</font>&nbsp;&nbsp;&nbsp;"
-                                            + "<font color=rgb(0,0,0)>" + timeFormat.format(infoMessage.getCreationTime()) + "&nbsp;&nbsp;&nbsp;" + infoMessage.getMessage() + "</font>"
+                                            + "<font color=rgb(0,0,0)>" + timeFormat.format(infoMessage.getCreationTime()) + "&nbsp;&nbsp;&nbsp;"
+                                            + proxy.getProxyName() + "&nbsp;&nbsp;&nbsp;"
+                                            + infoMessage.getMessage() + "</font>"
                                             + "</html>");
                                 }
                             } else {
@@ -194,8 +195,19 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
                     } else {
                         LOGGER.warning("keywordToProxyToMessage should have had an entry for keyword: " + keyword + ", but did not");
                     }
+                } else if (!keywordMarkup && rpMarkup) {
+                    // Add a copy of the message for each relevant proxy
+                    for (ProxyInt proxy : relevantProxies) {
+                        messageListUpdate.add("<html>"
+                                + "<font color=rgb(188,6,6)>" + Priority.getPriority(infoMessage.getPriority()).toString() + "</font>&nbsp;&nbsp;&nbsp;"
+                                + "<font color=rgb(0,0,0)>" + timeFormat.format(infoMessage.getCreationTime()) + "&nbsp;&nbsp;&nbsp;"
+                                + proxy.getProxyName() + "&nbsp;&nbsp;&nbsp;"
+                                + infoMessage.getMessage() + "</font>"
+                                + "</html>");
+                    }
                 } else {
                     // Just add the message
+                    priorities[infoMessage.getPriority()]++;
                     messageListUpdate.add("<html>"
                             + "<font color=rgb(188,6,6)>" + Priority.getPriority(infoMessage.getPriority()).toString() + "</font>&nbsp;&nbsp;&nbsp;"
                             + "<font color=rgb(0,0,0)>" + timeFormat.format(infoMessage.getCreationTime()) + "&nbsp;&nbsp;&nbsp;" + infoMessage.getMessage() + "</font>"
@@ -204,13 +216,14 @@ public class MessagePanel extends javax.swing.JPanel implements UiClientListener
             }
         }
         Object[] ret = messageListUpdate.toArray();
-        LOGGER.info("@STAT messageListUpdate: " + messageListUpdate);
+        LOGGER.info("Message list updated; " + priorities[4] + " critical " + priorities[3] + " high " + priorities[2] + " medium " + priorities[1] + " low ");
         return ret;
     }
 
     @Override
     public void toUiMessageReceived(sami.uilanguage.toui.ToUiMessage m) {
         if (m instanceof InformationMessage) {
+            LOGGER.info("MessagePanel ToUiMessage received: " + m);
             addMessage((InformationMessage) m);
         }
     }

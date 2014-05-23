@@ -17,13 +17,17 @@ public class AllocationResponse extends InputEvent {
     public static final ArrayList<String> fieldNames = new ArrayList<String>();
     // Description for each field
     public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
-    // Fields
+    // List of fields for which a variable name should be provided
+    public static final ArrayList<String> variableNames = new ArrayList<String>();
+    // Description for each variable
+    public static final HashMap<String, String> variableNameToDescription = new HashMap<String, String>();
+    // Variables
     public List<ResourceAllocation> resourceAllocations = null;
 
     static {
-        fieldNames.add("resourceAllocations");
+        variableNames.add("resourceAllocations");
 
-        fieldNameToDescription.put("resourceAllocations", "Returned task allocation options.");
+        variableNameToDescription.put("resourceAllocations", "Returned task allocation options.");
     }
 
     public AllocationResponse() {
