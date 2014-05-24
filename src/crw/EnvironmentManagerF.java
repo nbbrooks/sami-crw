@@ -255,9 +255,6 @@ public class EnvironmentManagerF extends JFrame {
                 applyObstacleList(environmentProperties.getObstacleList());
                 // Apply default view
                 Position defaultPosition = Conversion.locationToPosition(environmentProperties.getDefaultLocation());
-                Configuration.setValue(AVKey.INITIAL_LATITUDE, defaultPosition.latitude);
-                Configuration.setValue(AVKey.INITIAL_LONGITUDE, defaultPosition.longitude);
-                Configuration.setValue(AVKey.INITIAL_ALTITUDE, defaultPosition.elevation);
                 wwPanel.getCanvas().getView().setEyePosition(defaultPosition);
 
                 return true;

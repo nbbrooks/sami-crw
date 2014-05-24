@@ -215,7 +215,7 @@ public class ObstacleWidget implements MarkupComponentWidget, WorldWindWidgetInt
         clearObstalces();
 
         EnvironmentProperties environment = Engine.getInstance().getEnvironmentProperties();
-        if (environment != null) {
+        if (environment != null && environment.getObstacleList() != null) {
             for (ArrayList<Location> obstacle : environment.getObstacleList()) {
                 addObstacle(obstacle);
             }

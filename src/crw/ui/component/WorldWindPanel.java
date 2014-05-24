@@ -47,6 +47,8 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import sami.area.Area2D;
+import sami.engine.Engine;
+import sami.environment.EnvironmentListenerInt;
 import sami.markup.Markup;
 import sami.markup.RelevantArea;
 import sami.path.Location;
@@ -59,7 +61,7 @@ import sami.uilanguage.MarkupManager;
  *
  * @author pscerri
  */
-public class WorldWindPanel implements MarkupComponent {
+public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
 
     // MarkupComponent variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
@@ -76,45 +78,34 @@ public class WorldWindPanel implements MarkupComponent {
     protected MouseInputActionHandler handler;
     protected BorderLayout borderLayout;
 
+    // Useful GPS locations
+//    // Doha Corniche
+//    Configuration.setValue(AVKey.INITIAL_LATITUDE, 25.29636);
+//    Configuration.setValue(AVKey.INITIAL_LONGITUDE, 51.52699);
+//    Configuration.setValue(AVKey.INITIAL_ALTITUDE, 5000.0);
+//    // Katara Beach
+//    Configuration.setValue(AVKey.INITIAL_LATITUDE, 25.354484741711);
+//    Configuration.setValue(AVKey.INITIAL_LONGITUDE, 51.5283418997116);
+//    Configuration.setValue(AVKey.INITIAL_ALTITUDE, 5000.0);
+//    // Pittsburgh
+//    Configuration.setValue(AVKey.INITIAL_LATITUDE, 40.44515205369163);
+//    Configuration.setValue(AVKey.INITIAL_LONGITUDE, -80.01877404355538);
+//    Configuration.setValue(AVKey.INITIAL_ALTITUDE, 30000.0);
     public WorldWindPanel() {
         populateLists();
     }
 
     public void createMap() {
-        createMap(400, 300, Double.NaN, Double.NaN, Double.NaN);
+        createMap(400, 300);
     }
 
     public void createMap(int width, int height) {
-        createMap(width, height, Double.NaN, Double.NaN, Double.NaN);
-    }
-
-    public void createMap(int width, int height, double lat, double lon, double alt) {
         widgetList = new Vector<WorldWindWidgetInt>();
         // Use flat Earth
         Configuration.setValue(AVKey.GLOBE_CLASS_NAME, EarthFlat.class.getName());
         Configuration.setValue(AVKey.VIEW_CLASS_NAME, FlatOrbitView.class.getName());
         // Change mouse handler
         Configuration.setValue(AVKey.VIEW_INPUT_HANDLER_CLASS_NAME, WorldWindInputAdapter.class.getName());
-        // @todo Make initial position configurable
-        if (Double.isNaN(lat) && Double.isNaN(lon) && Double.isNaN(alt)) {
-//            // Doha Corniche
-//            Configuration.setValue(AVKey.INITIAL_LATITUDE, 25.29636);
-//            Configuration.setValue(AVKey.INITIAL_LONGITUDE, 51.52699);
-//            Configuration.setValue(AVKey.INITIAL_ALTITUDE, 5000.0);
-//        // Katara Beach
-            Configuration.setValue(AVKey.INITIAL_LATITUDE, 25.354484741711);
-            Configuration.setValue(AVKey.INITIAL_LONGITUDE, 51.5283418997116);
-            Configuration.setValue(AVKey.INITIAL_ALTITUDE, 5000.0);
-////        // Pittsburgh
-//            Configuration.setValue(AVKey.INITIAL_LATITUDE, 40.44515205369163);
-//            Configuration.setValue(AVKey.INITIAL_LONGITUDE, -80.01877404355538);
-//            Configuration.setValue(AVKey.INITIAL_ALTITUDE, 30000.0);
-        } else {
-            Configuration.setValue(AVKey.INITIAL_LATITUDE, lat);
-            Configuration.setValue(AVKey.INITIAL_LONGITUDE, lon);
-            Configuration.setValue(AVKey.INITIAL_ALTITUDE, alt);
-        }
-
         // Set this when offline
         Configuration.setValue(AVKey.OFFLINE_MODE, "false");
 
@@ -148,6 +139,9 @@ public class WorldWindPanel implements MarkupComponent {
         component.setMinimumSize(new Dimension(0, 0));
         component.setMaximumSize(new java.awt.Dimension(width, height));
         component.setPreferredSize(new java.awt.Dimension(width, height));
+
+        Engine.getInstance().addEnvironmentLister(this);
+        environmentUpdated();
     }
 
     public BorderLayout getLayout() {
@@ -421,6 +415,17 @@ public class WorldWindPanel implements MarkupComponent {
     @Override
     public void disableMarkup(Markup markup) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void environmentUpdated() {
+        if (Engine.getInstance().getEnvironmentProperties() != null && Engine.getInstance().getEnvironmentProperties().getDefaultLocation() != null) {
+            Position defaultPosition = Conversion.locationToPosition(Engine.getInstance().getEnvironmentProperties().getDefaultLocation());
+            Configuration.setValue(AVKey.INITIAL_LATITUDE, defaultPosition.getLatitude());
+            Configuration.setValue(AVKey.INITIAL_LONGITUDE, defaultPosition.getLongitude());
+            Configuration.setValue(AVKey.INITIAL_ALTITUDE, defaultPosition.getAltitude());
+            getCanvas().getView().setEyePosition(defaultPosition);
+        }
     }
 
     public static void main(String[] args) {
