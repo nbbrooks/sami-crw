@@ -1,5 +1,6 @@
 package crw.ui;
 
+import crw.Conversion;
 import java.awt.BorderLayout;
 import java.util.ArrayList;
 import sami.uilanguage.UiFrame;
@@ -9,12 +10,15 @@ import crw.ui.widget.RobotWidget;
 import crw.ui.widget.RobotWidget.ControlMode;
 import crw.ui.component.WorldWindPanel;
 import crw.ui.widget.ObstacleWidget;
+import gov.nasa.worldwind.geom.Position;
+import sami.engine.Engine;
+import sami.environment.EnvironmentListenerInt;
 
 /**
  *
  * @author nbb
  */
-public class MapFrame extends UiFrame {
+public class MapFrame extends UiFrame implements EnvironmentListenerInt {
 
     public WorldWindPanel wwPanel;
 
@@ -41,11 +45,19 @@ public class MapFrame extends UiFrame {
         ObstacleWidget obstacle = new ObstacleWidget(wwPanel);
         wwPanel.addWidget(obstacle);
 
+        Engine.getInstance().addEnvironmentLister(this);
+
         pack();
         setVisible(true);
     }
 
     public static void main(String[] args) {
         MapFrame mf = new MapFrame();
+    }
+
+    @Override
+    public void environmentUpdated() {
+        Position defaultPosition = Conversion.locationToPosition(Engine.getInstance().getEnvironmentProperties().getDefaultLocation());
+        wwPanel.getCanvas().getView().setEyePosition(defaultPosition);
     }
 }
