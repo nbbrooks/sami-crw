@@ -36,6 +36,7 @@ import javax.swing.JPanel;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import sami.environment.EnvironmentProperties;
 import sami.path.Location;
+import sami.ui.MissionMonitor;
 import static sami.ui.MissionMonitor.LAST_EPF_FILE;
 import static sami.ui.MissionMonitor.LAST_EPF_FOLDER;
 
@@ -51,13 +52,18 @@ public class EnvironmentManagerF extends JFrame {
     WorldWindPanel wwPanel;
 
     public EnvironmentManagerF() {
-        super("ObstacleManagerF");
-        setTitle("EnvironmentManagerF");
+        super("EnvironmentManagerF");
+        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         getContentPane().setLayout(new BorderLayout());
 
         // Add map
+        ArrayList<String> layerNames = new ArrayList<String>();
+        layerNames.add("Bing Imagery");
+        layerNames.add("Blue Marble (WMS) 2004");
+        layerNames.add("Scale bar");
+        layerNames.add("Place Names");
         wwPanel = new WorldWindPanel();
-        wwPanel.createMap();
+        wwPanel.createMap(layerNames);
         getContentPane().add(wwPanel.component, BorderLayout.CENTER);
         // Add widgets
         List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.AREA, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
@@ -115,7 +121,6 @@ public class EnvironmentManagerF extends JFrame {
         }
 
         pack();
-        setVisible(true);
     }
 
     public void applyObstacleList(ArrayList<ArrayList<Location>> obstacleList) {
@@ -270,6 +275,10 @@ public class EnvironmentManagerF extends JFrame {
     }
 
     public static void main(String[] args) {
-        EnvironmentManagerF mf = new EnvironmentManagerF();
+        java.awt.EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                new EnvironmentManagerF().setVisible(true);
+            }
+        });
     }
 }

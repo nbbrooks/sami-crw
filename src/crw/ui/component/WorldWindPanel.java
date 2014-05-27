@@ -96,10 +96,14 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     public void createMap() {
-        createMap(400, 300);
+        createMap(400, 300, null);
     }
 
-    public void createMap(int width, int height) {
+    public void createMap(ArrayList<String> layerNames) {
+        createMap(400, 300, layerNames);
+    }
+
+    public void createMap(int width, int height, ArrayList<String> layerNames) {
         widgetList = new Vector<WorldWindWidgetInt>();
         // Use flat Earth
         Configuration.setValue(AVKey.GLOBE_CLASS_NAME, EarthFlat.class.getName());
@@ -114,9 +118,14 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         wwCanvas.setModel(new BasicModel());
 
         // Virtual Earth
+        if(layerNames == null) {
+            layerNames = new ArrayList<String>();
+            layerNames.add("Bing Imagery");
+            layerNames.add("Blue Marble (WMS) 2004");
+            layerNames.add("Scale bar");
+        }
         for (Layer layer : wwCanvas.getModel().getLayers()) {
-            if (layer.getName().equals("Bing Imagery")
-                    || layer.getName().equals("Scale bar")) {
+            if(layerNames.contains(layer.getName())) {
                 layer.setEnabled(true);
             } else {
                 layer.setEnabled(false);
