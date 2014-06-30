@@ -24,7 +24,7 @@ public class LowFuelChecker extends CheckerAgent {
         boolean hasLowFuelTransition;
         ArrayList<AgentMessage> msgs = new ArrayList<AgentMessage>();
         // Check that each place has a transition with a LowFuelEvent trigger
-        for (MissionPlanSpecification missionPlanSpecification : mediator.getMissions()) {
+        for (MissionPlanSpecification missionPlanSpecification : mediator.getProjectSpec().getAllMissionPlans()) {
             for (Vertex v : missionPlanSpecification.getGraph().getVertices()) {
                 if (v instanceof Place && !((Place) v).isEnd()) {
                     hasLowFuelTransition = false;
