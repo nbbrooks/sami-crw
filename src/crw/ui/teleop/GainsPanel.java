@@ -32,7 +32,6 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
     public static final int THRUST_GAINS_AXIS = 0;
     public static final int RUDDER_GAINS_AXIS = 5;
     public static final int WINCH_GAINS_AXIS = 3;
-    public static final int WINCH_PORT = 3;
     private JPanel contentP, velMultP, thrustPidP, rudderPidP, winchPidP;
     public JTextField velocityMultF, winchTF, thrustPTF, thrustITF, thrustDTF, rudderPTF, rudderITF, rudderDTF;
     public JLabel winchL;
@@ -262,7 +261,7 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
                 }
             });
             winchL.setText("Winch value: ---");
-            activeWinchObserver = Engine.getInstance().getObserverServer().getObserver(activeProxy, WINCH_PORT);
+            activeWinchObserver = Engine.getInstance().getObserverServer().getObserver(activeProxy, WINCH_GAINS_AXIS);
             activeWinchObserver.addListener(this);
 
             applyB.setEnabled(true);
