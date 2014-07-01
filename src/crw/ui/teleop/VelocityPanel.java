@@ -11,6 +11,8 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.MouseEvent;
@@ -29,7 +31,7 @@ import javax.swing.JPanel;
  *
  * @author nbb
  */
-public class VelocityPanel extends JPanel implements VelocityListener, FocusListener, MouseMotionListener {
+public class VelocityPanel extends JPanel implements VelocityListener, FocusListener, MouseMotionListener, ComponentListener {
 
     private static final Logger LOGGER = Logger.getLogger(VelocityPanel.class.getName());
     // Last velocity received from the boat
@@ -88,6 +90,7 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
         map.put(TextAttribute.FOREGROUND, Color.RED);
         map.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD);
         addMouseMotionListener(this);
+        addComponentListener(this);
         setFocusable(true);
     }
 
@@ -264,35 +267,11 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
             for (TeleopSourceInt source : teleopSources) {
                 source.enable(true);
             }
-//            if (mouseController != null) {
-//                addMouseListener(mouseController);
-//                addMouseMotionListener(mouseController);
-//            }
-//            if (keyboardController != null) {
-//                // @todo window focus listener
-//                addKeyListener(keyboardController);
-//                keyboardController.enable(true);
-//            }
-//            if (gamepadController != null) {
-//                ControllerDevice.getInstance().addGamepadListener(gamepadController);
-//            }
         } else if (!teleopEnabled) {
             // Stop listening to input devices
             for (TeleopSourceInt source : teleopSources) {
                 source.enable(false);
             }
-//            if (mouseController != null) {
-//                removeMouseListener(mouseController);
-//                removeMouseMotionListener(mouseController);
-//            }
-//            if (keyboardController != null) {
-//                // @todo window focus listener
-//                removeKeyListener(keyboardController);
-//                keyboardController.enable(false);
-//            }
-//            if (gamepadController != null) {
-//                ControllerDevice.getInstance().removeGamepadListener(gamepadController);
-//            }
             // Reset variables and send stop command
             teleLock = false;
             robotWidget.stopBoat();
@@ -313,5 +292,22 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
 
     @Override
     public void mouseMoved(MouseEvent me) {
+    }
+
+    @Override
+    public void componentResized(ComponentEvent ce) {
+        updateDims();
+    }
+
+    @Override
+    public void componentMoved(ComponentEvent ce) {
+    }
+
+    @Override
+    public void componentShown(ComponentEvent ce) {
+    }
+
+    @Override
+    public void componentHidden(ComponentEvent ce) {
     }
 }

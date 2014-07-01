@@ -7,6 +7,7 @@ import crw.event.output.proxy.ProxyExecutePath;
 import crw.proxy.BoatProxy;
 import crw.ui.BoatMarker;
 import crw.ui.VideoFeedPanel;
+import crw.ui.teleop.GainsPanel;
 import crw.ui.teleop.VelocityPanel;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.data.Twist;
@@ -42,6 +43,7 @@ import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import sami.engine.Engine;
@@ -85,6 +87,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private ArrayList<Position> selectedPositions = new ArrayList<Position>();
     private BoatProxy selectedProxy = null;
     private VelocityPanel velocityP;
+    private GainsPanel gainsP;
     private ControlMode controlMode = ControlMode.NONE;
     private Hashtable<GeneratedEventListenerInt, UUID> listenerTable = new Hashtable<GeneratedEventListenerInt, UUID>();
     private Hashtable<BoatProxy, BoatMarker> proxyToMarker = new Hashtable<BoatProxy, BoatMarker>();
@@ -353,7 +356,8 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             return;
         }
 
-        topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.X_AXIS));
         btmPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         buttonPanel = new JPanel(new BorderLayout());
 
@@ -424,17 +428,21 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     public void initExpandables() {
         videoP = new VideoFeedPanel();
-        velocityP = new VelocityPanel(this);
         videoP.setVisible(false);
+        velocityP = new VelocityPanel(this);
         velocityP.setVisible(false);
+        gainsP = new GainsPanel();
+        gainsP.setVisible(false);
         topPanel.add(videoP);
         topPanel.add(velocityP);
+        topPanel.add(gainsP);
         wwPanel.buttonPanels.revalidate();
     }
 
     public void hideExpandables() {
         videoP.setVisible(false);
         velocityP.setVisible(false);
+        gainsP.setVisible(false);
         cancelButton.setText("Cancel");
         wwPanel.revalidate();
     }
@@ -446,6 +454,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         videoP.setPreferredSize(new Dimension(mapDim.width / 2, height));
         videoP.setVisible(true);
         velocityP.setVisible(true);
+        gainsP.setVisible(true);
         cancelButton.setText("Collapse");
         wwPanel.revalidate();
     }
@@ -520,10 +529,12 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             // Update teleop panel's proxy 
             _vehicle = boatProxy.getVehicleServer();
             velocityP.setVehicle(boatProxy.getVehicleServer());
+            gainsP.setProxy(boatProxy);
         } else {
             // Remove teleop panel's proxy and hide teleop panel
             _vehicle = null;
             velocityP.setVehicle(null);
+            gainsP.setProxy(null);
             setControlMode(ControlMode.NONE);
             hideExpandables();
         }
