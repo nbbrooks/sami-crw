@@ -25,25 +25,25 @@ public class Conversion {
         UTMCoordinate utmCoordinate = location.getCoordinate();
         return new Position(
                 UTMCoord.locationFromUTMCoord(
-                Integer.parseInt(utmCoordinate.getZone().substring(0, utmCoordinate.getZone().length() - 1)),
-                (utmCoordinate.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH) ? AVKey.NORTH : AVKey.SOUTH),
-                utmCoordinate.getEasting(),
-                utmCoordinate.getNorthing(),
-                null),
+                        Integer.parseInt(utmCoordinate.getZone().substring(0, utmCoordinate.getZone().length() - 1)),
+                        (utmCoordinate.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH) ? AVKey.NORTH : AVKey.SOUTH),
+                        utmCoordinate.getEasting(),
+                        utmCoordinate.getNorthing(),
+                        null),
                 location.getAltitude());
     }
 
     public static Position utmToPosition(UTMCoordinate utmCoordinate, double altitude) {
         return new Position(
                 UTMCoord.locationFromUTMCoord(
-                Integer.parseInt(utmCoordinate.getZone().substring(0, utmCoordinate.getZone().length() - 1)),
-                (utmCoordinate.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH) ? AVKey.NORTH : AVKey.SOUTH),
-                utmCoordinate.getEasting(),
-                utmCoordinate.getNorthing(),
-                null),
+                        Integer.parseInt(utmCoordinate.getZone().substring(0, utmCoordinate.getZone().length() - 1)),
+                        (utmCoordinate.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH) ? AVKey.NORTH : AVKey.SOUTH),
+                        utmCoordinate.getEasting(),
+                        utmCoordinate.getNorthing(),
+                        null),
                 altitude);
     }
-    
+
     // Linearly scale a value from one value range to another
     public static double convertRange(double valueIn, double minIn, double maxIn, double minOut, double maxOut) {
         return (valueIn - minIn) / (maxIn - minIn) * (maxOut - minOut) + minOut;

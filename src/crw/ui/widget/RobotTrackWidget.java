@@ -314,4 +314,9 @@ public class RobotTrackWidget implements MarkupComponentWidget, WorldWindWidgetI
     public void disableMarkup(Markup markup) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
+    
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        return (ArrayList<Class>)supportedCreationClasses.clone();
+    }
 }

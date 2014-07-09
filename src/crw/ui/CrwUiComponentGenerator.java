@@ -3,7 +3,6 @@ package crw.ui;
 import crw.ui.component.TextPanel;
 import crw.ui.component.WorldWindPanel;
 import java.awt.Component;
-import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Random;
@@ -156,13 +155,33 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
     }
 
     @Override
-    public Object getComponentValue(MarkupComponent component, Field field) {
-//        System.out.println("getComponentValue for MC: " + component + ", field: " + field.getName());
-        return component.getComponentValue(field);
+    public Object getComponentValue(MarkupComponent component, Class componentClass) {
+        return component.getComponentValue(componentClass);
     }
 
     @Override
     public boolean setComponentValue(MarkupComponent component, Object value) {
         return component.setComponentValue(value);
+    }
+
+    @Override
+    public ArrayList<Class> getCreationClasses() {
+        ArrayList<Class> creationClasses = new ArrayList<Class>();
+        for (Class compClass : componentClasses) {
+            try {
+                MarkupComponent temp = (MarkupComponent) compClass.newInstance();
+                ArrayList<Class> compCreationClasses = temp.getSupportedCreationClasses();
+                for (Class creationClass : compCreationClasses) {
+                    if (!creationClasses.contains(creationClass)) {
+                        creationClasses.add(creationClass);
+                    }
+                }
+            } catch (InstantiationException ex) {
+                Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IllegalAccessException ex) {
+                Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        return creationClasses;
     }
 }

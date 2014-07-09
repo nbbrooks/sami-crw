@@ -183,6 +183,11 @@ public class ObstacleWidget implements MarkupComponentWidget, WorldWindWidgetInt
     @Override
     public void disableMarkup(Markup markup) {
     }
+    
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        return (ArrayList<Class>)supportedCreationClasses.clone();
+    }
 
     public void addObstacle(ArrayList<Location> obstacleLocations) {
         ArrayList<Position> obstaclePositions = new ArrayList<Position>();

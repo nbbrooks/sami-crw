@@ -728,6 +728,11 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     @Override
     public void disableMarkup(Markup markup) {
     }
+    
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        return (ArrayList<Class>)supportedCreationClasses.clone();
+    }
 
     // Callback that handles GUI events that change velocity
     public void updateVelocity() {

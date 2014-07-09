@@ -57,7 +57,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                 Hashtable<Field, MarkupComponent> componentTable = eventSpecToComponentTable.get(eventSpec);
                 for (Field field : componentTable.keySet()) {
                     if (field != null) {
-                        Object value = CrwUiComponentGenerator.getInstance().getComponentValue(componentTable.get(field), field);
+                        Object value = CrwUiComponentGenerator.getInstance().getComponentValue(componentTable.get(field), field.getType());
                         if (value == null) {
                             LOGGER.severe("Got null value for field: " + field);
                         } else {

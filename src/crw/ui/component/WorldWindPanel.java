@@ -37,7 +37,6 @@ import gov.nasa.worldwind.render.markers.Marker;
 import gov.nasa.worldwind.view.orbit.FlatOrbitView;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -118,14 +117,14 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         wwCanvas.setModel(new BasicModel());
 
         // Virtual Earth
-        if(layerNames == null) {
+        if (layerNames == null) {
             layerNames = new ArrayList<String>();
             layerNames.add("Bing Imagery");
             layerNames.add("Blue Marble (WMS) 2004");
             layerNames.add("Scale bar");
         }
         for (Layer layer : wwCanvas.getModel().getLayers()) {
-            if(layerNames.contains(layer.getName())) {
+            if (layerNames.contains(layer.getName())) {
                 layer.setEnabled(true);
             } else {
                 layer.setEnabled(false);
@@ -292,9 +291,9 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     @Override
-    public Object getComponentValue(Field field) {
+    public Object getComponentValue(Class componentClass) {
         Object value = null;
-        if (field.getType().equals(Location.class)) {
+        if (componentClass.equals(Location.class)) {
             MarkerLayer layer = (MarkerLayer) wwCanvas.getModel().getLayers().getLayerByName("Marker Layer");
             Marker position = null;
             for (Marker marker : layer.getMarkers()) {
@@ -306,7 +305,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                     != null) {
                 value = Conversion.positionToLocation(position.getPosition());
             }
-        } else if (field.getType().equals(PathUtm.class)) {
+        } else if (componentClass.equals(PathUtm.class)) {
             RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
             Path path = null;
             for (Renderable renderable : layer.getRenderables()) {
@@ -322,7 +321,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                 }
                 value = new Area2D(locationList);
             }
-        } else if (field.getType().equals(Area2D.class)) {
+        } else if (componentClass.equals(Area2D.class)) {
             RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
             SurfacePolygon area = null;
             for (Renderable renderable : layer.getRenderables()) {
@@ -453,5 +452,27 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
 
         frame.pack();
         frame.setVisible(true);
+    }
+
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        ArrayList<Class> compCreationClasses = new ArrayList<Class>();
+        compCreationClasses.addAll(supportedCreationClasses);
+        for (Class widgetClass : widgetClasses) {
+            try {
+                MarkupComponentWidget temp = (MarkupComponentWidget) widgetClass.newInstance();
+                ArrayList<Class> widgetCreationClasses = temp.getSupportedCreationClasses();
+                for (Class widgetCreationClass : widgetCreationClasses) {
+                    if (!compCreationClasses.contains(widgetCreationClass)) {
+                        compCreationClasses.add(widgetCreationClass);
+                    }
+                }
+            } catch (InstantiationException ex) {
+                ex.printStackTrace();
+            } catch (IllegalAccessException ex) {
+                ex.printStackTrace();
+            }
+        }
+        return compCreationClasses;
     }
 }
