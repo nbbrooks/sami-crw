@@ -116,7 +116,7 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
     public double stringToDouble(String text) {
         double ret = Double.NaN;
         try {
-            ret = Double.valueOf(velocityMultF.getText());
+            ret = Double.valueOf(text);
         } catch (NumberFormatException ex) {
         }
         return ret;
