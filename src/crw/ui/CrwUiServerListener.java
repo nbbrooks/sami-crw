@@ -4,10 +4,13 @@ import crw.event.input.operator.OperatorAcceptsAllocation;
 import crw.event.input.operator.OperatorAcceptsPath;
 import crw.event.input.operator.OperatorRejectsAllocation;
 import crw.event.input.operator.OperatorRejectsPath;
+import crw.event.input.operator.OperatorSelectsAssignmentMethod;
 import crw.event.input.operator.OperatorSelectsBoat;
 import crw.event.input.operator.OperatorSelectsBoatList;
+import crw.event.output.operator.OperatorSelectAssignmentMethod;
 import crw.uilanguage.message.fromui.BoatProxyListSelectedMessage;
 import crw.uilanguage.message.fromui.BoatProxySelectedMessage;
+import crw.uilanguage.message.fromui.MethodOptionSelectedMessage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -74,6 +77,10 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
             generatorEvent = new OperatorSelectsBoat(m.getRelevantOutputEventId(), m.getMissionId(), ((BoatProxySelectedMessage) m).getBoatProxy());
         } else if (m instanceof BoatProxyListSelectedMessage) {
             generatorEvent = new OperatorSelectsBoatList(m.getRelevantOutputEventId(), m.getMissionId(), ((BoatProxyListSelectedMessage) m).getBoatProxyList());
+        } else if (m instanceof MethodOptionSelectedMessage) {
+            
+            generatorEvent = new OperatorSelectsAssignmentMethod(m.getRelevantOutputEventId(), m.getMissionId(), ((MethodOptionSelectedMessage)m).getMethod());
+            
         } else if (m instanceof ParamsSelectedMessage) {
             ParamsSelectedMessage psm = (ParamsSelectedMessage) m;
             generatorEvent = new MissingParamsReceived(psm.getRelevantOutputEventId(), psm.getMissionId(), psm.getEventSpecToFieldValues());
@@ -130,6 +137,7 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
                 || sub.getSubscriptionClass().equals(OperatorRejectsPath.class)
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoat.class)
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoatList.class)
+                || sub.getSubscriptionClass().equals(OperatorSelectsAssignmentMethod.class)
                 || sub.getSubscriptionClass().equals(MissingParamsReceived.class)
                 || sub.getSubscriptionClass().equals(YesOption.class)
                 || sub.getSubscriptionClass().equals(NoOption.class)) {
@@ -156,6 +164,7 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
                 || sub.getSubscriptionClass().equals(OperatorRejectsPath.class)
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoat.class)
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoatList.class)
+                || sub.getSubscriptionClass().equals(OperatorSelectsAssignmentMethod.class)
                 || sub.getSubscriptionClass().equals(MissingParamsReceived.class)
                 || sub.getSubscriptionClass().equals(YesOption.class)
                 || sub.getSubscriptionClass().equals(NoOption.class))

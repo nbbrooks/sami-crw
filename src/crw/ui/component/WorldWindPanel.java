@@ -29,6 +29,7 @@ import gov.nasa.worldwind.render.Material;
 import gov.nasa.worldwind.render.Path;
 import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.render.ShapeAttributes;
+import gov.nasa.worldwind.render.SurfaceCircle;
 import gov.nasa.worldwind.render.SurfacePolygon;
 import gov.nasa.worldwind.render.markers.BasicMarker;
 import gov.nasa.worldwind.render.markers.BasicMarkerAttributes;
@@ -40,6 +41,7 @@ import java.awt.FlowLayout;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -112,20 +114,25 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         Configuration.setValue(AVKey.VIEW_INPUT_HANDLER_CLASS_NAME, WorldWindInputAdapter.class.getName());
         // Set this when offline
         Configuration.setValue(AVKey.OFFLINE_MODE, "false");
+        
+                    // Sirmione, Garda Lake 
+        Configuration.setValue(AVKey.INITIAL_LATITUDE, 45.492266);
+        Configuration.setValue(AVKey.INITIAL_LONGITUDE, 10.609780);
+        Configuration.setValue(AVKey.INITIAL_ALTITUDE, 2000.0);
 
         wwCanvas = new WorldWindowGLCanvas();
         wwCanvas.setPreferredSize(new java.awt.Dimension(width, height));
         wwCanvas.setModel(new BasicModel());
 
         // Virtual Earth
-        if(layerNames == null) {
+        if (layerNames == null) {
             layerNames = new ArrayList<String>();
             layerNames.add("Bing Imagery");
             layerNames.add("Blue Marble (WMS) 2004");
             layerNames.add("Scale bar");
         }
         for (Layer layer : wwCanvas.getModel().getLayers()) {
-            if(layerNames.contains(layer.getName())) {
+            if (layerNames.contains(layer.getName())) {
                 layer.setEnabled(true);
             } else {
                 layer.setEnabled(false);
@@ -292,9 +299,9 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     @Override
-    public Object getComponentValue(Field field) {
+    public Object getComponentValue(Class componentClass) {
         Object value = null;
-        if (field.getType().equals(Location.class)) {
+        if (componentClass.equals(Location.class)) {
             MarkerLayer layer = (MarkerLayer) wwCanvas.getModel().getLayers().getLayerByName("Marker Layer");
             Marker position = null;
             for (Marker marker : layer.getMarkers()) {
@@ -306,7 +313,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                     != null) {
                 value = Conversion.positionToLocation(position.getPosition());
             }
-        } else if (field.getType().equals(PathUtm.class)) {
+        } else if (componentClass.equals(PathUtm.class)) {
             RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
             Path path = null;
             for (Renderable renderable : layer.getRenderables()) {
@@ -322,7 +329,36 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                 }
                 value = new Area2D(locationList);
             }
-        } else if (field.getType().equals(Area2D.class)) {
+            
+        } else if(componentClass.equals(LinkedList.class)){
+            
+//            System.out.println("%% entering getCV");
+            RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
+            LinkedList<Location> ret = new LinkedList<Location>();
+            LinkedList<SurfaceCircle> position = new LinkedList<SurfaceCircle>();
+            
+            SurfaceCircle point = null;
+//                        System.out.println("%% getting rendeables");
+
+           for (Renderable renderable : layer.getRenderables()) {
+                if (renderable instanceof SurfaceCircle) {
+                    position.add((SurfaceCircle) renderable);
+                }
+            }
+
+//                       System.out.println("%% pos circ:"+position);
+
+            if (!position.isEmpty()) {
+                for(SurfaceCircle m : position){
+                    ret.add(Conversion.latLonToLocation(m.getCenter()));
+                }
+                value = ret;
+            }
+            
+//                        System.out.println("%% ret val:"+value);
+
+            // ####### SONO QUI
+        } else if (componentClass.equals(Area2D.class)) {
             RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
             SurfacePolygon area = null;
             for (Renderable renderable : layer.getRenderables()) {
@@ -344,6 +380,8 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     @Override
     public boolean setComponentValue(Object value) {
         boolean success = false;
+        
+//        System.out.println("--- adding value:"+value);
         if (value.getClass().equals(Location.class)) {
             // Grab or create the geometry widget
             SelectGeometryWidget selectWidget;
@@ -412,6 +450,37 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
             polygon.setAttributes(attributes);
             selectWidget.addRenderable(polygon);
             success = true;
+        } else if (value.getClass().equals(LinkedList.class)){
+            
+            // Grab or create the geometry widget
+            SelectGeometryWidget selectWidget;
+            if (hasWidget(SelectGeometryWidget.class)) {
+                selectWidget = (SelectGeometryWidget) getWidget(SelectGeometryWidget.class);
+            } else {
+                selectWidget = new SelectGeometryWidget(this, new ArrayList<SelectMode>(), SelectMode.NONE);
+                addWidget(selectWidget);
+            }
+            
+            List<Location> waypoints = ((LinkedList<Location>) value);
+//            List<Position> positions = new LinkedList<Position>();
+            // Convert from Locations to LatLons
+            for (Location waypoint : waypoints) {
+                Position p = Conversion.locationToPosition(waypoint);
+            
+                SurfaceCircle circle = new SurfaceCircle(new LatLon(p.getLatitude(), p.getLongitude()), 3);
+                ShapeAttributes attributes = new BasicShapeAttributes();
+                attributes.setInteriorMaterial(Material.YELLOW);
+                attributes.setInteriorOpacity(0.5);
+                attributes.setOutlineMaterial(Material.YELLOW);
+                attributes.setOutlineOpacity(0.5);
+                attributes.setOutlineWidth(1);
+                circle.setAttributes(attributes);
+                selectWidget.addRenderable(circle);
+            }
+            
+//            System.out.println("--- POSITION: "+ waypoints);
+            success = true;
+            
         }
         return success;
     }
@@ -447,11 +516,33 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         www.createMap();
         frame.getContentPane().add(www.wwCanvas);
 
-        for (Layer l : www.getCanvas().getModel().getLayers()) {
-            System.out.println("Layer: " + l);
-        }
+//        for (Layer l : www.getCanvas().getModel().getLayers()) {
+//            System.out.println("Layer: " + l);
+//        }
 
         frame.pack();
         frame.setVisible(true);
+    }
+
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        ArrayList<Class> compCreationClasses = new ArrayList<Class>();
+        compCreationClasses.addAll(supportedCreationClasses);
+        for (Class widgetClass : widgetClasses) {
+            try {
+                MarkupComponentWidget temp = (MarkupComponentWidget) widgetClass.newInstance();
+                ArrayList<Class> widgetCreationClasses = temp.getSupportedCreationClasses();
+                for (Class widgetCreationClass : widgetCreationClasses) {
+                    if (!compCreationClasses.contains(widgetCreationClass)) {
+                        compCreationClasses.add(widgetCreationClass);
+                    }
+                }
+            } catch (InstantiationException ex) {
+                ex.printStackTrace();
+            } catch (IllegalAccessException ex) {
+                ex.printStackTrace();
+            }
+        }
+        return compCreationClasses;
     }
 }

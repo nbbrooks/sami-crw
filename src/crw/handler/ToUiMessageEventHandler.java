@@ -1,7 +1,9 @@
 package crw.handler;
 
+import crw.Coordinator;
 import crw.event.output.operator.OperatorAllocationOptions;
 import crw.event.output.operator.OperatorPathOptions;
+import crw.event.output.operator.OperatorSelectAssignmentMethod;
 import crw.event.output.operator.OperatorSelectBoat;
 import crw.event.output.operator.OperatorSelectBoatList;
 import crw.event.output.ui.DisplayMessage;
@@ -24,6 +26,8 @@ import sami.mission.Token;
 import sami.proxy.ProxyInt;
 import sami.uilanguage.toui.GetParamsMessage;
 import sami.uilanguage.toui.InformationMessage;
+import sami.uilanguage.toui.MethodOptionMessage;
+import sami.uilanguage.toui.SelectionMessage;
 import sami.uilanguage.toui.ToUiMessage;
 import sami.uilanguage.toui.YesNoOptionsMessage;
 
@@ -87,6 +91,13 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                 }
             }
             message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, true, proxyOptionsList);
+        } else if (oe instanceof OperatorSelectAssignmentMethod) {
+            
+            ArrayList<Coordinator.Method> methods = new ArrayList<Coordinator.Method>();
+            methods.add(Coordinator.Method.EASY); methods.add(Coordinator.Method.COST);
+            
+            message = new MethodOptionMessage(oe.getId(), oe.getMissionId(), priority, false, methods);
+                        
         } else if (oe instanceof MissingParamsRequest) {
             // Retreive AllocationOptionsMessage
             MissingParamsRequest mpr = (MissingParamsRequest) oe;

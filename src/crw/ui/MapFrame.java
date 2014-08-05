@@ -31,6 +31,7 @@ public class MapFrame extends UiFrame {
         wwPanel.addWidget(data);
         ArrayList<ControlMode> controlModes = new ArrayList<ControlMode>();
         controlModes.add(ControlMode.TELEOP);
+        controlModes.add(ControlMode.COORD);
         controlModes.add(ControlMode.POINT);
         controlModes.add(ControlMode.PATH);
         controlModes.add(ControlMode.NONE);

@@ -7,6 +7,8 @@ import crw.proxy.BoatProxy;
 import crw.ui.component.WorldWindPanel;
 import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.WorldWindow;
+import gov.nasa.worldwind.geom.Angle;
+import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.MarkerLayer;
 import gov.nasa.worldwind.layers.RenderableLayer;
@@ -16,6 +18,7 @@ import gov.nasa.worldwind.render.Path;
 import gov.nasa.worldwind.render.Polyline;
 import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.render.ShapeAttributes;
+import gov.nasa.worldwind.render.SurfaceCircle;
 import gov.nasa.worldwind.render.SurfacePolygon;
 import gov.nasa.worldwind.render.markers.BasicMarker;
 import gov.nasa.worldwind.render.markers.BasicMarkerAttributes;
@@ -25,6 +28,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -33,10 +37,14 @@ import java.awt.event.MouseWheelEvent;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import sami.area.Area2D;
@@ -57,7 +65,7 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
 
     public enum SelectMode {
 
-        POINT, PATH, AREA, NONE, CLEAR
+        POINT, PATH, AREA, NONE, CLEAR, TASK
     };
     // MarkupComponentWidget variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
@@ -158,6 +166,36 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     return true;
                 }
                 break;
+            case TASK:
+                
+                if (clickPositionAsl != null) {
+
+                    selectedPositions.add(clickPositionAsl);
+                    // Update temporary path
+
+                    SurfaceCircle circle = new SurfaceCircle(new LatLon(clickPositionAsl.getLatitude(), clickPositionAsl.getLongitude()), 3);
+                    ShapeAttributes attributes = new BasicShapeAttributes();
+                    attributes.setInteriorMaterial(Material.YELLOW);
+                    attributes.setInteriorOpacity(0.5);
+                    attributes.setOutlineMaterial(Material.YELLOW);
+                    attributes.setOutlineOpacity(0.5);
+                    attributes.setOutlineWidth(1);
+                    circle.setAttributes(attributes);
+                    renderableLayer.addRenderable(circle);
+
+                    wwd.redraw();
+//                    if (evt.getClickCount() > 1 || working) {
+                    if (evt.getClickCount() > 1 ) {
+                        
+                        
+//                        System.out.println("Tasks Retrieved: "+selectedPositions);
+                        setSelectMode(SelectMode.NONE);
+
+                    }
+                    return true;
+                }
+
+                break;
             case PATH:
                 if (clickPositionAsl != null) {
                     selectedPositions.add(clickPositionAsl);
@@ -240,6 +278,9 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 if (enabledModes.contains(SelectMode.AREA)) {
                     areaButton.setSelected(false);
                 }
+                if (enabledModes.contains(SelectMode.TASK)) {
+                    areaButton.setSelected(false);
+                }
                 break;
 
             case PATH:
@@ -250,6 +291,9 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     pathButton.setSelected(true);
                 }
                 if (enabledModes.contains(SelectMode.AREA)) {
+                    areaButton.setSelected(false);
+                }
+                if (enabledModes.contains(SelectMode.TASK)) {
                     areaButton.setSelected(false);
                 }
                 break;
@@ -263,7 +307,25 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 if (enabledModes.contains(SelectMode.AREA)) {
                     areaButton.setSelected(true);
                 }
+                if (enabledModes.contains(SelectMode.TASK)) {
+                    areaButton.setSelected(false);
+                }
                 break;
+            case TASK:
+                if (enabledModes.contains(SelectMode.POINT)) {
+                    pointButton.setSelected(false);
+                }
+                if (enabledModes.contains(SelectMode.PATH)) {
+                    pathButton.setSelected(false);
+                }
+                if (enabledModes.contains(SelectMode.AREA)) {
+                    areaButton.setSelected(false);
+                }
+                if (enabledModes.contains(SelectMode.TASK)) {
+                    areaButton.setSelected(true);
+                }
+                break;
+                
             case NONE:
             default:
                 boolean redraw = false;
@@ -289,6 +351,9 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     pathButton.setSelected(false);
                 }
                 if (enabledModes.contains(SelectMode.AREA)) {
+                    areaButton.setSelected(false);
+                }
+                if (enabledModes.contains(SelectMode.TASK)) {
                     areaButton.setSelected(false);
                 }
                 if (redraw) {
@@ -373,6 +438,16 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 }
             });
         }
+        if (enabledModes.contains(SelectMode.TASK)) {
+            areaButton = new JButton("Task");
+            buttonPanel.add(areaButton);
+            areaButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    setSelectMode(SelectMode.TASK);
+                }
+            });
+        }
         if (enabledModes.contains(SelectMode.NONE)) {
             cancelButton = new JButton("Cancel");
             buttonPanel.add(cancelButton);
@@ -413,10 +488,12 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
         supportedCreationClasses.add(Location.class);
         supportedCreationClasses.add(PathUtm.class);
         supportedCreationClasses.add(Area2D.class);
+        supportedCreationClasses.add(LinkedList.class);
         // Visualization
         supportedSelectionClasses.add(Location.class);
         supportedSelectionClasses.add(PathUtm.class);
         supportedSelectionClasses.add(Area2D.class);
+        supportedSelectionClasses.add(LinkedList.class);
         // Markups
         //
     }
@@ -457,6 +534,9 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
             } else if (creationClass.equals(Area2D.class)) {
                 List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.AREA, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
                 widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.AREA);
+            } else if (creationClass.equals(LinkedList.class)) {
+                List<SelectGeometryWidget.SelectMode> modes = Arrays.asList(SelectGeometryWidget.SelectMode.TASK, SelectGeometryWidget.SelectMode.NONE, SelectGeometryWidget.SelectMode.CLEAR);
+                widget = new SelectGeometryWidget((WorldWindPanel) component, modes, SelectGeometryWidget.SelectMode.TASK);
             }
         }
         return widget;
@@ -504,6 +584,53 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
             path.setAttributes(attributes);
             path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
             select.addRenderable(path);
+            widget = select;
+         
+        } else if (selectionObject instanceof LinkedList) {
+            
+//                                    System.out.println("%% TEST");
+
+            List<Location> waypoints = ((LinkedList<Location>) selectionObject);
+            List<Position> positions = new LinkedList<Position>();
+            // Convert from Locations to LatLons
+//            for (Location waypoint : waypoints) {
+//                positions.add(Conversion.locationToPosition(waypoint));
+//            }
+            
+            positions = Conversion.locationToPosition((ArrayList)waypoints);
+            
+              
+            // Grab or create the geometry widget
+            SelectGeometryWidget select = new SelectGeometryWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
+
+            
+//            List<Position> positions = new LinkedList<Position>();
+            // Convert from Locations to LatLons
+            for (Location waypoint : waypoints) {
+                Position p = Conversion.locationToPosition(waypoint);
+            
+                SurfaceCircle circle = new SurfaceCircle(new LatLon(p.getLatitude(), p.getLongitude()), 3);
+                ShapeAttributes attributes = new BasicShapeAttributes();
+                attributes.setInteriorMaterial(Material.YELLOW);
+                attributes.setInteriorOpacity(0.5);
+                attributes.setOutlineMaterial(Material.YELLOW);
+                attributes.setOutlineOpacity(0.5);
+                attributes.setOutlineWidth(1);
+                circle.setAttributes(attributes);
+                select.addRenderable(circle);
+            }
+
+//            System.out.println("@@ test positions; "+positions);
+//            SelectGeometryWidget select = new SelectGeometryWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
+            // Add path
+//            Path path = new Path(positions);
+//            ShapeAttributes attributes = new BasicShapeAttributes();
+//            attributes.setOutlineWidth(8);
+//            attributes.setOutlineMaterial(Material.YELLOW);
+//            attributes.setDrawOutline(true);
+//            path.setAttributes(attributes);
+//            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+//            select.addRenderable(path);
             widget = select;
         } else if (selectionObject instanceof Area2D) {
             List<Location> locations = ((Area2D) selectionObject).getPoints();
@@ -590,5 +717,10 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
 
     @Override
     public void disableMarkup(Markup markup) {
+    }
+    
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        return (ArrayList<Class>)supportedCreationClasses.clone();
     }
 }

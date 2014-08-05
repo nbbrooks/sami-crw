@@ -125,6 +125,9 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
                 try {
                     MarkupComponent temp = (MarkupComponent) compClass.newInstance();
                     int score = temp.getSelectionComponentScore(type, markups);
+                    
+//                     System.out.println("### selection type: "+type.toString());
+//                    System.out.println("### selection Creation component score of class " + compClass + " for object class " + compClass.getSimpleName() + " and markups " + markups.toString() + " is " + score);
 //                    System.out.println("### Selection component score of class " + compClass + " for object class " + selectionObject.getClass().getSimpleName() + " and markups " + markups.toString() + " is " + score);
                     if (score > -1 && score > bestScore) {
                         bestScore = score;
@@ -156,13 +159,33 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
     }
 
     @Override
-    public Object getComponentValue(MarkupComponent component, Field field) {
-//        System.out.println("getComponentValue for MC: " + component + ", field: " + field.getName());
-        return component.getComponentValue(field);
+    public Object getComponentValue(MarkupComponent component, Class componentClass) {
+        return component.getComponentValue(componentClass);
     }
 
     @Override
     public boolean setComponentValue(MarkupComponent component, Object value) {
         return component.setComponentValue(value);
+    }
+
+    @Override
+    public ArrayList<Class> getCreationClasses() {
+        ArrayList<Class> creationClasses = new ArrayList<Class>();
+        for (Class compClass : componentClasses) {
+            try {
+                MarkupComponent temp = (MarkupComponent) compClass.newInstance();
+                ArrayList<Class> compCreationClasses = temp.getSupportedCreationClasses();
+                for (Class creationClass : compCreationClasses) {
+                    if (!creationClasses.contains(creationClass)) {
+                        creationClasses.add(creationClass);
+                    }
+                }
+            } catch (InstantiationException ex) {
+                Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IllegalAccessException ex) {
+                Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        return creationClasses;
     }
 }

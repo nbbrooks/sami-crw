@@ -1,15 +1,21 @@
 package crw.handler;
 
 import crw.Conversion;
+import crw.Coordinator;
 import crw.CrwHelper;
 import crw.event.input.proxy.ProxyCreated;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPathFailed;
 import crw.event.input.proxy.ProxyPoseUpdated;
 import crw.event.input.service.AssembleLocationResponse;
+import crw.event.input.service.NearAssemblyLocationResponse;
+import crw.event.input.service.NearestProxyToLocationResponse;
+import crw.event.input.service.PathUtmResponse;
 import crw.event.input.service.QuantityEqual;
 import crw.event.input.service.QuantityGreater;
 import crw.event.input.service.QuantityLess;
+import crw.event.input.service.TasksAssignmentResponse;
+import crw.event.input.service.WaitingProxiesResponse;
 import crw.event.output.proxy.ConnectExistingProxy;
 import crw.event.output.proxy.CreateSimulatedProxy;
 import crw.event.output.service.AssembleLocationRequest;
@@ -18,9 +24,13 @@ import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyResendWaypoints;
+import crw.event.output.service.NearAssemblyLocationRequest;
+import crw.event.output.service.NearestProxyToLocationRequest;
 import crw.event.output.service.ProxyCompareDistanceRequest;
+import crw.event.output.service.TasksAssignmentRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
+import crw.ui.BoatMarker;
 import crw.ui.ImagePanel;
 import edu.cmu.ri.crw.CrwNetworkUtils;
 import edu.cmu.ri.crw.VehicleServer;
@@ -31,15 +41,25 @@ import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
+import gov.nasa.worldwind.render.Material;
 import gov.nasa.worldwind.render.Polygon;
+import gov.nasa.worldwind.render.markers.BasicMarkerAttributes;
+import gov.nasa.worldwind.render.markers.BasicMarkerShape;
 import java.awt.Color;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import robotutils.Pose3D;
@@ -82,7 +102,9 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     int portCounter = 0;
     final Random RANDOM = new Random();
     private Hashtable<UUID, Integer> eventIdToAssembleCounter = new Hashtable<UUID, Integer>();
-
+    
+    private HashMap<BoatMarker, ArrayList<Position>> decisions = new HashMap<BoatMarker, ArrayList<Position>>();
+    
     public ProxyEventHandler() {
         LOGGER.log(Level.FINE, "Adding ProxyEventHandler as service provider");
         InformationServer.addServiceProvider(this);
@@ -225,6 +247,60 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     tokenProxies.get(proxyIndex).handleEvent(proxyEvent);
                 }
             }
+        } else if (oe instanceof NearAssemblyLocationRequest) {
+            NearAssemblyLocationRequest request = (NearAssemblyLocationRequest) oe;
+
+            int assembleCounter = 0;
+            int numProxies = 0;
+
+            Hashtable<ProxyInt, Location> proxyPoints = new Hashtable<ProxyInt, Location>();
+            ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
+            Location l = null;
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    l = request.getProxyPoints().get(token.getProxy());
+                    break;
+                }
+            }
+
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+
+                    UTMCoordinate centerCoord = l.getCoordinate();
+                    UTMCoordinate proxyCoord = new UTMCoordinate(centerCoord.getNorthing(), centerCoord.getEasting(), centerCoord.getZone());
+
+                    int magnitude = (assembleCounter - 1) / 8 + 1;
+
+                    proxyCoord.setNorthing(centerCoord.getNorthing() + magnitude * 50);
+                    proxyCoord.setEasting(centerCoord.getEasting() + magnitude * 50);
+
+                    Location rendezvousLocation = new Location(proxyCoord, l.getAltitude());
+
+                    proxyPoints.put(token.getProxy(), rendezvousLocation);
+                    relevantProxies.add(token.getProxy());
+                    numProxies++;
+                    assembleCounter++;
+
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with LocationNearRendezvousRequest has no tokens with proxies attached: " + oe);
+            } else if (numProxies > 1) {
+                LOGGER.log(Level.WARNING, "Place with LocationNearRendezvousRequest has " + numProxies + " tokens with proxies attached: " + oe);
+            }
+
+//            System.out.println("AFTER LOGGING");
+
+            NearAssemblyLocationResponse responseEvent = new NearAssemblyLocationResponse(oe.getId(), oe.getMissionId(), proxyPoints, relevantProxies);
+
+//            System.out.println("RESPONSE CREATED");
+
+            for (GeneratedEventListenerInt listener : listeners) {
+                LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
+                listener.eventGenerated(responseEvent);
+            }
+//            System.out.println("EVENT GENERATED. END");
+
         } else if (oe instanceof AssembleLocationRequest) {
             AssembleLocationRequest request = (AssembleLocationRequest) oe;
             int assembleCounter = 0;
@@ -304,6 +380,111 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
                 listener.eventGenerated(responseEvent);
             }
+        } else if (oe instanceof TasksAssignmentRequest) {
+
+            TasksAssignmentRequest request = (TasksAssignmentRequest) oe;
+
+            if(!decisions.isEmpty()){
+                ArrayList<Position> p = new ArrayList<Position>();
+                
+                for(BoatMarker b : decisions.keySet()){
+                    p.addAll(decisions.get(b));
+                }
+                
+                CopyOnWriteArrayList<Location> tmp = new CopyOnWriteArrayList<Location>(request.getTasks());
+                
+                for(Location l : tmp){
+                    
+                    if(!p.contains(Conversion.locationToPosition(l))){
+                        request.getTasks().remove(l);
+                    }
+                    
+                }
+            }
+            
+            int numOptions = 2;
+
+            ArrayList<Position> selectedTasks = new ArrayList<Position>();
+
+//            System.out.println("@@ TEST PRINT METHOD: " + request.getMethod());
+//            System.out.println("@@ TEST PRINT TASKS: " + request.getTasks());
+            for (Location l : request.getTasks()) {
+                selectedTasks.add(Conversion.locationToPosition(l));
+            }
+
+            Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
+
+            final ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
+            for (final Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    BoatProxy bp = (BoatProxy) token.getProxy();
+                    BoatMarker bm = new BoatMarker(bp, bp.getPosition(), new BasicMarkerAttributes(new Material(bp.getColor()), BasicMarkerShape.ORIENTED_SPHERE, 0.9));
+
+                    markerToProxy.put(bm, bp);
+
+                    relevantProxies.add(bp);
+
+                }
+
+            }
+
+            Coordinator coordinator = new Coordinator(markerToProxy);
+
+            coordinator.setMethod(request.getMethod());
+            decisions = coordinator.taskAssignment(selectedTasks);
+            
+            final Coordinator c = coordinator;
+            (new Thread() {
+            @Override
+            public void run() {
+                boolean guard;
+                do {
+                    guard = false;
+                    for (BoatMarker b : c.getMarkerToProxy().keySet()) {
+                        ArrayList<Position> copy = new ArrayList<Position>(c.getDecisions().get(b));
+                        for (Position p : copy) {
+                            Double d = Coordinator.computeDistance(b.getProxy().getPosition(), p);
+//                            System.out.println("distance: "+d);
+                            if (d == 0.0) {
+                                c.getDecisions().get(b).remove(p);
+//                                System.out.println("distance equals: " + d);
+                                LatLon m = new LatLon(p.getLatitude(), p.getLongitude());
+
+                            } else if (Math.abs(d) < 3) {
+                                c.getDecisions().get(b).remove(p);
+//                                System.out.println("distance error: " + d);
+
+                            }
+                        }
+                    }
+
+                    for (BoatMarker b : c.getMarkerToProxy().keySet()) {
+                        if (!c.getDecisions().get(b).isEmpty()) {
+                            guard = true;
+
+                        }
+                    }
+
+                } while (guard);
+
+            }
+        }).start();
+
+            Hashtable<ProxyInt, Path> proxyPaths = new Hashtable<ProxyInt, Path>();
+
+            for (BoatMarker b : markerToProxy.keySet()) {
+                Path p = new PathUtm(Conversion.positionToLocation(decisions.get(b)));
+                ProxyInt pr = b.getProxy();
+                proxyPaths.put(pr, p);
+            }
+
+            TasksAssignmentResponse responseEvent = new TasksAssignmentResponse(oe.getId(), oe.getMissionId(), proxyPaths, relevantProxies);
+
+            for (GeneratedEventListenerInt listener : listeners) {
+                LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
+                listener.eventGenerated(responseEvent);
+            }
+
         } else if (oe instanceof ProxyCompareDistanceRequest) {
             ProxyCompareDistanceRequest request = (ProxyCompareDistanceRequest) oe;
             ArrayList<InputEvent> responses = new ArrayList<InputEvent>();
@@ -349,6 +530,78 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     listener.eventGenerated(response);
                 }
             }
+        } else if (oe instanceof NearestProxyToLocationRequest) {
+            NearestProxyToLocationRequest request = (NearestProxyToLocationRequest) oe;
+            ArrayList<InputEvent> responses = new ArrayList<InputEvent>();
+
+            int numProxies = 0;
+
+//            for (Token token : tokens) {
+            LOGGER.log(Level.INFO, "---NEW STAGE: " + tokens.size());
+
+            ArrayList<ProxyInt> relevantProxiesMove = new ArrayList<ProxyInt>();
+            ArrayList<ProxyInt> relevantProxiesWait = new ArrayList<ProxyInt>();
+
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    BoatProxy boatProxy = (BoatProxy) token.getProxy();
+
+//                    if (relevantProxiesMove.size() > 0) {
+                        relevantProxiesWait.add(boatProxy);
+//                        if (!request.getProxyPoints().containsKey(boatProxy)) {
+//                            LOGGER.severe("Passed in proxy token for " + boatProxy + " to place with ProxyCompareDistanceRequest, but there is no compare location entry for the proxy!");
+//                        } else {
+//                            final Position stationKeepPosition = Conversion.locationToPosition(request.getProxyPoints().get(boatProxy));
+//                            System.out.println("TEST POS = " + stationKeepPosition.toString());
+//                        }
+//                    } else {
+//                        relevantProxiesMove.add(boatProxy);
+//                        numProxies++;
+//                    }
+                }
+            }
+
+            final Position stationKeepPosition = Conversion.locationToPosition(request.getProxyPoints().get(relevantProxiesWait.get(0)));
+
+            BoatProxy min = (BoatProxy) Collections.min(relevantProxiesWait, new Comparator<ProxyInt>() {
+
+                @Override
+                public int compare(ProxyInt t, ProxyInt t1) {
+                    double d1 = Coordinator.computeDistance(stationKeepPosition, ((BoatProxy) t).getPosition());
+                    double d2 = Coordinator.computeDistance(stationKeepPosition, ((BoatProxy) t1).getPosition());
+                    if (d1 < d2) {
+                        return -1;
+                    } else if (d2 > d1) {
+                        return 1;
+                    }
+                    return 0;
+                }
+            });
+
+            relevantProxiesWait.remove(min);
+            relevantProxiesMove.add(min);
+
+            NearestProxyToLocationResponse responseMove = new NearestProxyToLocationResponse(request.getId(), request.getMissionId(), relevantProxiesMove);
+            WaitingProxiesResponse responseWait = new WaitingProxiesResponse(oe.getId(), oe.getMissionId(), relevantProxiesWait);
+
+            responses.add(responseMove);
+            responses.add(responseWait);
+
+//            System.out.println("size move = " + responseMove.getRelevantProxyList().size());
+//            System.out.println("size wait = " + responseWait.getRelevantProxyList().size());
+
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyCompareDistanceRequest has no tokens with proxies attached: " + oe);
+            }
+
+            LOGGER.info("Handling OnlyOneProxyRequest, have responses: " + responses + ", have listeners: " + listeners);
+            for (GeneratedEventListenerInt listener : listeners) {
+                for (InputEvent response : responses) {
+                    LOGGER.log(Level.INFO, "\tSending response: " + response + " to listener: " + listener);
+                    listener.eventGenerated(response);
+                }
+            }
+
         } else if (oe instanceof ProxyAbortMission) {
             for (Token token : tokens) {
                 if (token.getProxy() != null) {
@@ -444,7 +697,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         if (sub.getSubscriptionClass() == ProxyPathCompleted.class
                 || sub.getSubscriptionClass() == ProxyPathFailed.class
                 || sub.getSubscriptionClass() == ProxyCreated.class
+                || sub.getSubscriptionClass() == NearestProxyToLocationResponse.class
                 || sub.getSubscriptionClass() == AssembleLocationResponse.class
+                || sub.getSubscriptionClass() == NearAssemblyLocationResponse.class
+                || sub.getSubscriptionClass() == TasksAssignmentResponse.class
                 || sub.getSubscriptionClass() == QuantityGreater.class
                 || sub.getSubscriptionClass() == QuantityLess.class
                 || sub.getSubscriptionClass() == QuantityEqual.class
@@ -469,7 +725,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         if ((sub.getSubscriptionClass() == ProxyPathCompleted.class
                 || sub.getSubscriptionClass() == ProxyPathFailed.class
                 || sub.getSubscriptionClass() == ProxyCreated.class
+                || sub.getSubscriptionClass() == NearestProxyToLocationResponse.class
                 || sub.getSubscriptionClass() == AssembleLocationResponse.class
+                || sub.getSubscriptionClass() == NearAssemblyLocationResponse.class
+                || sub.getSubscriptionClass() == TasksAssignmentResponse.class
                 || sub.getSubscriptionClass() == QuantityGreater.class
                 || sub.getSubscriptionClass() == QuantityLess.class
                 || sub.getSubscriptionClass() == QuantityEqual.class

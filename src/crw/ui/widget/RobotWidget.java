@@ -1,12 +1,15 @@
 package crw.ui.widget;
 
+import crw.Coordinator;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.CrwHelper;
 import crw.event.output.proxy.ProxyExecutePath;
+import crw.Conversion;
 import crw.proxy.BoatProxy;
 import crw.ui.BoatMarker;
 import crw.ui.VideoFeedPanel;
+import crw.ui.teleop.GainsPanel;
 import crw.ui.teleop.VelocityPanel;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.data.Twist;
@@ -14,11 +17,15 @@ import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.event.SelectEvent;
 import gov.nasa.worldwind.event.SelectListener;
 import gov.nasa.worldwind.geom.Angle;
+import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.MarkerLayer;
 import gov.nasa.worldwind.layers.RenderableLayer;
+import gov.nasa.worldwind.render.BasicShapeAttributes;
 import gov.nasa.worldwind.render.Material;
 import gov.nasa.worldwind.render.Polyline;
+import gov.nasa.worldwind.render.ShapeAttributes;
+import gov.nasa.worldwind.render.SurfaceCircle;
 import gov.nasa.worldwind.render.markers.BasicMarkerAttributes;
 import gov.nasa.worldwind.render.markers.BasicMarkerShape;
 import gov.nasa.worldwind.render.markers.Marker;
@@ -27,6 +34,8 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics2D;
+import java.awt.GridLayout;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -36,27 +45,44 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import sami.engine.Engine;
+import sami.engine.PlanManager;
 import sami.event.GeneratedEventListenerInt;
 import sami.event.InputEvent;
+import sami.event.InterruptEventIE;
 import sami.event.OutputEvent;
+import sami.event.ProxyInterruptEventIE;
 import sami.markup.Markup;
 import sami.markup.RelevantInformation;
 import sami.markup.RelevantProxy;
+import sami.mission.InterruptType;
+import sami.mission.MissionPlanSpecification;
+import sami.mission.Token;
 import sami.path.Location;
 import sami.path.Path;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyListenerInt;
 import sami.proxy.ProxyServerListenerInt;
+import sami.ui.MissionDisplay;
+import sami.ui.MissionMonitor;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.MarkupComponentHelper;
 import sami.uilanguage.MarkupComponentWidget;
@@ -70,7 +96,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     public enum ControlMode {
 
-        TELEOP, POINT, PATH, NONE
+        TELEOP, POINT, PATH, NONE, COORD
     };
     private static final Logger LOGGER = Logger.getLogger(RobotWidget.class.getName());
     // MarkupComponentWidget variables
@@ -78,19 +104,27 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
     public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
     //
+    public enum CoordType {
+
+        EASY, COST_BASED
+    };
     // This increases the "grab" radius for proxy markers to make selecting a proxy easier
     private final int CLICK_RADIUS = 25;
     private boolean visible = true;
     private ArrayList<Marker> markers = new ArrayList<Marker>();
     private ArrayList<Position> selectedPositions = new ArrayList<Position>();
+    private ArrayList<Position> posWorking = new ArrayList<Position>();
     private BoatProxy selectedProxy = null;
     private VelocityPanel velocityP;
+    private GainsPanel gainsP;
     private ControlMode controlMode = ControlMode.NONE;
+    private CoordType coordType = CoordType.EASY;
     private Hashtable<GeneratedEventListenerInt, UUID> listenerTable = new Hashtable<GeneratedEventListenerInt, UUID>();
     private Hashtable<BoatProxy, BoatMarker> proxyToMarker = new Hashtable<BoatProxy, BoatMarker>();
     private Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
     private Hashtable<BoatProxy, UUID> proxyToWpEventId = new Hashtable<BoatProxy, UUID>();
-    private JButton teleopButton, pointButton, pathButton, cancelButton, autoButton;
+    private HashMap<BoatMarker, ArrayList<Position>> decisions = new HashMap<BoatMarker, ArrayList<Position>>();
+    private JButton teleopButton, pointButton, pathButton, cancelButton, autoButton, coordButton;
     private JPanel topPanel, btmPanel, buttonPanel;
     private List<ControlMode> enabledModes;
     private Marker selectedMarker = null;
@@ -105,6 +139,8 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private final Object highlightedLock = new Object();
     private boolean highlightedBoatMarkerChanged = false;
     private BoatMarker highlightedBoatMarker = null;
+
+    private Coordinator coordinator = new Coordinator();
 
     // new stuff
     // Velocity to be sent to the boat
@@ -122,6 +158,8 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     public static final double RUDDER_MIN = 1.0;
     public static final double RUDDER_MAX = -1.0;
 
+    private Boolean working = false;
+
     public RobotWidget() {
         populateLists();
     }
@@ -136,6 +174,15 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (enabledModes == null) {
             this.enabledModes = new ArrayList<ControlMode>();
         }
+
+        for (BoatMarker b : markerToProxy.keySet()) {
+            decisions.put(b, new ArrayList<Position>());
+        }
+
+        coordinator = new Coordinator();
+        coordinator.setMarkerToProxy(markerToProxy);
+        coordinator.initDecisions();
+
         initRenderableLayer();
         initButtons();
         initExpandables();
@@ -207,6 +254,32 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             return false;
         }
 
+        Position clickPosition = wwd.getView().computePositionFromScreenPoint(evt.getX(), evt.getY());
+//        System.out.println("click : " + clickPosition.toString() + " controlMode: " + controlMode);
+
+        working = false;
+
+        if (evt.isShiftDown()) {
+            cancelAssignedWaypoints();
+            controlMode = ControlMode.COORD;
+            working = true;
+            clickPosition = wwd.getView().computePositionFromScreenPoint(evt.getX(), evt.getY());
+//            System.out.println("Clicked with shift");
+        }
+        if (evt.getButton() == MouseEvent.BUTTON3) {
+//            System.out.println("Interrput!!!! :D");
+//            Token t = Engine.getInstance().createToken(new TokenSpecification("Interrupt", TokenSpecification.TokenType.Interrupt, null));
+            PlanManager pm = Engine.getInstance().getPlanManager();
+            
+//            System.out.println("plans???: "+Engine.getInstance().getPlans());
+            pm = Engine.getInstance().getPlans().get(0);
+            pm.enterInterruptPlace(InterruptType.GENERAL, null);
+//            pm.eventGenerated(new InterruptEventIE());
+
+//            BoatProxy b = new BoatProxy(null, Color.yellow, CLICK_RADIUS, null);
+
+        }
+
         switch (controlMode) {
             case POINT:
                 // Calculate elevation above sea level at click position
@@ -234,11 +307,60 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                     setControlMode(ControlMode.NONE);
                 }
                 return true;
+            case COORD:
+
+                if (clickPosition != null) {
+                    if (markers.size() == 0) {
+//                        System.out.println("no boats");
+                        return true;
+                    }
+
+                    selectedPositions.add(clickPosition);
+                    // Update temporary path
+
+                    SurfaceCircle circle = new SurfaceCircle(new LatLon(clickPosition.getLatitude(), clickPosition.getLongitude()), 3);
+                    ShapeAttributes attributes = new BasicShapeAttributes();
+                    attributes.setInteriorMaterial(Material.YELLOW);
+                    attributes.setInteriorOpacity(0.5);
+                    attributes.setOutlineMaterial(Material.YELLOW);
+                    attributes.setOutlineOpacity(0.5);
+                    attributes.setOutlineWidth(1);
+                    circle.setAttributes(attributes);
+                    renderableLayer.addRenderable(circle);
+
+                    wwd.redraw();
+                    if (evt.getClickCount() > 1 || working) {
+
+                        switch (coordType) {
+                            case EASY:
+
+                                coordinator.setMethod(Coordinator.Method.EASY);
+                                executePath(new ArrayList<BoatMarker>(markerToProxy.keySet()), coordinator.taskAssignment(selectedPositions));
+
+                                break;
+                            case COST_BASED:
+
+                                coordinator.setMethod(Coordinator.Method.COST);
+                                executePath(new ArrayList<BoatMarker>(markerToProxy.keySet()), coordinator.taskAssignment(selectedPositions));
+
+                                break;
+                        }
+
+//                        System.out.println("Coord executed");
+
+                        working = false;
+                        clearPath();
+                        setControlMode(ControlMode.NONE);
+                    }
+                    return true;
+                }
+                return true;
             case NONE:
                 // Selected or deselected a proxy?
                 synchronized (highlightedLock) {
                     if (highlightedBoatMarkerChanged) {
                         selectMarker(highlightedBoatMarker);
+
                         highlightedBoatMarkerChanged = false;
                         return true;
                     }
@@ -292,6 +414,8 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                                 markers.add(bm);
                                 proxyToMarker.put(boatProxy, bm);
                                 markerToProxy.put(bm, boatProxy);
+                                coordinator.setMarkerToProxy(markerToProxy);
+                                coordinator.initDecisions();
                             }
                         }
                         first = false;
@@ -322,10 +446,12 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             if (proxyToMarker.containsKey(boatProxy)) {
                 BoatMarker boatMarker = proxyToMarker.get(boatProxy);
                 markerToProxy.remove(boatMarker);
+                coordinator.setMarkerToProxy(markerToProxy);
                 proxyToMarker.remove(proxy);
                 synchronized (markers) {
                     markers.remove(boatMarker);
                 }
+                coordinator.initDecisions();
                 wwPanel.wwCanvas.redraw();
             }
         }
@@ -353,7 +479,8 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             return;
         }
 
-        topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.X_AXIS));
         btmPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         buttonPanel = new JPanel(new BorderLayout());
 
@@ -365,6 +492,59 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                 @Override
                 public void actionPerformed(ActionEvent ae) {
                     setControlMode(ControlMode.TELEOP);
+                }
+            });
+        }
+        if (enabledModes.contains(ControlMode.COORD)) {
+            coordButton = new JButton("Coord");
+            coordButton.setEnabled(true);
+            btmPanel.add(coordButton);
+            coordButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+
+                    cancelAssignedWaypoints();
+                    for (BoatMarker b : markerToProxy.keySet()) {
+                        decisions.put(b, new ArrayList<Position>());
+                    }
+                    final int numButtons = 2;
+                    JRadioButton[] radioButtons = new JRadioButton[numButtons];
+                    final ButtonGroup group = new ButtonGroup();
+
+                    JButton showItButton = null;
+
+//                    final String defaultMessageCommand = "default";
+//                    final String yesNoCommand = "yesno";
+                    radioButtons[0] = new JRadioButton("Easy Coord");
+//                    radioButtons[0].setActionCommand(defaultMessageCommand);
+
+                    radioButtons[1] = new JRadioButton("Sequential System Item Auctions");
+//                    radioButtons[1].setActionCommand(yesNoCommand);
+
+                    for (int i = 0; i < numButtons; i++) {
+                        group.add(radioButtons[i]);
+                    }
+                    radioButtons[0].setSelected(true);
+
+                    int numChoices = radioButtons.length;
+                    JPanel box = new JPanel(new GridLayout(2, 1));
+                    for (int i = 0; i < numChoices; i++) {
+                        box.add(radioButtons[i]);
+                    }
+
+                    JOptionPane.showMessageDialog(topPanel, box);
+
+                    for (int i = 0; i < numChoices; i++) {
+                        if (radioButtons[i].isSelected() && i == 0) {
+                            coordType = CoordType.EASY;
+                        }
+                        if (radioButtons[i].isSelected() && i == 1) {
+                            coordType = CoordType.COST_BASED;
+                        }
+                    }
+
+                    selectedProxy = null;
+                    setControlMode(ControlMode.COORD);
                 }
             });
         }
@@ -397,6 +577,11 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             cancelButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent ae) {
+                    coordinator.clearDecisions();
+                    posWorking.clear();
+                    for (BoatMarker b : markerToProxy.keySet()) {
+                        decisions.put(b, new ArrayList<Position>());
+                    }
                     cancelAssignedWaypoints();
                     setControlMode(ControlMode.NONE);
                     hideExpandables();
@@ -424,17 +609,21 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     public void initExpandables() {
         videoP = new VideoFeedPanel();
-        velocityP = new VelocityPanel(this);
         videoP.setVisible(false);
+        velocityP = new VelocityPanel(this);
         velocityP.setVisible(false);
+        gainsP = new GainsPanel();
+        gainsP.setVisible(false);
         topPanel.add(videoP);
         topPanel.add(velocityP);
+        topPanel.add(gainsP);
         wwPanel.buttonPanels.revalidate();
     }
 
     public void hideExpandables() {
         videoP.setVisible(false);
         velocityP.setVisible(false);
+        gainsP.setVisible(false);
         cancelButton.setText("Cancel");
         wwPanel.revalidate();
     }
@@ -446,6 +635,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         videoP.setPreferredSize(new Dimension(mapDim.width / 2, height));
         videoP.setVisible(true);
         velocityP.setVisible(true);
+        gainsP.setVisible(true);
         cancelButton.setText("Collapse");
         wwPanel.revalidate();
     }
@@ -463,6 +653,11 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             case POINT:
                 hideExpandables();
                 disableTeleop();
+                break;
+            case COORD:
+                hideExpandables();
+                disableTeleop();
+//                cancelAssignedWaypoints();
                 break;
             case PATH:
                 hideExpandables();
@@ -520,17 +715,28 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             // Update teleop panel's proxy 
             _vehicle = boatProxy.getVehicleServer();
             velocityP.setVehicle(boatProxy.getVehicleServer());
+            gainsP.setProxy(boatProxy);
         } else {
             // Remove teleop panel's proxy and hide teleop panel
             _vehicle = null;
             velocityP.setVehicle(null);
+            gainsP.setProxy(null);
             setControlMode(ControlMode.NONE);
             hideExpandables();
         }
         selectedProxy = boatProxy;
+
+        PlanManager pm = Engine.getInstance().getPlanManager();
+
+//        pm.eventGenerated(new ProxyInterruptEvent(pm.missionId, pm.missionId, boatProxy));
+//        pm.eventGenerated(new ProxyInterruptEventIE(null, null, (ProxyInt)boatProxy));
+        
         // Disable buttons if selected proxy is null
         if (teleopButton != null) {
             teleopButton.setEnabled(enabled);
+        }
+        if (coordButton != null) {
+            coordButton.setEnabled(enabled);
         }
         if (pointButton != null) {
             pointButton.setEnabled(enabled);
@@ -549,6 +755,241 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         }
     }
 
+//    public void doEasyCoord(ArrayList<Position> positions) {
+//
+//        //ArrayList<ArrayList<Position>> 
+////        HashMap<BoatMarker, ArrayList<Position>> decisions = new HashMap<BoatMarker, ArrayList<Position>>();
+//        ArrayList<Position> dummyPos = new ArrayList<Position>(positions);
+//        ArrayList<BoatMarker> boats = new ArrayList<BoatMarker>(markerToProxy.keySet());
+//
+////        for (BoatMarker b : boats) {
+////            decisions.put(b, new ArrayList<Position>());
+////        }
+//
+//        Double min = Double.MAX_VALUE;
+//
+//        do {
+//            HashMap<BoatMarker, Position> nearest = new HashMap<BoatMarker, Position>();
+//
+//            for (int i = 0; i < boats.size(); i++) {
+//                BoatMarker b = boats.get(i);
+//
+//                final Position boatPos = (decisions.get(b).isEmpty()) ? b.getPosition() : decisions.get(b).get(decisions.get(b).size() - 1);
+//
+//                Collections.sort(dummyPos, new Comparator<Position>() {
+//                    @Override
+//                    public int compare(Position t, Position t1) {
+//                        if (computeDistance(boatPos, t) < computeDistance(boatPos, t1)) {
+//                            return -1;
+//                        } else if (computeDistance(boatPos, t) > computeDistance(boatPos, t1)) {
+//                            return 1;
+//                        }
+//
+//                        return 0;
+//
+//                    }
+//                });
+//
+//                Position insert = dummyPos.isEmpty() ? null : dummyPos.get(0);
+//
+//                if (insert == null) {
+//                    break;
+//                }
+//
+//                nearest.put(b, insert);
+//                System.out.println("near boat: " + b + " pos: " + nearest.get(b));
+//            }
+//
+//            HashMap<BoatMarker, Double> best = new HashMap<BoatMarker, Double>();
+//
+//            for (Map.Entry<BoatMarker, Position> entry : nearest.entrySet()) {
+//
+//                Position comparing = (decisions.get(entry.getKey()).isEmpty()) ? entry.getKey().getPosition() : decisions.get(entry.getKey()).get(decisions.get(entry.getKey()).size() - 1);
+//
+//                best.put(entry.getKey(), computeDistance(comparing, entry.getValue()));
+//                System.out.println("distance: " + best.get(entry.getKey()) + " for " + entry.getKey() + " and pos: " + entry.getValue());
+//            }
+//
+//            Entry<BoatMarker, Double> bestPos = Collections.min(best.entrySet(), new Comparator<Entry<BoatMarker, Double>>() {
+//                public int compare(Entry<BoatMarker, Double> entry1, Entry<BoatMarker, Double> entry2) {
+//                    return entry1.getValue().compareTo(entry2.getValue());
+//                }
+//            });
+//
+//            System.out.println("boat: " + bestPos.getKey() + " pos: " + bestPos.getValue());
+//
+//            decisions.get(bestPos.getKey()).add(nearest.get(bestPos.getKey()));
+//            dummyPos.remove(nearest.get(bestPos.getKey()));
+//
+//        } while (!dummyPos.isEmpty());
+//
+//        System.out.println("Positions: " + positions.toString());
+//
+//        for (BoatMarker b : boats) {
+//            System.out.println("lista for " + b.toString() + ": " + decisions.get(b).toString());
+//        }
+//
+//        cancelAssignedWaypoints();
+//        try {
+//            Thread.sleep(1000);
+//        } catch (InterruptedException ex) {
+//            Logger.getLogger(RobotWidget.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        executePath(boats, decisions);
+//
+//    }
+    private void executePath(ArrayList<BoatMarker> boats, final HashMap<BoatMarker, ArrayList<Position>> pathExec) {
+
+//        System.out.println("sel proxy: "+selectedProxy);
+//        System.out.println("Execute Path");
+
+        for (BoatProxy b : markerToProxy.values()) {
+//                System.out.println("boat: "+b);
+            for (OutputEvent e : b.getEvents()) {
+                b.abortEvent(e.getId());
+            }
+        }
+
+        for (BoatMarker b : boats) {
+//            System.out.println("dec paths: " + pathExec.get(b));
+            ArrayList<Location> waypoints = new ArrayList<Location>();
+            for (int i = 0; i < pathExec.get(b).size(); i++) {
+                waypoints.add(new Location(pathExec.get(b).get(i).latitude.degrees, pathExec.get(b).get(i).longitude.degrees, 0.0));
+            }
+
+            PathUtm path = new PathUtm(waypoints);
+
+            UUID eventId = null;
+            if (proxyToWpEventId.containsKey(markerToProxy.get(b))) {
+                eventId = proxyToWpEventId.get(markerToProxy.get(b));
+            } else {
+                eventId = UUID.randomUUID();
+                proxyToWpEventId.put(markerToProxy.get(b), eventId);
+            }
+            Hashtable<ProxyInt, Path> proxyPath = new Hashtable<ProxyInt, Path>();
+            proxyPath.put(markerToProxy.get(b), path);
+            ProxyExecutePath proxyEvent = new ProxyExecutePath(eventId, null, proxyPath);
+            for (Path p : proxyEvent.getProxyPaths().values()) {
+//                System.out.println("proxy exec path: " + p.toString());
+            }
+
+            markerToProxy.get(b).updateCurrentSeqEvent(proxyEvent);
+        }
+
+        if (cancelButton != null) {
+            cancelButton.setEnabled(true);
+        }
+
+        (new Thread() {
+            @Override
+            public void run() {
+                boolean guard;
+                do {
+                    guard = false;
+                    for (BoatMarker b : markerToProxy.keySet()) {
+                        ArrayList<Position> copy = new ArrayList<Position>(coordinator.getDecisions().get(b));
+                        for (Position p : copy) {
+                            Double d = Coordinator.computeDistance(b.getProxy().getPosition(), p);
+//                            System.out.println("distance: "+d);
+                            if (d == 0.0) {
+                                coordinator.getDecisions().get(b).remove(p);
+//                                System.out.println("distance equals: " + d);
+                                LatLon m = new LatLon(p.getLatitude(), p.getLongitude());
+
+                            } else if (Math.abs(d) < 3) {
+                                coordinator.getDecisions().get(b).remove(p);
+//                                System.out.println("distance error: " + d);
+
+                            }
+                        }
+                    }
+
+                    for (BoatMarker b : markerToProxy.keySet()) {
+                        if (!coordinator.getDecisions().get(b).isEmpty()) {
+                            guard = true;
+
+                        }
+                    }
+
+                } while (guard);
+
+            }
+        }).start();
+    }
+
+//    public void doCostBasedCoord(ArrayList<Position> positions) {
+//
+//        System.out.println("Cost based");
+//        HashMap<BoatMarker, ArrayList<Position>> dummyDec = new HashMap<>();
+//
+//        ArrayList<Position> dummyPos = new ArrayList<Position>(positions);
+//        ArrayList<BoatMarker> boats = new ArrayList<BoatMarker>(markerToProxy.keySet());
+//
+//        do {
+//
+//            HashMap<BoatMarker, ArrayList<Position>> possibilities = new HashMap<>();
+//            HashMap<BoatMarker, Double> possibilitiesCost = new HashMap<>();
+//
+//            Random r = new Random();
+//            Position test = dummyPos.get(r.nextInt(dummyPos.size()));
+//
+//            for (BoatMarker b : boats) {
+//                ArrayList<Position> tmp;
+//                if(decisions.get(b).isEmpty()){
+//                    tmp = new ArrayList<>();
+//                }else{
+//                    tmp = new ArrayList<>(decisions.get(b));
+//                }
+//
+//                tmp.add(test);
+//                
+//                HashMap<Double, ArrayList<Position>> allPathsCost;
+//                
+//                if(decisions.get(b).isEmpty()){
+//                    allPathsCost = computeBestPath(b, tmp);
+//                }else if(working){
+//                    allPathsCost = computeNewInsertPath(b, tmp);
+//                }else{
+//                    allPathsCost = computeBestPath(b, tmp);
+//                }
+//
+//                ArrayList<Entry<Double, ArrayList<Position>>> listPaths = new ArrayList<>(allPathsCost.entrySet());
+//                Entry<Double, ArrayList<Position>> min = Collections.min(listPaths, new Comparator<Entry<Double, ArrayList<Position>>>() {
+//
+//                    @Override
+//                    public int compare(Entry<Double, ArrayList<Position>> t, Entry<Double, ArrayList<Position>> t1) {
+//                        return t.getKey().compareTo(t1.getKey());
+//                    }
+//                });
+//                
+//                possibilities.put(b, min.getValue());
+//                possibilitiesCost.put(b, min.getKey());
+//
+//            }
+//
+//            ArrayList<Entry<BoatMarker, Double>> listCosts = new ArrayList<>(possibilitiesCost.entrySet());
+//            Entry<BoatMarker, Double> min = Collections.min(listCosts, new Comparator<Entry<BoatMarker, Double>>() {
+//
+//                @Override
+//                public int compare(Entry<BoatMarker, Double> t, Entry<BoatMarker, Double> t1) {
+//                    return t.getValue().compareTo(t1.getValue());
+//                }
+//            });
+//
+//            decisions.put(min.getKey(), possibilities.get(min.getKey()));
+//            dummyPos.remove(test);
+//
+//        } while (!dummyPos.isEmpty());
+//
+//        cancelAssignedWaypoints();
+//        try {
+//            Thread.sleep(1000);
+//        } catch (InterruptedException ex) {
+//            Logger.getLogger(RobotWidget.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        executePath(boats, decisions);
+//
+//    }
     public void doPoint(Position point) {
         ArrayList<Location> waypoints = new ArrayList<Location>();
         waypoints.add(new Location(point.latitude.degrees, point.longitude.degrees, 0));
@@ -610,11 +1051,30 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (polyline != null) {
             renderableLayer.removeRenderable(polyline);
         }
+
+        for (Object r : renderableLayer.getRenderables()) {
+            if (r instanceof SurfaceCircle) {
+                renderableLayer.removeRenderable((SurfaceCircle) r);
+            }
+        }
+
         selectedPositions = new ArrayList<Position>();
     }
 
     public void cancelAssignedWaypoints() {
+//        coordinator.clearDecisions();
+//        System.out.println("Assigned waypoints");
         if (selectedProxy == null) {
+            for (BoatProxy b : markerToProxy.values()) {
+                for (UUID event : proxyToWpEventId.values()) {
+                    if (event != null) {
+                        OutputEvent curEvent = b.getCurSequentialEvent();
+                        if (curEvent != null && curEvent.getId().equals(event)) {
+                            b.cancelCurrentSeqEvent();
+                        }
+                    }
+                }
+            }
             return;
         }
         // Get currently executing waypoints: if it is what we previously assigned, cancel them
@@ -716,6 +1176,11 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     @Override
     public void disableMarkup(Markup markup) {
+    }
+    
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        return (ArrayList<Class>)supportedCreationClasses.clone();
     }
 
     // Callback that handles GUI events that change velocity

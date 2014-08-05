@@ -2,6 +2,7 @@ package crw.ui.component;
 
 import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
+import crw.Coordinator;
 import crw.proxy.BoatProxy;
 import crw.ui.ColorSlider;
 import java.awt.Color;
@@ -13,6 +14,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.Random;
 import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
@@ -26,6 +28,7 @@ import sami.allocation.ResourceAllocation;
 import sami.markup.Markup;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.MarkupComponentHelper;
+import sami.uilanguage.MarkupComponentWidget;
 import sami.uilanguage.MarkupManager;
 
 /**
@@ -78,6 +81,7 @@ public class TextPanel implements MarkupComponent {
         supportedSelectionClasses.add(Color.class);
         supportedSelectionClasses.add(ResourceAllocation.class);
         supportedSelectionClasses.add(BoatProxy.class);
+        supportedSelectionClasses.add(Coordinator.Method.class);
         // Markups
         // Instructional text
     }
@@ -186,6 +190,14 @@ public class TextPanel implements MarkupComponent {
             component.setBorder(BorderFactory.createLineBorder(boatProxy.getColor(), 6));
             component.setForeground(boatProxy.getColor());
             component.setOpaque(true);
+        } else if (object instanceof Coordinator.Method) {
+            Coordinator.Method method = (Coordinator.Method) object;
+            component = new JLabel(method.toString());
+            component.setFont(new java.awt.Font("Lucida Grande", 1, 13));
+
+            component.setBorder(BorderFactory.createLineBorder(Color.GREEN, 6));
+            component.setOpaque(true);
+
         } else if (object instanceof Color) {
             component = new JPanel();
             component.setBackground((Color) object);
@@ -223,38 +235,38 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public Object getComponentValue(Field field) {
+    public Object getComponentValue(Class componentClass) {
         Object value = null;
         if (component instanceof JTextField) {
             String text = ((JTextField) component).getText();
 
             if (text.length() > 0) {
                 try {
-                    if (field.getType().equals(String.class)) {
+                    if (componentClass.equals(String.class)) {
                         value = text;
-                    } else if (field.getType().equals(Double.class)) {
+                    } else if (componentClass.equals(Double.class)) {
                         value = new Double(text);
-                    } else if (field.getType().equals(Float.class)) {
+                    } else if (componentClass.equals(Float.class)) {
                         value = new Float(text);
-                    } else if (field.getType().equals(Integer.class)) {
+                    } else if (componentClass.equals(Integer.class)) {
                         value = new Integer(text);
-                    } else if (field.getType().equals(Long.class)) {
+                    } else if (componentClass.equals(Long.class)) {
                         value = new Long(text);
-                    } else if (field.getType().equals(Boolean.class)) {
+                    } else if (componentClass.equals(Boolean.class)) {
                         value = Boolean.valueOf(text);
-                    } else if (field.getType().equals(double.class)) {
+                    } else if (componentClass.equals(double.class)) {
                         value = Double.parseDouble(text);
-                    } else if (field.getType().equals(float.class)) {
+                    } else if (componentClass.equals(float.class)) {
                         value = Float.parseFloat(text);
-                    } else if (field.getType().equals(int.class)) {
+                    } else if (componentClass.equals(int.class)) {
                         value = Integer.parseInt(text);
-                    } else if (field.getType().equals(long.class)) {
+                    } else if (componentClass.equals(long.class)) {
                         value = Long.parseLong(text);
-                    } else if (field.getType().equals(boolean.class)) {
+                    } else if (componentClass.equals(boolean.class)) {
                         value = Boolean.parseBoolean(text);
                     }
                 } catch (Exception e) {
-                    LOGGER.warning("Exception encountered when trying to get value for field type: " + field.getType() + " from text: " + text + ", setting value to null with exception: " + e);
+                    LOGGER.warning("Exception encountered when trying to get value for field type: " + componentClass.getSimpleName() + " from text: " + text + ", setting value to null with exception: " + e);
                     value = null;
                 }
             }
@@ -262,7 +274,7 @@ public class TextPanel implements MarkupComponent {
             value = ((JComboBox) component).getSelectedItem();
 
         } else if (component instanceof ColorSlider) {
-            if (field.getType().equals(Color.class)) {
+            if (componentClass.equals(Color.class)) {
                 value = ((ColorSlider) component).getColor();
             }
         }
@@ -295,5 +307,27 @@ public class TextPanel implements MarkupComponent {
     @Override
     public void disableMarkup(Markup markup) {
         // No dynamic markups handled
+    }
+
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        ArrayList<Class> compCreationClasses = new ArrayList<Class>();
+        compCreationClasses.addAll(supportedCreationClasses);
+        for (Class widgetClass : widgetClasses) {
+            try {
+                MarkupComponentWidget temp = (MarkupComponentWidget) widgetClass.newInstance();
+                ArrayList<Class> widgetCreationClasses = temp.getSupportedCreationClasses();
+                for (Class widgetCreationClass : widgetCreationClasses) {
+                    if (!compCreationClasses.contains(widgetCreationClass)) {
+                        compCreationClasses.add(widgetCreationClass);
+                    }
+                }
+            } catch (InstantiationException ex) {
+                ex.printStackTrace();
+            } catch (IllegalAccessException ex) {
+                ex.printStackTrace();
+            }
+        }
+        return compCreationClasses;
     }
 }

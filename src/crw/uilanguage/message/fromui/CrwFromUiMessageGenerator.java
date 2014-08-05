@@ -1,5 +1,6 @@
 package crw.uilanguage.message.fromui;
 
+import crw.Coordinator;
 import crw.proxy.BoatProxy;
 import crw.ui.CrwUiComponentGenerator;
 import crw.uilanguage.message.toui.AllocationOptionsMessage;
@@ -23,6 +24,7 @@ import sami.uilanguage.fromui.PathSelectedMessage;
 import sami.uilanguage.fromui.YesNoSelectedMessage;
 import sami.uilanguage.toui.CreationMessage;
 import sami.uilanguage.toui.GetParamsMessage;
+import sami.uilanguage.toui.MethodOptionMessage;
 import sami.uilanguage.toui.SelectionMessage;
 import sami.uilanguage.toui.YesNoOptionsMessage;
 
@@ -57,7 +59,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                 Hashtable<Field, MarkupComponent> componentTable = eventSpecToComponentTable.get(eventSpec);
                 for (Field field : componentTable.keySet()) {
                     if (field != null) {
-                        Object value = CrwUiComponentGenerator.getInstance().getComponentValue(componentTable.get(field), field);
+                        Object value = CrwUiComponentGenerator.getInstance().getComponentValue(componentTable.get(field), field.getType());
                         if (value == null) {
                             LOGGER.severe("Got null value for field: " + field);
                         } else {
@@ -85,6 +87,8 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
             } else if (option instanceof Hashtable) {
                 fromUiMessage = new PathSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (Hashtable<ProxyInt, Path>) option);
             }
+        } else if (selectionMessage instanceof MethodOptionMessage){
+            fromUiMessage = new MethodOptionSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (Coordinator.Method) option);
         } else if (selectionMessage instanceof ProxyOptionsMessage) {
             if (selectionMessage.getAllowMultiple() && (option instanceof ArrayList || option == null)) {
                 // Multiple boat selection
@@ -112,6 +116,9 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                     fromUiMessage = new BoatProxySelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (BoatProxy) option);
                 }
             }
+        } else if (selectionMessage instanceof MethodOptionMessage) {
+            fromUiMessage = new MethodOptionSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMessageId(), (Coordinator.Method) option);
+            
         } else if (selectionMessage instanceof YesNoOptionsMessage) {
             if (selectionMessage.getOptionsList().get(0) == option) {
                 fromUiMessage = new YesNoSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), true);

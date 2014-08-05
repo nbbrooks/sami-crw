@@ -592,4 +592,9 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     @Override
     public void disableMarkup(Markup markup) {
     }
+    
+    @Override
+    public ArrayList<Class> getSupportedCreationClasses() {
+        return (ArrayList<Class>)supportedCreationClasses.clone();
+    }
 }
