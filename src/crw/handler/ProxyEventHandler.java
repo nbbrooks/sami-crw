@@ -102,27 +102,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             LOGGER.log(Level.WARNING, "\tOutputEvent " + oe + " has null mission id");
         }
 
-        if (oe instanceof ProxyExecutePath) {
-            int numProxies = 0;
-            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
-            for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    tokenProxies.add((BoatProxy) token.getProxy());
-                    numProxies++;
-                }
-            }
-            if (numProxies == 0) {
-                LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has no tokens with proxies attached: " + oe);
-            } else if (numProxies > 1) {
-                LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has " + numProxies + " tokens with proxies attached: " + oe);
-            }
-            for (BoatProxy boatProxy : tokenProxies) {
-                // Send the path
-                boatProxy.handleEvent(oe);
-            }
-//        } else if (oe instanceof ProxyExecuteTask) {
-//            //@todo simulator integration
-        } else if (oe instanceof ProxyGotoPoint) {
+        if (oe instanceof ProxyGotoPoint) {
             int numProxies = 0;
             ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
             for (Token token : tokens) {
@@ -405,7 +385,9 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     listener.eventGenerated(proxyCreated);
                 }
             }
-        } else if (oe instanceof ProxyEmergencyAbort) {
+        } else if (oe instanceof ProxyExecutePath
+                || oe instanceof ProxyEmergencyAbort
+                || oe instanceof ProxyResendWaypoints) {
             int numProxies = 0;
             ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
             for (Token token : tokens) {
@@ -415,22 +397,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 }
             }
             if (numProxies == 0) {
-                LOGGER.log(Level.WARNING, "Place with ProxyEmergencyAbort has no tokens with proxies attached: " + oe);
-            }
-            for (BoatProxy boatProxy : tokenProxies) {
-                boatProxy.handleEvent(oe);
-            }
-        } else if (oe instanceof ProxyResendWaypoints) {
-            int numProxies = 0;
-            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
-            for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    tokenProxies.add((BoatProxy) token.getProxy());
-                    numProxies++;
-                }
-            }
-            if (numProxies == 0) {
-                LOGGER.log(Level.WARNING, "Place with ProxyResendWaypoints has no tokens with proxies attached: " + oe);
+                LOGGER.log(Level.WARNING, "Place with ProxyEventHandler OE has no tokens with proxies attached: " + oe);
             }
             for (BoatProxy boatProxy : tokenProxies) {
                 boatProxy.handleEvent(oe);

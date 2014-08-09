@@ -4,6 +4,7 @@ import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
 import crw.proxy.BoatProxy;
 import crw.ui.ColorSlider;
+import dreaam.developer.Mediator;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -23,6 +24,7 @@ import javax.swing.JTextField;
 import javax.swing.table.TableCellRenderer;
 import sami.allocation.ResourceAllocation;
 import sami.markup.Markup;
+import sami.mission.MissionPlanSpecification;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.MarkupComponentHelper;
 import sami.uilanguage.MarkupComponentWidget;
@@ -62,6 +64,7 @@ public class TextPanel implements MarkupComponent {
         supportedCreationClasses.add(boolean.class);
         supportedCreationClasses.add(Enum.class);
         supportedCreationClasses.add(Color.class);
+        supportedCreationClasses.add(MissionPlanSpecification.class);
         // Visualization
         supportedSelectionClasses.add(String.class);
         supportedSelectionClasses.add(Double.class);
@@ -78,6 +81,7 @@ public class TextPanel implements MarkupComponent {
         supportedSelectionClasses.add(Color.class);
         supportedSelectionClasses.add(ResourceAllocation.class);
         supportedSelectionClasses.add(BoatProxy.class);
+        supportedSelectionClasses.add(MissionPlanSpecification.class);
         // Markups
         // Instructional text
     }
@@ -121,6 +125,9 @@ public class TextPanel implements MarkupComponent {
                     || objectClass.equals(long.class)) {
                 component = new JTextField();
                 component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
+            } else if (objectClass.equals(MissionPlanSpecification.class)) {
+                Mediator mediator = new Mediator();
+                component = new JComboBox(mediator.getProjectSpec().getAllMissionPlans().toArray());
             } else if (objectClass.equals(Boolean.class)
                     || objectClass.equals(boolean.class)) {
                 component = new JComboBox(new Object[]{true, false});
@@ -196,6 +203,8 @@ public class TextPanel implements MarkupComponent {
                 || object instanceof Long
                 || object instanceof Boolean) {
             component = new JLabel(object.toString());
+        } else if (object instanceof MissionPlanSpecification) {
+            component = new JLabel(((MissionPlanSpecification) object).getName());
         } else {
             component = new JLabel("No component found");
             LOGGER.severe("Could not selection component for object class: " + object.getClass().getSimpleName());

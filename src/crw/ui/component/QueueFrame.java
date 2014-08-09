@@ -179,6 +179,10 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     }
 
     @Override
+    public void planRepaint(PlanManager planManager) {
+    }  
+
+    @Override
     public void planFinished(PlanManager planManager) {
         // Remove any items associated with this plan
         int numRemoved;
