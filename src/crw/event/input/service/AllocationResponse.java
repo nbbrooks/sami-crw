@@ -22,7 +22,7 @@ public class AllocationResponse extends InputEvent {
     // Description for each variable
     public static final HashMap<String, String> variableNameToDescription = new HashMap<String, String>();
     // Variables
-    public List<ResourceAllocation> resourceAllocations = null;
+    public ArrayList<ResourceAllocation> resourceAllocations = null;
 
     static {
         variableNames.add("resourceAllocations");
@@ -34,7 +34,7 @@ public class AllocationResponse extends InputEvent {
         id = UUID.randomUUID();
     }
 
-    public AllocationResponse(UUID relevantOutputEventUuid, UUID missionUuid, List<ResourceAllocation> resourceAllocations) {
+    public AllocationResponse(UUID relevantOutputEventUuid, UUID missionUuid, ArrayList<ResourceAllocation> resourceAllocations) {
         this.relevantOutputEventId = relevantOutputEventUuid;
         this.missionId = missionUuid;
         this.resourceAllocations = resourceAllocations;
@@ -45,7 +45,7 @@ public class AllocationResponse extends InputEvent {
         return resourceAllocations;
     }
 
-    public void setResourceAllocations(List<ResourceAllocation> resourceAllocations) {
+    public void setResourceAllocations(ArrayList<ResourceAllocation> resourceAllocations) {
         this.resourceAllocations = resourceAllocations;
     }
 }

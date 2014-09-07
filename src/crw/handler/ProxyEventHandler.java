@@ -93,8 +93,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
 
     @Override
     public void invoke(final OutputEvent oe, ArrayList<Token> tokens) {
-        LOGGER.log(Level.FINE, "ProxyEventHandler invoked with " + oe);
-
+        LOGGER.log(Level.FINE, "ProxyEventHandler invoked with OE [" + oe + "] and tokens [" + tokens + "]");
         if (oe.getId() == null) {
             LOGGER.log(Level.WARNING, "\tOutputEvent " + oe + " has null event id");
         }
@@ -104,10 +103,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
 
         if (oe instanceof ProxyGotoPoint) {
             int numProxies = 0;
-            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
             for (Token token : tokens) {
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    tokenProxies.add((BoatProxy) token.getProxy());
+                    // Send the path
+                    token.getProxy().handleEvent(oe, token.getTask());
                     numProxies++;
                 }
             }
@@ -115,10 +114,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has no tokens with proxies attached: " + oe);
             } else if (numProxies > 1) {
                 LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has " + numProxies + " tokens with proxies attached: " + oe);
-            }
-            for (BoatProxy boatProxy : tokenProxies) {
-                // Send the path
-                boatProxy.handleEvent(oe);
             }
         } else if (oe instanceof ProxyExploreArea) {
             // Get the lawnmower path for the whole area
@@ -137,10 +132,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             // Divy up the waypoints to the selected proxies
             // Explore rectangle using horizontally oriented lawnmower paths
             int numProxies = 0;
-            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
+            ArrayList<Token> tokensWithProxy = new ArrayList<Token>();
             for (Token token : tokens) {
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    tokenProxies.add((BoatProxy) token.getProxy());
+                    tokensWithProxy.add(token);
                     numProxies++;
                 }
             }
@@ -191,18 +186,18 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
 //                        LOGGER.log(Level.FINE, "Creating ProxyExecutePath with " + proxyLocations.size() + " waypoints for proxy " + tokenProxies.get(proxyIndex));
                         PathUtm path = new PathUtm(proxyLocations);
                         Hashtable<ProxyInt, Path> thisProxyPath = new Hashtable<ProxyInt, Path>();
-                        thisProxyPath.put(tokenProxies.get(proxyIndex), path);
+                        thisProxyPath.put(tokensWithProxy.get(proxyIndex).getProxy(), path);
                         ProxyExecutePath proxyEvent = new ProxyExecutePath(oe.getId(), oe.getMissionId(), thisProxyPath);
-                        tokenProxies.get(proxyIndex).handleEvent(proxyEvent);
+                        tokensWithProxy.get(proxyIndex).getProxy().handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask());
                     }
                 } else {
                     // We have finished assigning all the lawnmower path segments
                     // Send a blank path to the remaining proxies otherwise we won't get a ProxyPathComplete InputEvent                        
                     // Send the path
                     Hashtable<ProxyInt, Path> thisProxyPath = new Hashtable<ProxyInt, Path>();
-                    thisProxyPath.put(tokenProxies.get(proxyIndex), new PathUtm(new ArrayList<Location>()));
+                    thisProxyPath.put(tokensWithProxy.get(proxyIndex).getProxy(), new PathUtm(new ArrayList<Location>()));
                     ProxyExecutePath proxyEvent = new ProxyExecutePath(oe.getId(), oe.getMissionId(), thisProxyPath);
-                    tokenProxies.get(proxyIndex).handleEvent(proxyEvent);
+                    tokensWithProxy.get(proxyIndex).getProxy().handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask());
                 }
             }
         } else if (oe instanceof AssembleLocationRequest) {
@@ -379,6 +374,13 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     error = true;
                 }
             }
+            // Sleep to give time for processes to start
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(ProxyEventHandler.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            // After sleep, generated ProxyCreated event
             if (!error) {
                 ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), relevantProxyList);
                 for (GeneratedEventListenerInt listener : listeners) {
@@ -389,18 +391,14 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 || oe instanceof ProxyEmergencyAbort
                 || oe instanceof ProxyResendWaypoints) {
             int numProxies = 0;
-            ArrayList<BoatProxy> tokenProxies = new ArrayList<BoatProxy>();
             for (Token token : tokens) {
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    tokenProxies.add((BoatProxy) token.getProxy());
+                    token.getProxy().handleEvent(oe, token.getTask());
                     numProxies++;
                 }
             }
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "Place with ProxyEventHandler OE has no tokens with proxies attached: " + oe);
-            }
-            for (BoatProxy boatProxy : tokenProxies) {
-                boatProxy.handleEvent(oe);
             }
         }
     }

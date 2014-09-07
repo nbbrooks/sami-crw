@@ -40,6 +40,6 @@ public class ProxyExploreArea extends OutputEvent {
     }
 
     public String toString() {
-        return "ProxyEmergencyAbort [" + area + "]";
+        return "ProxyExploreArea [" + area + "]";
     }
 }

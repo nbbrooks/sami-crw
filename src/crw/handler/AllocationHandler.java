@@ -32,6 +32,7 @@ import sami.service.information.InformationServiceProviderInt;
 public class AllocationHandler implements EventHandlerInt, InformationServiceProviderInt {
 
     private final static Logger LOGGER = Logger.getLogger(AllocationHandler.class.getName());
+    private final boolean appendAllocations = true;
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
 
@@ -97,10 +98,36 @@ public class AllocationHandler implements EventHandlerInt, InformationServicePro
                         if (responses.size() < 1) {
                             LOGGER.log(Level.SEVERE, "ResourceAllocationResponse is empty");
                         } else {
-                            List<ResourceAllocation> resourceAllocations = new ArrayList<ResourceAllocation>();
+                            // Current AllocationSolverServer cannot allocate multiple tasks to assets, so instead of finding 
+                            //  an allocation for all tasks, allocate only the new, passed in tasks among the passed in proxies and then either
+                            //  1- Append tasks in new allocations to proxy after its tasks from previous allocations (appendAllocations = true), OR
+                            //  2- Replace the existing allocation with the new allocations, unallocating tasks assigned in previous allocations (appendAllocations = false)
+                            ArrayList<ResourceAllocation> resourceAllocations = new ArrayList<ResourceAllocation>();
                             for (ResourceAllocationResponse response : responses) {
                                 LOGGER.log(Level.FINE, "Adding resource allocation to list");
-                                resourceAllocations.add(new ResourceAllocation(response.getAllocation(), response.getTaskTimings()));
+                                ResourceAllocation currentAllocation = Engine.getInstance().getAllocation().clone();
+                                ResourceAllocation newAllocation = new ResourceAllocation(response.getAllocation(), null);
+                                if (appendAllocations) {
+                                    // Append new allocations after current allocations
+                                    for (AbstractAsset asset : newAllocation.getAssetToTasks().keySet()) {
+                                        if (currentAllocation.getAssetToTasks().containsKey(asset)) {
+                                            currentAllocation.getAssetToTasks().get(asset).addAll(newAllocation.getAssetToTasks().get(asset));
+                                        } else {
+                                            currentAllocation.getAssetToTasks().put(asset, (ArrayList<ITask>) newAllocation.getAssetToTasks().get(asset).clone());
+                                        }
+                                    }
+                                    currentAllocation.getUnallocatedTasks().addAll(newAllocation.getUnallocatedTasks());
+                                    currentAllocation.getTaskToAsset().putAll(newAllocation.getTaskToAsset());
+                                    resourceAllocations.add(currentAllocation);
+                                } else {
+                                    // Replace the current allocations with the new allocations, unallocating tasks assigned in previous allocations
+                                    for (ITask task : currentAllocation.getTaskToAsset().keySet()) {
+                                        if (!newAllocation.getTaskToAsset().containsKey(task)) {
+                                            newAllocation.getUnallocatedTasks().add(task);
+                                        }
+                                    }
+                                    resourceAllocations.add(newAllocation);
+                                }
                             }
                             AllocationResponse responseEvent = new AllocationResponse(oe.getId(), oe.getMissionId(), resourceAllocations);
                             for (GeneratedEventListenerInt listener : listeners) {

@@ -47,7 +47,6 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import sami.engine.Engine;
-import sami.event.GeneratedEventListenerInt;
 import sami.event.InputEvent;
 import sami.event.OutputEvent;
 import sami.markup.Markup;
@@ -89,10 +88,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private VelocityPanel velocityP;
     private GainsPanel gainsP;
     private ControlMode controlMode = ControlMode.NONE;
-    private Hashtable<GeneratedEventListenerInt, UUID> listenerTable = new Hashtable<GeneratedEventListenerInt, UUID>();
-    private Hashtable<BoatProxy, BoatMarker> proxyToMarker = new Hashtable<BoatProxy, BoatMarker>();
-    private Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
-    private Hashtable<BoatProxy, UUID> proxyToWpEventId = new Hashtable<BoatProxy, UUID>();
+    private final Hashtable<BoatProxy, BoatMarker> proxyToMarker = new Hashtable<BoatProxy, BoatMarker>();
+    private final Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
+    private final Hashtable<BoatProxy, UUID> proxyToWpEventId = new Hashtable<BoatProxy, UUID>();
     private JButton teleopButton, pointButton, pathButton, cancelButton, autoButton;
     private JPanel topPanel, btmPanel, buttonPanel;
     private List<ControlMode> enabledModes;
@@ -728,10 +726,10 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     @Override
     public void disableMarkup(Markup markup) {
     }
-    
+
     @Override
     public ArrayList<Class> getSupportedCreationClasses() {
-        return (ArrayList<Class>)supportedCreationClasses.clone();
+        return (ArrayList<Class>) supportedCreationClasses.clone();
     }
 
     // Callback that handles GUI events that change velocity

@@ -159,20 +159,45 @@ public class TextPanel implements MarkupComponent {
             }
             return this;
         } else if (object instanceof ResourceAllocation) {
-            Map<ITask, AbstractAsset> allocation = ((ResourceAllocation) object).getAllocation();
-            if (allocation.isEmpty()) {
+            ResourceAllocation allocation = (ResourceAllocation) object;
+            Map<AbstractAsset, ArrayList<ITask>> assetToTasks = allocation.getAssetToTasks();
+            if (assetToTasks.isEmpty()) {
                 return null;
             }
-            Object[][] table = new Object[allocation.size()][3];
+            ArrayList<ITask> unallocatedTasks = allocation.getUnallocatedTasks();
+            int numRows = unallocatedTasks.isEmpty() ? assetToTasks.size() : assetToTasks.size() + 1;
+            Object[][] table = new Object[numRows][3];
             Object[] header = new Object[]{"", "", ""};
             int row = 0;
-            for (ITask task : allocation.keySet()) {
-                AbstractAsset asset = allocation.get(task);
+            // List tasks for each asset
+            for (AbstractAsset asset : assetToTasks.keySet()) {
                 table[row][0] = asset.getName() + " (" + asset.getClass().getSimpleName() + ")";
                 table[row][1] = " \u21e8 ";
-                table[row][2] = task.getName() + " (" + task.getClass().getSimpleName() + ")";
+                String taskString = "[";
+                ArrayList<ITask> iTasks = assetToTasks.get(asset);
+                for (int i = 0; i < iTasks.size() - 1; i++) {
+                    taskString += iTasks.get(i).getName() + " (" + iTasks.get(i).getClass().getSimpleName() + "), ";
+                }
+                if (!iTasks.isEmpty()) {
+                    taskString += iTasks.get(iTasks.size() - 1).getName() + " (" + iTasks.get(iTasks.size() - 1).getClass().getSimpleName() + ")]";
+                }
+                table[row][2] = taskString;
                 row++;
             }
+            // List unallocated tasks if any
+            if (!unallocatedTasks.isEmpty()) {
+                table[row][0] = "Unallocated tasks";
+                table[row][1] = ":";
+                String unallocatedString = "";
+                for (int i = 0; i < unallocatedTasks.size() - 1; i++) {
+                    unallocatedString += unallocatedTasks.get(i).getName() + ", ";
+                }
+                if (!unallocatedTasks.isEmpty()) {
+                    unallocatedString += unallocatedTasks.get(unallocatedTasks.size() - 1).getName();
+                }
+                table[row][2] = unallocatedString;
+            }
+            // Make the table
             component = new JTable(table, header);
             ((JTable) component).setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
             int width;

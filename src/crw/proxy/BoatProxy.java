@@ -1,5 +1,6 @@
 package crw.proxy;
 
+import com.perc.mitpas.adi.mission.planning.task.Task;
 import crw.Conversion;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPoseUpdated;
@@ -37,6 +38,7 @@ import java.net.InetSocketAddress;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -51,8 +53,13 @@ import javax.imageio.ImageIO;
 import javax.swing.Timer;
 import robotutils.Pose3D;
 import sami.engine.Engine;
+import sami.engine.PlanManager;
 import sami.event.InputEvent;
 import sami.event.OutputEvent;
+import sami.event.TaskComplete;
+import sami.event.TaskDelayed;
+import sami.event.TaskReleased;
+import sami.event.TaskStarted;
 import sami.path.Location;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
@@ -66,6 +73,7 @@ import sami.proxy.ProxyListenerInt;
 public class BoatProxy extends Thread implements ProxyInt {
 
     private static final Logger LOGGER = Logger.getLogger(BoatProxy.class.getName());
+    final int MIN_TIME_BTW_CMDS = 1000; // Required time between sending waypoint update commands to avoid unexpected server behavior (ms)
     // Lossy comms simulation
     final boolean SIMULATE_COMM_LOSS = false;
     final double COMM_LOSS_PROB = 0.9;
@@ -85,6 +93,11 @@ public class BoatProxy extends Thread implements ProxyInt {
     final ArrayList<OutputEvent> sequentialOutputEvents = new ArrayList<OutputEvent>();
     // The resulting InputEvents from sequentialOutputEvents
     final ArrayList<InputEvent> sequentialInputEvents = new ArrayList<InputEvent>();
+    // The ordered list of tasks the proxy has been assigned
+    final ArrayList<Task> taskList = new ArrayList<Task>();
+    Task currentTask = null;
+    HashMap<Task, OutputEvent> taskToLastOe = new HashMap<Task, OutputEvent>();
+    HashMap<OutputEvent, Task> oeToTask = new HashMap<OutputEvent, Task>();
     protected ArrayList<ProxyListenerInt> listeners = new ArrayList<ProxyListenerInt>();
     protected Hashtable<ProxyListenerInt, Integer> listenerCounter = new Hashtable<ProxyListenerInt, Integer>();
     // ROS update
@@ -123,6 +136,7 @@ public class BoatProxy extends Thread implements ProxyInt {
     private PrintWriter poseWriter;
     // InputEvent generation
     final AtomicBoolean sendEvent = new AtomicBoolean(true);
+    long lastTime = -1;
 
     // End stuff for simulated data creation
     public BoatProxy(final String name, Color color, final int boatNo, InetSocketAddress addr) {
@@ -350,30 +364,39 @@ public class BoatProxy extends Thread implements ProxyInt {
     }
 
     @Override
-    public void handleEvent(OutputEvent oe) {
-        handleEvent(oe, sequentialOutputEvents.size());
-    }
+    public void handleEvent(OutputEvent oe, Task task) {
+        if (task != null && task != currentTask) {
+            LOGGER.severe("Proxy [" + this + "] asked to handle event [" + oe + "] for a task [" + task + "] that is not the current task [" + currentTask + "] - ignoring");
+            return;
+        } else {
+            LOGGER.fine("Proxy [" + this + "] asked to handle event [" + oe + "] for task [" + task + "], current task is [" + currentTask + "]");
+        }
 
-    @Override
-    public OutputEvent getCurrentEvent() {
-        return curSequentialEvent;
-    }
+        int index;
+        if (task != null && taskToLastOe.containsKey(task)) {
+            // This is an OE for the currently executing task; append after last event for this task
+            LOGGER.fine("\tAppending task event after last OE for the task");
+            index = sequentialOutputEvents.indexOf(taskToLastOe.get(task)) + 1;
 
-    @Override
-    public ArrayList<OutputEvent> getEvents() {
-        return sequentialOutputEvents;
-    }
+            // What if not in seq OE? Should be ok bec result is -1 + 1
+            taskToLastOe.put(task, oe);
+        } else if (task != null) {
+            // This is the first OE for the currently executing task; start it now
+            LOGGER.fine("\tFirst OE for this task");
+            index = 0;
+            taskToLastOe.put(task, oe);
+        } else {
+            // If there is no task associated with the OE, put it at the end of the list
+            LOGGER.fine("\tAppending no-task event to end of OE list");
+            index = sequentialOutputEvents.size();
+        }
+        oeToTask.put(oe, task);
 
-    /**
-     * Stores the output event, creates a matching completion input event, and
-     * refreshes the proxy's action if necessary
-     *
-     * @param oe
-     * @param index
-     */
-    public void handleEvent(OutputEvent oe, int index) {
-        LOGGER.info("BoatProxy [" + toString() + "] was sent OutputEvent [" + oe + "] with index [" + index + "]");
+        LOGGER.fine("\t\tAdding to index [" + index + "] in list of " + sequentialOutputEvents.size());
 
+        // If we have a current task but the front OE does not correspond to it, don't do it
+        //  If this happens, the front OE should be a no-task
+        //  Unless it is a ProxyResendWaypoints or ProxyEmergencyAbort event
         boolean sendWps = false;
         if (oe instanceof ProxyExecutePath) {
             sequentialOutputEvents.add(index, oe);
@@ -389,18 +412,52 @@ public class BoatProxy extends Thread implements ProxyInt {
             sendWps = true;
         } else if (oe instanceof ProxyResendWaypoints) {
             sendWps = true;
+        } else if (oe instanceof TaskComplete) {
+            if (task == currentTask && currentTask == taskList.get(0)) {
+                // Update task list and currentTask
+                taskList.remove(0);
+                if (!taskList.isEmpty()) {
+                    // If there is a next task, start it
+                    currentTask = taskList.get(0);
+                    PlanManager pm = Engine.getInstance().getPlanManager(currentTask);
+                    pm.eventGenerated(new TaskStarted(pm.missionId, currentTask));
+                } else {
+                    // Otherwise set currentTask to null so non-task OEs will run
+                    currentTask = null;
+                }
+                sendWps = true;
+            } else if (task != currentTask) {
+                LOGGER.severe("Got TaskComplete event for task [" + task + "], but current task is [" + currentTask + "]");
+            } else if (currentTask == taskList.get(0)) {
+                LOGGER.severe("Got TaskComplete event for task [" + task + "], but currentTask [" + currentTask + "] does not match first task [" + taskList.get(0) + "]");
+            }
         } else {
             LOGGER.severe("Can't handle OutputEvent of class " + oe.getClass().getSimpleName());
         }
 
         // Update proxy's waypoints
         updateWaypoints(true, true);
+
+        /// not sure about this check  - what about index 0 with non matching task
         if (sequentialOutputEvents.size() == 1
                 || index == 0
                 || sendWps) {
-//            // Send waypoints if we modified the first set of waypoints or want to resend them due to spotty comms
+            // Send waypoints if we modified the first set of waypoints or want to resend them due to spotty comms
+            LOGGER.fine("Sending waypoints to finish handling event");
             sendCurrentWaypoints();
         }
+
+        LOGGER.fine("After handle event: sequentialOutputEvents [" + sequentialOutputEvents.toString() + "], curSequentialEvent [" + curSequentialEvent + "], taskList [" + taskList.toString() + "], currentTask [" + currentTask + "]");
+    }
+
+    @Override
+    public OutputEvent getCurrentEvent() {
+        return curSequentialEvent;
+    }
+
+    @Override
+    public ArrayList<OutputEvent> getEvents() {
+        return sequentialOutputEvents;
     }
 
     @Override
@@ -438,6 +495,109 @@ public class BoatProxy extends Thread implements ProxyInt {
         } else {
             LOGGER.info("\t Removed " + numRemoved + " events while aborting eventId [" + eventId + "] on proxy [" + toString() + "], but not the current event");
         }
+    }
+
+    @Override
+    public void addChildTask(Task parentTask, Task childTask) {
+        // Add child task immediately after parent task
+        if (!taskList.contains(childTask)) {
+            if (taskList.contains(parentTask)) {
+                int index = taskList.indexOf(parentTask);
+                taskList.add(index + 1, childTask);
+            } else {
+                LOGGER.warning("Tried to add child task " + childTask + " to proxy " + toString() + ". but parent task " + parentTask + " is not in task list");
+            }
+        } else {
+            LOGGER.warning("Tried to add child task " + childTask + " to proxy " + toString() + " twice");
+        }
+    }
+
+    @Override
+    public Task getCurrentTask() {
+        return currentTask;
+    }
+
+    @Override
+    public ArrayList<Task> getTasks() {
+        return (ArrayList<Task>) taskList.clone();
+    }
+
+    @Override
+    public ArrayList<InputEvent> setTasks(ArrayList<Task> tasks) {
+        LOGGER.fine("Set tasks for proxy [" + this + "] from [" + taskList.toString() + "] to [" + tasks.toString() + "]");
+        // Create lists for TaskDelayed and TaskReleased events
+        ArrayList<InputEvent> taskEvents = new ArrayList<InputEvent>();
+        // TaskDelayed
+        if (currentTask != null
+                && !tasks.isEmpty()
+                && currentTask != tasks.get(0)
+                && tasks.contains(currentTask)) {
+            // The current task is being pushed back in the task order
+            LOGGER.fine("Proxy [" + this + "] interrupted first task");
+            PlanManager pm = Engine.getInstance().getPlanManager(currentTask);
+            taskEvents.add(new TaskDelayed(pm.missionId, currentTask));
+        }
+        // TaskReleased
+        for (Task task : taskList) {
+            if (!tasks.contains(task)) {
+                System.out.println("Proxy [" + this + "] adding TaskReleased event for task [" + task + "]");
+                PlanManager pm = Engine.getInstance().getPlanManager(task);
+                taskEvents.add(new TaskReleased(pm.missionId, this, task));
+            }
+        }
+        // Check if we have a new current task we should send begin executing
+        boolean changedFirstTask = false;
+        if ((tasks.isEmpty() && currentTask != null)
+                || (!tasks.isEmpty() && currentTask != tasks.get(0))) {
+            LOGGER.fine("Proxy [" + this + "] changed first task");
+            changedFirstTask = true;
+            currentTask = tasks.get(0);
+        }
+        // Update waypoint list
+        taskList.clear();
+        taskList.addAll(tasks);
+
+        // update current task!
+        if (changedFirstTask) {
+            // Should stop the boat unless it has no tasks, but has no-task events
+            updateWaypoints(true, true);
+            sendCurrentWaypoints();
+            PlanManager pm = Engine.getInstance().getPlanManager(currentTask);
+            taskEvents.add(new TaskStarted(pm.missionId, currentTask));
+        } else {
+            updateWaypoints(false, true);
+        }
+
+        LOGGER.fine("After set tasks: sequentialOutputEvents [" + sequentialOutputEvents.toString() + "], curSequentialEvent [" + curSequentialEvent + "], taskList [" + taskList.toString() + "], currentTask [" + currentTask + "]");
+        LOGGER.fine("After set tasks: returning taskEvent [" + taskEvents + "]");
+        return taskEvents;
+    }
+
+    @Override
+    public void taskCompleted(Task task) {
+        if (currentTask != task) {
+            LOGGER.severe("Received task complete for [" + task + "], but the current task is [" + currentTask + "]");
+            return;
+        }
+        // Consume completed task
+        taskList.remove(0);
+        Engine.getInstance().taskCompleted(task);
+
+        // Update current task
+        if (!taskList.isEmpty()) {
+            currentTask = taskList.get(0);
+            // Send out a Task Started event
+            PlanManager pm = Engine.getInstance().getPlanManager(currentTask);
+            pm.eventGenerated(new TaskStarted(pm.missionId, currentTask));
+
+            // Update proxy's waypoints
+            updateWaypoints(true, true);
+            sendCurrentWaypoints();
+        } else {
+            currentTask = null;
+        }
+
+        //@todo What if we have delayed this and already have events for this task????
     }
 
     @Override
@@ -573,15 +733,25 @@ public class BoatProxy extends Thread implements ProxyInt {
      * after the current event's
      */
     public void updateWaypoints(boolean updateCurrent, boolean updateFuture) {
-        // Current
+        // Current waypoint must be first in the list AND match the currentTask if there is one
         if (updateCurrent) {
+            System.out.println("*** [" + this + "]; updating current waypoint: oeToTask [" + oeToTask + "]");
+            if (!sequentialOutputEvents.isEmpty()) {
+                System.out.println("*** [" + this + "]; current task [" + currentTask + "] and first OE [" + sequentialOutputEvents.get(0) + "]");
+            }
             _curWaypointsPos = null;
             _curWaypoints.clear();
             curSequentialEvent = null;
 
             if (sequentialOutputEvents.isEmpty()) {
                 // Have no events to process
+                LOGGER.fine("Proxy [" + this + "] has no current WP, sequentialOutputEvents is empty");
+            } else if (currentTask != null && oeToTask.get(sequentialOutputEvents.get(0)) != currentTask) {
+                // First event doesn't belong to current event
+                LOGGER.fine("Proxy [" + this + "] has no current WP, first event [" + sequentialOutputEvents.get(0) + "] is not for current task [" + currentTask + "]");
             } else {
+                LOGGER.fine("Proxy [" + this + "] updating current WP with current task [" + currentTask + "] and first event [" + sequentialOutputEvents.get(0) + "]");
+                // We have no current task or first event belongs to current task
                 if (sequentialOutputEvents.get(0) instanceof ProxyExecutePath) {
                     ProxyExecutePath executePath = (ProxyExecutePath) sequentialOutputEvents.get(0);
                     if (executePath.getProxyPaths().containsKey(this)
@@ -633,11 +803,17 @@ public class BoatProxy extends Thread implements ProxyInt {
             _futureWaypoints.clear();
             _futureWaypointsPos = null;
 
-            if (sequentialOutputEvents == null || sequentialOutputEvents.size() < 2) {
-                // Have no events to process
+            boolean includeFirst = !sequentialOutputEvents.isEmpty()
+                    && currentTask != null
+                    && oeToTask.get(sequentialOutputEvents.get(0)) != currentTask;
+            if (sequentialInputEvents.isEmpty()
+                    || (sequentialOutputEvents.size() == 1 && !includeFirst)) {
+                LOGGER.fine("No future WPs, includeFirst [" + includeFirst + "] and sequentialInputEvents size [" + sequentialInputEvents.size() + "]");
             } else {
+                int startIndex = includeFirst ? 0 : 1;
+                LOGGER.fine("Updating future WPs, starting at index [" + startIndex + "] with sequentialOutputEvents of size [" + sequentialOutputEvents.size() + "]");
                 ArrayList<Position> positions = new ArrayList<Position>();
-                for (int i = 1; i < sequentialOutputEvents.size(); i++) {
+                for (int i = startIndex; i < sequentialOutputEvents.size(); i++) {
                     if (sequentialOutputEvents.get(i) instanceof ProxyExecutePath) {
                         ProxyExecutePath executePath = (ProxyExecutePath) sequentialOutputEvents.get(i);
                         if (executePath.getProxyPaths().containsKey(this)
@@ -699,7 +875,6 @@ public class BoatProxy extends Thread implements ProxyInt {
             if (updatedEvent instanceof ProxyExecutePath) {
                 // Replace the existing event with the updated event and begin executing it
                 sequentialOutputEvents.set(0, updatedEvent);
-                curSequentialEvent = updatedEvent;
                 updateWaypoints(true, false);
                 sendCurrentWaypoints();
             } else {
@@ -713,7 +888,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                 // Insert the event and begin executing it
                 sequentialOutputEvents.add(0, updatedEvent);
                 sequentialInputEvents.add(0, new ProxyPathCompleted(updatedEvent.getId(), updatedEvent.getMissionId(), this));
-                curSequentialEvent = updatedEvent;
                 updateWaypoints(true, true);
                 sendCurrentWaypoints();
             } else {
@@ -751,6 +925,9 @@ public class BoatProxy extends Thread implements ProxyInt {
             } else {
                 LOGGER.fine("*** Sending _server.stopWaypoints");
                 LOGGER.info("BoatProxy [" + toString() + "] stopWaypoints");
+
+                // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
+                checkAndSleepForCmd();
                 _server.stopWaypoints(null);
             }
         } else {
@@ -772,6 +949,9 @@ public class BoatProxy extends Thread implements ProxyInt {
         } else {
             LOGGER.fine("*** Sending _server.startWaypoints");
             LOGGER.info("BoatProxy [" + toString() + "] startWaypoints [" + _curWaypoints.toString() + "]");
+
+            // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
+            checkAndSleepForCmd();
             _server.startWaypoints(_curWaypoints.toArray(new UtmPose[_curWaypoints.size()]), "POINT_AND_SHOOT", new FunctionObserver() {
                 int completedCounter = 0;
 
@@ -842,6 +1022,11 @@ public class BoatProxy extends Thread implements ProxyInt {
                                 LOGGER.fine("*** Dropping _server.stopWaypoints");
                             } else {
                                 LOGGER.fine("*** Sending _server.stopWaypoints");
+                                LOGGER.info("BoatProxy [" + toString() + "] stopWaypoints");
+
+                                // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
+                                checkAndSleepForCmd();
+
                                 _server.stopWaypoints(new FunctionObserver<Void>() {
                                     public void completed(Void v) {
                                         LOGGER.log(Level.FINE, "Resting waypoints due to too long");
@@ -863,6 +1048,11 @@ public class BoatProxy extends Thread implements ProxyInt {
                     LOGGER.fine("*** Dropping _server.startWaypoints");
                 } else {
                     LOGGER.fine("*** Sending _server.startWaypoints");
+                    LOGGER.info("BoatProxy [" + toString() + "] startWaypoints [" + _curWaypoints.toString() + "]");
+
+                    // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
+                    checkAndSleepForCmd();
+
                     _server.startWaypoints(_curWaypoints.toArray(new UtmPose[_curWaypoints.size()]), "POINT_AND_SHOOT", new FunctionObserver() {
                         public void completed(Object v) {
                             LOGGER.info("Successfully sent a waypoint in Go Slow: " + _curWaypoints.peek());
@@ -967,5 +1157,20 @@ public class BoatProxy extends Thread implements ProxyInt {
     public String toString() {
         return name + "@" + _server.getVehicleService();
         // (masterURI == null ? "Unknown" : masterURI.toString());
+    }
+
+    private void checkAndSleepForCmd() {
+        if (lastTime >= 0) {
+            long timeGap = MIN_TIME_BTW_CMDS - (System.currentTimeMillis() - lastTime);
+            if (timeGap > 0) {
+                LOGGER.fine("Proxy [" + this + "] requires time gap before sending next command, sleeping for " + timeGap + "ms");
+                try {
+                    Thread.sleep(timeGap);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(BoatProxy.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+        lastTime = System.currentTimeMillis();
     }
 }

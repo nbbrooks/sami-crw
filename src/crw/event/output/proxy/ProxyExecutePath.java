@@ -42,6 +42,6 @@ public class ProxyExecutePath extends OutputEvent {
     }
 
     public String toString() {
-        return "ProxyEmergencyAbort [" + proxyPaths + "]";
+        return "ProxyExecutePath [" + proxyPaths + "]";
     }
 }

@@ -12,12 +12,13 @@ import com.perc.mitpas.adi.mission.planning.task.ITask;
 import crw.asset.BoatAsset;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.proxy.BoatProxy;
+import crw.task.CollectSampleTask;
 import java.awt.Color;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import crw.task.DoMeasTask;
+import crw.task.EcMeasTask;
 import crw.uilanguage.message.toui.AllocationOptionsMessage;
 import crw.uilanguage.message.toui.ProxyOptionsMessage;
 import java.lang.reflect.Field;
@@ -28,7 +29,6 @@ import sami.event.MissingParamsRequest;
 import sami.event.ReflectedEventSpecification;
 import sami.event.ReflectionHelper;
 import sami.markup.Attention;
-import sami.markup.Priority;
 import sami.markupOption.BlinkOption;
 import sami.uilanguage.toui.GetParamsMessage;
 
@@ -49,23 +49,27 @@ public class QueueTest implements ResponseListener {
     }
 
     public QueueTest() {
-        int num = 3;
-        proxies = createProxies(3);
+        int numTasks = 1;
+        int numProxies = 3;
+//        proxies = createProxies(numProxies);
         oif = new QueueFrame(new QueueDatabase());
         ArrayList<AbstractAsset> assetList = new ArrayList<AbstractAsset>();
-        for (int i = 0; i < num; i++) {
+        for (int i = 0; i < numProxies; i++) {
             assetList.add(new BoatAsset(i));
         }
         ArrayList<ITask> taskList = new ArrayList<ITask>();
-        for (int i = 0; i < num; i++) {
-            taskList.add(new DoMeasTask("DO_" + i));
+        for (int i = 0; i < numTasks; i++) {
+            taskList.add(new EcMeasTask("EX_" + i));
+        }
+        for (int i = 0; i < numTasks; i++) {
+            taskList.add(new CollectSampleTask("SA_" + i));
         }
 
-//        getRA(assetList, taskList, 1);
+        getRA(assetList, taskList, 1);
 //        getPP(3);
 //        getBP(proxies);
-        createArea(Priority.getPriority(Priority.Ranking.LOW));
-        createArea(Priority.getPriority(Priority.Ranking.HIGH));
+//        createArea(Priority.getPriority(Priority.Ranking.LOW));
+//        createArea(Priority.getPriority(Priority.Ranking.HIGH));
     }
 
     public void createArea(int priority) {
@@ -129,6 +133,13 @@ public class QueueTest implements ResponseListener {
         request.setConstraints(null);
         request.setTasks(taskList);
         request.setNoOptions(numOptions);
+
+        System.out.println("Submiting request");
+        System.out.println("\t" + request.getAssets());
+        System.out.println("\t" + request.getAvailableTime());
+        System.out.println("\t" + request.getConstraints());
+        System.out.println("\t" + request.getTasks());
+        System.out.println("\t" + request.getNoOptions());
 
         AllocationSolverServer.submitRequest(request, this);
     }
