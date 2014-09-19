@@ -540,7 +540,7 @@ public class BoatProxy extends Thread implements ProxyInt {
         // TaskReleased
         for (Task task : taskList) {
             if (!tasks.contains(task)) {
-                System.out.println("Proxy [" + this + "] adding TaskReleased event for task [" + task + "]");
+                LOGGER.fine("Proxy [" + this + "] adding TaskReleased event for task [" + task + "]");
                 PlanManager pm = Engine.getInstance().getPlanManager(task);
                 taskEvents.add(new TaskReleased(pm.missionId, this, task));
             }
@@ -735,9 +735,9 @@ public class BoatProxy extends Thread implements ProxyInt {
     public void updateWaypoints(boolean updateCurrent, boolean updateFuture) {
         // Current waypoint must be first in the list AND match the currentTask if there is one
         if (updateCurrent) {
-            System.out.println("*** [" + this + "]; updating current waypoint: oeToTask [" + oeToTask + "]");
+            LOGGER.fine("Proxy [" + this + "]; updating current waypoint: oeToTask [" + oeToTask + "]");
             if (!sequentialOutputEvents.isEmpty()) {
-                System.out.println("*** [" + this + "]; current task [" + currentTask + "] and first OE [" + sequentialOutputEvents.get(0) + "]");
+                LOGGER.fine("Proxy [" + this + "]; current task [" + currentTask + "] and first OE [" + sequentialOutputEvents.get(0) + "]");
             }
             _curWaypointsPos = null;
             _curWaypoints.clear();

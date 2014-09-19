@@ -112,8 +112,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has no tokens with proxies attached: " + oe);
-            } else if (numProxies > 1) {
-                LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has " + numProxies + " tokens with proxies attached: " + oe);
             }
         } else if (oe instanceof ProxyExploreArea) {
             // Get the lawnmower path for the whole area
@@ -268,8 +266,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has no tokens with proxies attached: " + oe);
-            } else if (numProxies > 1) {
-                LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has " + numProxies + " tokens with proxies attached: " + oe);
             }
 
             eventIdToAssembleCounter.put(request.getId(), assembleCounter);
@@ -315,7 +311,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 }
             }
             if (numProxies == 0) {
-                LOGGER.log(Level.WARNING, "Place with ProxyCompareDistanceRequest has no tokens with proxies attached: " + oe);
+                LOGGER.log(Level.WARNING, "Place with ProxyCompareDistanceRequest has no tokens with proxies attached: " + oe + ", tokens [" + tokens + "]");
             }
 
             for (GeneratedEventListenerInt listener : listeners) {
