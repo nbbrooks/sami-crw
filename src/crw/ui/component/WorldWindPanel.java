@@ -120,8 +120,9 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         if (layerNames == null) {
             layerNames = new ArrayList<String>();
             layerNames.add("Bing Imagery");
-            layerNames.add("Blue Marble (WMS) 2004");
+            layerNames.add("Blue Marble May 2004");
             layerNames.add("Scale bar");
+            layerNames.add("Place Names");
         }
         for (Layer layer : wwCanvas.getModel().getLayers()) {
             if (layerNames.contains(layer.getName())) {

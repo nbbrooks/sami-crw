@@ -6,6 +6,8 @@ import sami.uilanguage.MarkupManager;
 import crw.ui.CrwUiComponentGenerator;
 import crw.uilanguage.message.fromui.CrwFromUiMessageGenerator;
 import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -18,13 +20,12 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
-import javax.swing.GroupLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.LayoutStyle;
+import javax.swing.border.EmptyBorder;
 import sami.engine.Engine;
 import sami.event.ReflectedEventSpecification;
 import sami.uilanguage.MarkupComponent;
@@ -72,24 +73,22 @@ public class QueueItem {
 
     public synchronized QueueContent getInteractionPanel() {
         if (content == null) {
+
             content = new QueueContent();
             markupManager.addComponent(content);
+
+            content.setLayout(new GridBagLayout());
+            // Setting height border messes up cumul height
+            content.setBorder(new EmptyBorder(0, 10, 0, 10));
+            GridBagConstraints constraints = new GridBagConstraints();
+            constraints.fill = GridBagConstraints.HORIZONTAL;
+            constraints.gridy = 0;
+            constraints.gridx = 0;
+            constraints.weightx = 1.0;
 
             if (decisionMessage instanceof CreationMessage) {
                 CreationMessage creationMessage = (CreationMessage) decisionMessage;
 
-                GroupLayout layout = new GroupLayout(content);
-                content.setLayout(layout);
-                GroupLayout.SequentialGroup rowSeqGroup = layout.createSequentialGroup();
-                GroupLayout.ParallelGroup rowParGroup1 = layout.createParallelGroup();
-                GroupLayout.SequentialGroup colSeqGroup = layout.createSequentialGroup();
-                int numRows = 1;
-                for (ReflectedEventSpecification eventSpec : creationMessage.getEventSpecToFieldDescriptions().keySet()) {
-                    Hashtable<Field, String> fieldDescriptions = creationMessage.getEventSpecToFieldDescriptions().get(eventSpec);
-                    numRows += (2 * fieldDescriptions.size());
-                }
-                GroupLayout.ParallelGroup[] colParGroupArr = new GroupLayout.ParallelGroup[numRows];
-                int row = 0;
                 int maxColWidth = BUTTON_WIDTH;
                 int cumulComponentHeight = 0;
                 for (ReflectedEventSpecification eventSpec : creationMessage.getEventSpecToFieldDescriptions().keySet()) {
@@ -100,20 +99,18 @@ public class QueueItem {
                         // Add in description of item to be created
                         String description = fieldDescriptions.get(field);
                         JLabel descriptionLabel = new JLabel(field.getName() + " (" + field.getType().getSimpleName() + "): " + description);
-                        rowParGroup1.addComponent(descriptionLabel);
-                        colParGroupArr[row] = layout.createParallelGroup();
-                        colParGroupArr[row].addComponent(descriptionLabel);
-                        maxColWidth = Math.max(maxColWidth, (int) descriptionLabel.getMaximumSize().getWidth() + BUTTON_WIDTH);
-                        cumulComponentHeight += Math.max((int) descriptionLabel.getMaximumSize().getHeight(), BUTTON_HEIGHT);
-                        row++;
+                        content.add(descriptionLabel, constraints);
+                        constraints.gridy = constraints.gridy + 1;
+                        maxColWidth = Math.max(maxColWidth, (int) descriptionLabel.getPreferredSize().getWidth());
+                        cumulComponentHeight += (int) descriptionLabel.getPreferredSize().getHeight();
 
                         // Add in component for creating the item
                         MarkupComponent markupComponent = null;
-                        JComponent vizualization = null;
+                        JComponent visualization = null;
                         markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), creationMessage.getMarkups());
                         if (markupComponent == null) {
                             LOGGER.severe("Got null creation component for field: " + field);
-                            vizualization = new JLabel("");
+                            visualization = new JLabel("");
                         } else {
                             if (eventSpec != null) {
                                 Object definition = eventSpec.getFieldValues().get(field.getName());
@@ -124,18 +121,17 @@ public class QueueItem {
                                 LOGGER.severe("Failed to retrieve eventSpec for field: " + field.getName());
                             }
                             componentTable.put(field, markupComponent);
-                            vizualization = markupComponent.getComponent();
+                            visualization = markupComponent.getComponent();
                         }
-                        rowParGroup1.addComponent(vizualization);
-                        colParGroupArr[row] = layout.createParallelGroup();
-                        colParGroupArr[row].addComponent(vizualization);
-                        maxColWidth = Math.max(maxColWidth, (int) vizualization.getMaximumSize().getWidth() + BUTTON_WIDTH);
-                        cumulComponentHeight += Math.max((int) vizualization.getMaximumSize().getHeight(), BUTTON_HEIGHT);
-                        row++;
+                        content.add(visualization, constraints);
+                        constraints.gridy = constraints.gridy + 1;
+                        maxColWidth = Math.max(maxColWidth, (int) visualization.getPreferredSize().getWidth());
+                        cumulComponentHeight += (int) visualization.getPreferredSize().getHeight();
                     }
                 }
                 // Add "Done" button
                 JButton button = new JButton("Done");
+                button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
                 button.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent ae) {
@@ -143,43 +139,16 @@ public class QueueItem {
                         listener.actionPerformed(ae);
                     }
                 });
-                rowParGroup1.addComponent(button, 100, 100, 100);
-                colParGroupArr[row] = layout.createParallelGroup();
-                colParGroupArr[row].addComponent(button, 50, 50, 50);
+                content.add(button, constraints);
+                constraints.gridy = constraints.gridy + 1;
                 maxColWidth = Math.max(maxColWidth, BUTTON_WIDTH);
                 cumulComponentHeight += BUTTON_HEIGHT;
-                row++;
 
-                // Finish layout setup
-                layout.setHorizontalGroup(rowSeqGroup
-                        //                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 1, Short.MAX_VALUE) // Spring to right-align
-                        .addGroup(rowParGroup1));
-                for (int i = 0; i < colParGroupArr.length; i++) {
-                    GroupLayout.ParallelGroup parGroup = colParGroupArr[i];
-                    colSeqGroup.addGroup(parGroup);
-                    if (i < colParGroupArr.length - 1) {
-                        colSeqGroup.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE);
-                        cumulComponentHeight += 6;
-                    }
-                }
-                layout.setVerticalGroup(colSeqGroup);
-
-                content.setSize(new Dimension(maxColWidth, cumulComponentHeight));
-                content.setMinimumSize(new Dimension(maxColWidth, cumulComponentHeight));
-                content.setMaximumSize(new Dimension(maxColWidth, cumulComponentHeight));
                 content.setPreferredSize(new Dimension(maxColWidth, cumulComponentHeight));
                 content.revalidate();
             } else if (decisionMessage instanceof SelectionMessage) {
                 SelectionMessage selectionMessage = (SelectionMessage) decisionMessage;
 
-                GroupLayout layout = new GroupLayout(content);
-                content.setLayout(layout);
-                GroupLayout.SequentialGroup rowSeqGroup = layout.createSequentialGroup();
-                GroupLayout.ParallelGroup rowParGroup1 = layout.createParallelGroup();
-                GroupLayout.ParallelGroup rowParGroup2 = layout.createParallelGroup();
-                GroupLayout.SequentialGroup colSeqGroup = layout.createSequentialGroup();
-                int numRows = selectionMessage.getOptionsList().size() + (selectionMessage.getAllowRejection() ? 1 : 0) + (selectionMessage.getAllowMultiple() ? 1 : 0);
-                GroupLayout.ParallelGroup[] colParGroupArr = new GroupLayout.ParallelGroup[numRows];
                 int row = 0;
                 int maxColWidth = BUTTON_WIDTH;
                 int cumulComponentHeight = 0;
@@ -196,6 +165,7 @@ public class QueueItem {
                     JComponent button;
                     if (selectionMessage.getAllowMultiple()) {
                         button = new JCheckBox("Use " + row, false);
+                        button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
                         ((JCheckBox) button).addItemListener(new ItemListener() {
                             @Override
                             public void itemStateChanged(ItemEvent ie) {
@@ -208,6 +178,7 @@ public class QueueItem {
                         });
                     } else {
                         button = new JButton("Accept " + row);
+                        button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
                         ((JButton) button).addActionListener(new ActionListener() {
                             @Override
                             public void actionPerformed(ActionEvent ae) {
@@ -217,13 +188,13 @@ public class QueueItem {
                         });
                     }
 
-                    rowParGroup1.addComponent(visualization);
-                    rowParGroup2.addComponent(button, BUTTON_WIDTH, BUTTON_WIDTH, BUTTON_WIDTH);
-                    colParGroupArr[row] = layout.createParallelGroup();
-                    colParGroupArr[row].addComponent(visualization);
-                    colParGroupArr[row].addComponent(button, BUTTON_HEIGHT, BUTTON_HEIGHT, BUTTON_HEIGHT);
-                    maxColWidth = Math.max(maxColWidth, (int) visualization.getMaximumSize().getWidth() + BUTTON_WIDTH);
-                    cumulComponentHeight += Math.max((int) visualization.getMaximumSize().getHeight(), BUTTON_HEIGHT);
+                    content.add(visualization, constraints);
+                    constraints.gridx = 1;
+                    content.add(button, constraints);
+                    constraints.gridx = 0;
+                    constraints.gridy = constraints.gridy + 1;
+                    maxColWidth = Math.max(maxColWidth, (int) visualization.getPreferredSize().getWidth() + BUTTON_WIDTH);
+                    cumulComponentHeight += Math.max((int) visualization.getPreferredSize().getHeight(), BUTTON_HEIGHT);
                     row++;
                 }
                 if (selectionMessage.getAllowMultiple()) {
@@ -231,6 +202,7 @@ public class QueueItem {
                     JPanel blank = new JPanel();
                     blank.setSize(10, 10);
                     JButton button = new JButton("Accept");
+                    button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
                     button.addActionListener(new ActionListener() {
                         @Override
                         public void actionPerformed(ActionEvent ae) {
@@ -238,11 +210,11 @@ public class QueueItem {
                             listener.actionPerformed(ae);
                         }
                     });
-                    rowParGroup1.addComponent(blank);
-                    rowParGroup2.addComponent(button, 100, 100, 100);
-                    colParGroupArr[row] = layout.createParallelGroup();
-                    colParGroupArr[row].addComponent(blank);
-                    colParGroupArr[row].addComponent(button, 50, 50, 50);
+                    content.add(blank, constraints);
+                    constraints.gridx = 1;
+                    content.add(button, constraints);
+                    constraints.gridx = 0;
+                    constraints.gridy = constraints.gridy + 1;
                     maxColWidth = Math.max(maxColWidth, blank.getWidth() + BUTTON_WIDTH);
                     cumulComponentHeight += Math.max(blank.getHeight(), BUTTON_HEIGHT);
                     row++;
@@ -252,6 +224,7 @@ public class QueueItem {
                     JPanel blank = new JPanel();
                     blank.setSize(10, 10);
                     JButton button = new JButton("Reject");
+                    button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
                     button.addActionListener(new ActionListener() {
                         @Override
                         public void actionPerformed(ActionEvent ae) {
@@ -259,33 +232,16 @@ public class QueueItem {
                             listener.actionPerformed(ae);
                         }
                     });
-                    rowParGroup1.addComponent(blank);
-                    rowParGroup2.addComponent(button, 100, 100, 100);
-                    colParGroupArr[row] = layout.createParallelGroup();
-                    colParGroupArr[row].addComponent(blank);
-                    colParGroupArr[row].addComponent(button, 50, 50, 50);
+                    content.add(blank, constraints);
+                    constraints.gridx = 1;
+                    content.add(button, constraints);
+                    constraints.gridx = 0;
+                    constraints.gridy = constraints.gridy + 1;
                     maxColWidth = Math.max(maxColWidth, blank.getWidth() + BUTTON_WIDTH);
                     cumulComponentHeight += Math.max(blank.getHeight(), BUTTON_HEIGHT);
                     row++;
                 }
 
-                // Finish layout stuff
-                layout.setHorizontalGroup(rowSeqGroup
-                        .addGroup(rowParGroup2)
-                        .addGroup(rowParGroup1));
-                for (int i = 0; i < colParGroupArr.length; i++) {
-                    GroupLayout.ParallelGroup parGroup = colParGroupArr[i];
-                    colSeqGroup.addGroup(parGroup);
-                    if (i < colParGroupArr.length - 1) {
-                        colSeqGroup.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE);
-                        cumulComponentHeight += 6;
-                    }
-                }
-                layout.setVerticalGroup(colSeqGroup);
-
-                content.setSize(new Dimension(maxColWidth, cumulComponentHeight));
-                content.setMinimumSize(new Dimension(maxColWidth, cumulComponentHeight));
-                content.setMaximumSize(new Dimension(maxColWidth, cumulComponentHeight));
                 content.setPreferredSize(new Dimension(maxColWidth, cumulComponentHeight));
             }
         }

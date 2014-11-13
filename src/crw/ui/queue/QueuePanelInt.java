@@ -9,11 +9,11 @@ import java.util.UUID;
  */
 public interface QueuePanelInt {
 
-    public void hideContentPanel();
-
-    public void showContentPanel();
+    public QueueItem getCurrentContent();
 
     public boolean removeMessageId(UUID messageId);
 
     public int removeMissionId(UUID missionId);
+
+    public void setIsActive(boolean active);
 }

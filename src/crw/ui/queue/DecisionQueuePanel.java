@@ -1,6 +1,9 @@
 package crw.ui.queue;
 
 import crw.ui.component.QueueFrame;
+import static crw.ui.queue.QueueItem.BLANK_THUMBNAIL;
+import static crw.ui.queue.QueueItem.THUMB_SCALED_HEIGHT;
+import static crw.ui.queue.QueueItem.THUMB_SCALED_WIDTH;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;
@@ -22,7 +25,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.GroupLayout;
+import javax.swing.BoxLayout;
+import javax.swing.JLabel;
 import sami.uilanguage.MarkupManager;
 import sami.uilanguage.toui.ToUiMessage;
 
@@ -38,30 +42,23 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
     final static int BORDER_SIZE = 0;
     private final static Color COLOR_ONE = new Color(169, 218, 146);
     private final static Color COLOR_TWO = new Color(218, 235, 201);
-    private final static Color COLOR_THREE = new Color(226, 237, 254);
     public final static String NAME = "main_panel";
     public final static int NUM_THUMBNAILS = 3;
     private final Object lock = new Object();
-    private boolean selected = false;
     private final QueuePanelInt thisQueuePanel = this;
     private int index = 0;
     private QueueItem currentComponent = null;
     private ToUiMessage currentMessage = null;
     private int k;
-    private Dimension collapsedStateDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 180);
-    private Dimension expandedStateDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 525);
-    private Dimension iconBarDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 88, 80);
-    private Dimension iconPanelDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 90);
-    private Dimension headerPanelDim = new Dimension(NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 25);
     private final static int ITEMS_PER_FETCH = 3;
     private List<ToUiMessage> loadedMessages;
     // Use a ScrollPane instead of JScrollPane to prevent GLCanvas components from drawing outside of the scroll pane area
-    private ScrollPane detailsScrollPane = new ScrollPane();
-    private JPanel iconPanel = new JPanel();
     private JPanel iconBar = new JPanel();
     private QueueFrame queueFrame;
     private QueueDatabase queueDatabase;
     private Hashtable<ToUiMessage, QueueItem> messageToItem = new Hashtable<ToUiMessage, QueueItem>();
+    // Is this queue the queue frame's active queue?
+    private boolean isActive = false;
 
     /**
      * Default constructor for the demo.
@@ -74,51 +71,32 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         //Lets set the size of this panel itself
         setName(NAME);
 
-        // Add the header panel
+        // Create header panel used to select the active queue panel 
         HeaderPanel headerPanel = new HeaderPanel("Main Queue");
-        headerPanel.setPreferredSize(headerPanelDim);
-        headerPanel.setMaximumSize(headerPanelDim);
 
-        detailsScrollPane.setBackground(COLOR_TWO);
-        detailsScrollPane.add(QueueItem.getFillerComponent());
-
-        // We add two glue components. Later in process() we will add thumbnail buttons
-        // to the toolbar inbetween thease glue compoents. This will center the
-        // buttons in the toolbar.
+        // Create icon bar used to show and select queue item thumbnails
         iconBar.setFocusable(true);
+        iconBar.setBorder(BorderFactory.createMatteBorder(5, 5, 5, 5, (COLOR_ONE)));
         iconBar.setBackground(COLOR_TWO);
-//        iconBar.setPreferredSize(iconBarDim);
-//        iconBar.setMaximumSize(iconBarDim);
         iconBar.addMouseWheelListener(this);
-        iconBar.setLayout(new GridLayout(1, NUM_THUMBNAILS));
+        iconBar.setLayout(new BoxLayout(iconBar, BoxLayout.X_AXIS));
         for (int x = 0; x < NUM_THUMBNAILS; x++) {
-            JButton emptyThumbnail = new JButton();
-            emptyThumbnail.setBackground(Color.cyan);
-            iconBar.add(emptyThumbnail);
+            JButton filler = new JButton(new ImageIcon(QueueItem.getFillerThumbnail()));
+            iconBar.add(filler);
         }
         LOGGER.log(Level.FINEST, "INIT Count Now:" + iconBar.getComponentCount());
 
-        //Add the two basic panels to the main panel
-        iconPanel.setBorder(BorderFactory.createMatteBorder(5, 5, 5, 5, (COLOR_ONE)));
-        iconPanel.setBackground(COLOR_TWO);
-        iconPanel.setPreferredSize(iconPanelDim);
-        iconPanel.setMaximumSize(iconPanelDim);
-        iconPanel.add(iconBar, BorderLayout.NORTH);
-        iconPanel.setMaximumSize(iconPanelDim);
+        setLayout(new GridBagLayout());
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        constraints.weightx = 1.0;
 
-        GroupLayout layout = new GroupLayout(this);
-        setLayout(layout);
-        setPreferredSize(expandedStateDim);
-        setMaximumSize(expandedStateDim);
-        layout.setHorizontalGroup(layout.createSequentialGroup()
-                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                        .addComponent(headerPanel)
-                        .addComponent(iconPanel)
-                        .addComponent(detailsScrollPane)));
-        layout.setVerticalGroup(layout.createSequentialGroup()
-                .addComponent(headerPanel)
-                .addComponent(iconPanel)
-                .addComponent(detailsScrollPane));
+        add(headerPanel, constraints);
+        constraints.gridy = constraints.gridy + 1;
+        add(iconBar, constraints);
+        constraints.gridy = constraints.gridy + 1;
 
         // Periodically check if we have enough images, and update the list, the screen, etc.
         new Thread() {
@@ -180,7 +158,6 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
             LOGGER.log(Level.FINEST, "Created icons :" + k);
 
             QueueItem component = messageToItem.get(displayedList.get(k));
-//            JButton button = new JButton(new ImageIcon(component.getThumbnail()));
             JButton button = new JButton();
             button.add(component.getThumbnail());
             if (component.getViewed()) {
@@ -195,7 +172,12 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         LOGGER.log(Level.FINEST, "createImageIcon: components in iconbar before adding fillers =  " + iconBar.getComponentCount());
         for (int y = iconBar.getComponentCount(); y < NUM_THUMBNAILS; y++) {
             LOGGER.log(Level.FINEST, "Creating filler # " + y);
-            JButton filler = new JButton(new ImageIcon(QueueItem.getFillerThumbnail()));
+
+            // Need to add JPanel to filler buttons or Layout sizes actual item thumbnail buttons and filler buttons differently
+            JButton filler = new JButton();
+            JPanel panel = new JPanel();
+            panel.add(new JLabel(new ImageIcon(BLANK_THUMBNAIL.getScaledInstance(THUMB_SCALED_WIDTH, THUMB_SCALED_HEIGHT, Image.SCALE_FAST))));
+            filler.add(panel);
             iconBar.add(filler);
         }
 
@@ -216,16 +198,15 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
                 currentComponent = component;
             }
 
-            //old
-            detailsScrollPane.removeAll();
-            // @todo Bug here where GLCanvas components won't load if they are scrolled off the component's "view" until the component's thumbnail is clicked
-            detailsScrollPane.add(currentComponent.getInteractionPanel());
+            // Update queue frame's active queue panel's content
+            queueFrame.setActiveQueueContent(currentComponent.getInteractionPanel());
+            queueFrame.revalidate();
 
         } else {
             synchronized (lock) {
                 currentComponent = component;
-                detailsScrollPane.removeAll();
-                detailsScrollPane.add(QueueItem.getFillerComponent());
+                // Clear queue frame's active queue panel
+                queueFrame.setActiveQueueContent(null);
             }
         }
     }
@@ -337,9 +318,9 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         }
 
         public void mouseClicked(MouseEvent e) {
-
-            if (!detailsScrollPane.isShowing()) {
-                toggleSelection();
+            // Make this the active queue panel
+            if (!isActive) {
+                isActive = true;
                 iconBar.requestFocus();
                 queueFrame.moveToTop(thisQueuePanel);
             }
@@ -359,35 +340,9 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         }
     }
 
-    public void toggleSelection() {
-        selected = !selected;
-
-        if (detailsScrollPane.isShowing()) {
-            detailsScrollPane.setVisible(false);
-            this.setPreferredSize(collapsedStateDim);
-            this.setMaximumSize(collapsedStateDim);
-        } else {
-            detailsScrollPane.setVisible(true);
-            this.setPreferredSize(expandedStateDim);
-            this.setMaximumSize(expandedStateDim);
-        }
-        revalidate();
-    }
-
     @Override
-    public void hideContentPanel() {
-        detailsScrollPane.setVisible(false);
-        this.setPreferredSize(collapsedStateDim);
-        this.setMaximumSize(collapsedStateDim);
-        revalidate();
-    }
-
-    @Override
-    public void showContentPanel() {
-        detailsScrollPane.setVisible(true);
-        this.setPreferredSize(expandedStateDim);
-        this.setMaximumSize(expandedStateDim);
-        revalidate();
+    public QueueItem getCurrentContent() {
+        return currentComponent;
     }
 
     @Override
@@ -431,5 +386,10 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
         }
 
         return messagesToRemove.size();
+    }
+
+    @Override
+    public void setIsActive(boolean isActive) {
+        this.isActive = isActive;
     }
 }

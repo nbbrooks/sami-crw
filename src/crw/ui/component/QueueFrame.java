@@ -8,11 +8,10 @@ import sami.uilanguage.MarkupManager;
 import sami.engine.Engine;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.Point;
 import java.util.LinkedList;
 import java.util.UUID;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -37,15 +36,21 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
     private final static Logger LOGGER = Logger.getLogger(QueueFrame.class.getName());
     private Dimension frameDim = new Dimension(DecisionQueuePanel.NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 600);
-    private JPanel bottomPanel = new JPanel();
-    private JPanel topPanel = new JPanel();
-    private JScrollPane scrollingPane = new JScrollPane(bottomPanel);
+    // LRU ordered list of queue panels
     private LinkedList<QueuePanelInt> queuePanels = new LinkedList<QueuePanelInt>();
     private DecisionQueuePanel decisionQueuePanel;
-    private QueuePanelInt expandedPanel = null;
+    private QueuePanelInt activeQueuePanel = null;
     private QueueDatabase qdb;
     UiClientInt uiClient;
     UiServerInt uiServer;
+
+    // Filmstrip for the active queue, shown at top of frame
+    private JPanel activeQueueFilmstripP;
+    // SP for active queue's current item's component, shown below active queue's filmstrip
+    private JScrollPane activeQueueContentSP;
+    // Filmstrips for all inactive queues, shown at bottom of frame
+    private JPanel inActiveQueueFilmstripsP;
+    private JScrollPane inactiveQueueFilmstripsSP;
 
     public QueueFrame() {
         this(new QueueDatabase());
@@ -53,25 +58,27 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
     public QueueFrame(QueueDatabase qdb) {
         this.qdb = qdb;
-        setTitle("OperatorInteractionF");
 
-        //Create and set up the window.
+        activeQueueFilmstripP = new JPanel(new BorderLayout());
+        activeQueueContentSP = new JScrollPane();
+        inActiveQueueFilmstripsP = new JPanel();
+        inactiveQueueFilmstripsSP = new JScrollPane(inActiveQueueFilmstripsP);
+
+        //Create and set up the frame
+        setTitle("OperatorInteractionF");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(frameDim);
         setPreferredSize(frameDim);
-        setDefaultLookAndFeelDecorated(true);
-        setLayout(new BorderLayout());
-        getContentPane().add(topPanel, BorderLayout.NORTH);
-
-        decisionQueuePanel = new DecisionQueuePanel(this, qdb);
-        topPanel.add(decisionQueuePanel, BorderLayout.NORTH);
-        topPanel.setPreferredSize(decisionQueuePanel.getPreferredSize());
-        topPanel.setMaximumSize(decisionQueuePanel.getPreferredSize());
-        expandedPanel = decisionQueuePanel;
-
-        //Display the window.
+        getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
+        getContentPane().add(activeQueueFilmstripP);
+        getContentPane().add(activeQueueContentSP);
+        getContentPane().add(inactiveQueueFilmstripsSP);
         pack();
         setVisible(true);
+
+        // Create decision queue panel and set it as active queue
+        decisionQueuePanel = new DecisionQueuePanel(this, qdb);
+        moveToTop(decisionQueuePanel);
 
         Engine.getInstance().addListener(this);
 
@@ -80,26 +87,46 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     }
 
     public synchronized void moveToTop(QueuePanelInt curPanel) {
-        expandedPanel = curPanel;
-        topPanel.removeAll();
-        bottomPanel.removeAll();
-        queuePanels.remove(decisionQueuePanel);
-        queuePanels.remove(curPanel);   // in case of curPanel == decisionQueuePanel, fails silently
-        curPanel.showContentPanel();
-        topPanel.add((JComponent) curPanel);
-        if (curPanel != decisionQueuePanel) {   // don't add decisionQueuePanel to bottom if it's on top
-            queuePanels.addFirst(decisionQueuePanel);
+        curPanel.setIsActive(true);
+        activeQueuePanel = curPanel;
+        // Clear both filmstrip panels
+        activeQueueFilmstripP.removeAll();
+        inActiveQueueFilmstripsP.removeAll();
+
+        // Update active queue filmstrip panel
+        activeQueueFilmstripP.add((JComponent) curPanel, BorderLayout.NORTH);
+
+        // Update active queue content panel
+        if (curPanel.getCurrentContent() != null) {
+            setActiveQueueContent(curPanel.getCurrentContent().getInteractionPanel());
+        } else {
+            setActiveQueueContent(null);
         }
+
+        // Update LRU queue panel so it only contains inactive queues, which we will use to populate the inactive queue filmstrip panel
+        // Remove currently active queue panel from ordered list of queue
+        queuePanels.remove(activeQueuePanel);
+        // Remove passed in queue panel from ordered list (if curPanel == expandedPanel, fails silently)
+        queuePanels.remove(curPanel);
+        // Update queue panel list by LRU
+        if (curPanel != activeQueuePanel) {
+            // If we are changing the active panel, add the previously active panel to the top of the list
+            queuePanels.addFirst(activeQueuePanel);
+        }
+        // Finally add all the inactive filmstrips to the collapsed filmstrip panel
         for (QueuePanelInt qPanel : queuePanels) {
-            qPanel.hideContentPanel();
-            bottomPanel.add((JComponent) qPanel);
+            qPanel.setIsActive(false);
+            inActiveQueueFilmstripsP.add((JComponent) qPanel);
         }
-        if (curPanel != decisionQueuePanel) {   // added at front for LRU reasons
+
+        // After updating the inactive filmstrip p, add the active panel to the front of the list
+        if (curPanel != decisionQueuePanel) {
             queuePanels.addFirst(curPanel);
         }
-        scrollingPane.getViewport().setViewPosition(new Point(0, 0));
-        bottomPanel.revalidate();
-        topPanel.revalidate();
+    }
+
+    public void setActiveQueueContent(QueueContent content) {
+        activeQueueContentSP.setViewportView(content);
     }
 
     @Override
@@ -123,9 +150,9 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
             LOGGER.fine("Removed 1+ items from queue DB due matching ToUiMessage id: " + toUiMessageId);
         }
 
-        removed = expandedPanel.removeMessageId(toUiMessageId);
+        removed = activeQueuePanel.removeMessageId(toUiMessageId);
         if (removed) {
-            LOGGER.fine("Removed 1+ items from " + expandedPanel + " due matching ToUiMessage id: " + toUiMessageId);
+            LOGGER.fine("Removed 1+ items from " + activeQueuePanel + " due matching ToUiMessage id: " + toUiMessageId);
         }
 
         for (QueuePanelInt queuePanel : queuePanels) {
@@ -180,7 +207,7 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
     @Override
     public void planRepaint(PlanManager planManager) {
-    }  
+    }
 
     @Override
     public void planFinished(PlanManager planManager) {
@@ -189,8 +216,8 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
         numRemoved = qdb.removeMissionId(planManager.missionId);
         LOGGER.fine("Removed " + numRemoved + " items from queue DB due to plan " + planManager.getPlanName() + " finishing");
 
-        numRemoved = expandedPanel.removeMissionId(planManager.missionId);
-        LOGGER.fine("Removed 1+ items from " + expandedPanel + " due to plan " + planManager.getPlanName() + " finishing");
+        numRemoved = activeQueuePanel.removeMissionId(planManager.missionId);
+        LOGGER.fine("Removed 1+ items from " + activeQueuePanel + " due to plan " + planManager.getPlanName() + " finishing");
 
         for (QueuePanelInt queuePanel : queuePanels) {
             numRemoved = queuePanel.removeMissionId(planManager.missionId);
@@ -205,8 +232,8 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
         numRemoved = qdb.removeMissionId(planManager.missionId);
         LOGGER.fine("Removed " + numRemoved + " items from queue DB due to plan " + planManager.getPlanName() + " aborting");
 
-        numRemoved = expandedPanel.removeMissionId(planManager.missionId);
-        LOGGER.fine("Removed " + numRemoved + " items from " + expandedPanel + " due to plan " + planManager.getPlanName() + " aborting");
+        numRemoved = activeQueuePanel.removeMissionId(planManager.missionId);
+        LOGGER.fine("Removed " + numRemoved + " items from " + activeQueuePanel + " due to plan " + planManager.getPlanName() + " aborting");
 
         for (QueuePanelInt queuePanel : queuePanels) {
             numRemoved = queuePanel.removeMissionId(planManager.missionId);
