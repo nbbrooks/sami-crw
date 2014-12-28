@@ -3,6 +3,7 @@ package crw.ui.component;
 import crw.Conversion;
 import sami.uilanguage.MarkupComponent;
 import crw.ui.widget.RobotTrackWidget;
+import crw.ui.widget.PathWidget;
 import crw.ui.widget.RobotWidget;
 import crw.ui.widget.SelectGeometryWidget;
 import crw.ui.widget.SelectGeometryWidget.SelectMode;
@@ -37,8 +38,10 @@ import gov.nasa.worldwind.render.markers.Marker;
 import gov.nasa.worldwind.view.orbit.FlatOrbitView;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -52,6 +55,7 @@ import sami.markup.Markup;
 import sami.markup.RelevantArea;
 import sami.path.Location;
 import sami.path.PathUtm;
+import sami.proxy.ProxyInt;
 import sami.uilanguage.MarkupComponentHelper;
 import sami.uilanguage.MarkupComponentWidget;
 import sami.uilanguage.MarkupManager;
@@ -65,6 +69,8 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     // MarkupComponent variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
     public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableCreationClasses = new Hashtable<Class, ArrayList<Class>>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableSelectionClasses = new Hashtable<Class, ArrayList<Class>>();
     public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
     public final ArrayList<Class> widgetClasses = new ArrayList<Class>();
     public JComponent component = null;
@@ -208,6 +214,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     private void populateLists() {
         // Widgets
         widgetClasses.add(RobotTrackWidget.class);
+        widgetClasses.add(PathWidget.class);
         widgetClasses.add(RobotWidget.class);
         widgetClasses.add(SelectGeometryWidget.class);
         widgetClasses.add(SensorDataWidget.class);
@@ -226,13 +233,13 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     @Override
-    public int getCreationComponentScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedMarkups, widgetClasses, type, markups);
+    public int getCreationComponentScore(Type type, Field field, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedHashtableCreationClasses, supportedMarkups, widgetClasses, type, field, markups);
     }
 
     @Override
-    public int getSelectionComponentScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedMarkups, widgetClasses, type, markups);
+    public int getSelectionComponentScore(Type type, Object object, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedHashtableSelectionClasses, supportedMarkups, widgetClasses, type, object, markups);
     }
 
     @Override
@@ -241,14 +248,14 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     @Override
-    public MarkupComponent useCreationComponent(Type type, ArrayList<Markup> markups) {
+    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups) {
         if (wwCanvas == null) {
             createMap();
         }
         for (Class widgetClass : widgetClasses) {
             try {
                 MarkupComponentWidget widgetInstance = (MarkupComponentWidget) widgetClass.newInstance();
-                int widgetCreationScore = widgetInstance.getCreationWidgetScore(type, markups);
+                int widgetCreationScore = widgetInstance.getCreationWidgetScore(type, field, markups);
                 int widgetMarkupScore = widgetInstance.getMarkupScore(markups);
                 if (widgetCreationScore >= 0 || widgetMarkupScore > 0) {
                     MarkupComponentWidget widget = ((MarkupComponentWidget) widgetInstance).addCreationWidget(this, type, markups);
@@ -271,7 +278,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         for (Class widgetClass : widgetClasses) {
             try {
                 MarkupComponentWidget widgetInstance = (MarkupComponentWidget) widgetClass.newInstance();
-                int widgetSelectionScore = widgetInstance.getSelectionWidgetScore(object.getClass(), markups);
+                int widgetSelectionScore = widgetInstance.getSelectionWidgetScore(object.getClass(), object, markups);
                 int widgetMarkupScore = widgetInstance.getMarkupScore(markups);
                 if (widgetSelectionScore >= 0 || widgetMarkupScore > 0) {
                     MarkupComponentWidget widget = ((MarkupComponentWidget) widgetInstance).addSelectionWidget(this, object, markups);
@@ -412,6 +419,30 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
             polygon.setAttributes(attributes);
             selectWidget.addRenderable(polygon);
             success = true;
+        } else if (value.getClass() == Hashtable.class) {
+            Hashtable hashtable = (Hashtable) value;
+            if (!hashtable.isEmpty()) {
+                Class keyClass = null, valueClass = null;
+                for (Object key : hashtable.keySet()) {
+                    keyClass = key.getClass();
+                    valueClass = hashtable.get(key).getClass();
+                    break;
+                }
+
+                if (ProxyInt.class.isAssignableFrom(keyClass) && PathUtm.class.isAssignableFrom(valueClass)) {
+                    // Grab or create the geometry widget
+                    PathWidget pathWidget;
+                    if (hasWidget(PathWidget.class)) {
+                        pathWidget = (PathWidget) getWidget(PathWidget.class);
+                    } else {
+                        pathWidget = new PathWidget(this);
+                        addWidget(pathWidget);
+                    }
+                    pathWidget.addRenderable(hashtable);
+
+                    success = true;
+                }
+            }
         }
         return success;
     }

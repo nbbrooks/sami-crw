@@ -50,7 +50,6 @@ import sami.engine.Engine;
 import sami.event.InputEvent;
 import sami.event.OutputEvent;
 import sami.markup.Markup;
-import sami.markup.RelevantInformation;
 import sami.markup.RelevantProxy;
 import sami.path.Location;
 import sami.path.Path;
@@ -77,6 +76,8 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     // MarkupComponentWidget variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
     public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableCreationClasses = new Hashtable<Class, ArrayList<Class>>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableSelectionClasses = new Hashtable<Class, ArrayList<Class>>();
     public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
     //
     // This increases the "grab" radius for proxy markers to make selecting a proxy easier
@@ -647,13 +648,13 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     }
 
     @Override
-    public int getCreationWidgetScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, type, markups);
+    public int getCreationWidgetScore(Type type, Field field, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedHashtableCreationClasses, supportedMarkups, type, field, markups);
     }
 
     @Override
-    public int getSelectionWidgetScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, type, markups);
+    public int getSelectionWidgetScore(Type type, Object object, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedHashtableSelectionClasses, supportedMarkups, type, object, markups);
     }
 
     @Override
@@ -684,12 +685,15 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object object, ArrayList<Markup> markups) {
         MarkupComponentWidget widget = null;
         for (Markup markup : markups) {
-            if (markup instanceof RelevantInformation) {
-                RelevantInformation info = (RelevantInformation) markup;
-                if (info.information == RelevantInformation.Information.SPECIFY) {
-                    if (info.visualization == RelevantInformation.Visualization.HEATMAP) {
-                        widget = new SensorDataWidget((WorldWindPanel) component);
-                    }
+            if (markup instanceof RelevantProxy) {
+                RelevantProxy relevantProxy = (RelevantProxy) markup;
+                if (relevantProxy.proxies == RelevantProxy.Proxies.ALL_PROXIES) {
+                    //@todo What control modes?
+                    widget = new RobotWidget((WorldWindPanel) component);
+                } else if (relevantProxy.proxies == RelevantProxy.Proxies.RELEVANT_PROXIES) {
+                    //@todo Need to pass in token list for this
+                    //@todo What control modes?
+                    widget = new RobotWidget((WorldWindPanel) component);
                 }
             }
         }

@@ -62,6 +62,8 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
     // MarkupComponentWidget variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
     public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableCreationClasses = new Hashtable<Class, ArrayList<Class>>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableSelectionClasses = new Hashtable<Class, ArrayList<Class>>();
     public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
     //
     private boolean visible = true;
@@ -422,15 +424,13 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
     }
 
     @Override
-    public int getCreationWidgetScore(Type type, ArrayList<Markup> markups) {
-        int score = MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, type, markups);
-//        System.out.println("### Geom widget creation score for " + creationClass.getSimpleName() + ": " + score);
-        return score;
+    public int getCreationWidgetScore(Type type, Field field, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedHashtableCreationClasses, supportedMarkups, type, field, markups);
     }
 
     @Override
-    public int getSelectionWidgetScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, type, markups);
+    public int getSelectionWidgetScore(Type type, Object object, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedHashtableSelectionClasses, supportedMarkups, type, object, markups);
     }
 
     @Override
@@ -591,9 +591,9 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
     @Override
     public void disableMarkup(Markup markup) {
     }
-    
+
     @Override
     public ArrayList<Class> getSupportedCreationClasses() {
-        return (ArrayList<Class>)supportedCreationClasses.clone();
+        return (ArrayList<Class>) supportedCreationClasses.clone();
     }
 }

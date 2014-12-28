@@ -39,6 +39,10 @@ public class OperatorAcceptsPath extends InputEvent {
         this.relevantOutputEventId = relevantOutputEventUuid;
         this.missionId = missionUuid;
         this.acceptedProxyPaths = acceptedProxyPaths;
+        relevantProxyList = new ArrayList<ProxyInt>();
+        for (ProxyInt proxy : acceptedProxyPaths.keySet()) {
+            relevantProxyList.add(proxy);
+        }
         id = UUID.randomUUID();
     }
 }

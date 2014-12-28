@@ -4,9 +4,11 @@ import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
 import crw.proxy.BoatProxy;
 import crw.ui.ColorSlider;
+import dreaam.developer.Mediator;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -39,6 +41,8 @@ public class TextPanel implements MarkupComponent {
     // MarkupComponent variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
     public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableCreationClasses = new Hashtable<Class, ArrayList<Class>>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableSelectionClasses = new Hashtable<Class, ArrayList<Class>>();
     public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
     public final ArrayList<Class> widgetClasses = new ArrayList<Class>();
     public JComponent component = null;
@@ -87,13 +91,13 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public int getCreationComponentScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedMarkups, widgetClasses, type, markups);
+    public int getCreationComponentScore(Type type, Field field, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationComponentScore(supportedCreationClasses, supportedHashtableCreationClasses, supportedMarkups, widgetClasses, type, field, markups);
     }
 
     @Override
-    public int getSelectionComponentScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedMarkups, widgetClasses, type, markups);
+    public int getSelectionComponentScore(Type type, Object object, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionComponentScore(supportedSelectionClasses, supportedHashtableSelectionClasses, supportedMarkups, widgetClasses, type, object, markups);
     }
 
     @Override
@@ -102,14 +106,8 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public MarkupComponent useCreationComponent(Type type, ArrayList<Markup> markups) {
-        if (type instanceof ParameterizedType) {
-            ParameterizedType pt = (ParameterizedType) type;
-            if (pt.getRawType() instanceof Class && Hashtable.class.isAssignableFrom((Class) pt.getRawType())) {
-                component = handleCreationHashtable(pt);
-            }
-            return this;
-        } else if (type instanceof Class) {
+    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups) {
+        if (type instanceof Class) {
             Class objectClass = (Class) type;
             if (objectClass.equals(Color.class)) {
                 component = new ColorSlider();
@@ -126,7 +124,17 @@ public class TextPanel implements MarkupComponent {
                 component = new JTextField();
                 component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
             } else if (objectClass.equals(MissionPlanSpecification.class)) {
-                component = new JComboBox(Engine.getInstance().getProjectSpecification().getAllMissionPlans().toArray());
+                if (Engine.getInstance().getProjectSpecification() != null) {
+                    component = new JComboBox(Engine.getInstance().getProjectSpecification().getAllMissionPlans().toArray());
+                } else {
+                    Mediator mediator = new Mediator();
+                    if (mediator.getProjectSpec() != null) {
+                        component = new JComboBox(mediator.getProjectSpec().getAllMissionPlans().toArray());
+                    }
+                }
+                if (component == null) {
+                    LOGGER.severe("No loaded project spec to retrieve mission plan list from");
+                }
             } else if (objectClass.equals(Boolean.class)
                     || objectClass.equals(boolean.class)) {
                 component = new JComboBox(new Object[]{true, false});
@@ -144,20 +152,7 @@ public class TextPanel implements MarkupComponent {
 
     @Override
     public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups) {
-        if (object instanceof Hashtable) {
-            Hashtable hashtable = (Hashtable) object;
-            if (hashtable.size() > 0) {
-                for (Object key : hashtable.keySet()) {
-                    if (key != null && hashtable.get(key) != null) {
-                        component = handleSelectionHashtable(hashtable, key, object);
-                        break;
-                    }
-                }
-            } else {
-                component = new JLabel("Empty");
-            }
-            return this;
-        } else if (object instanceof ResourceAllocation) {
+        if (object instanceof ResourceAllocation) {
             ResourceAllocation allocation = (ResourceAllocation) object;
             Map<AbstractAsset, ArrayList<ITask>> assetToTasks = allocation.getAssetToTasks();
             if (assetToTasks.isEmpty()) {

@@ -3,6 +3,8 @@ package crw.ui;
 import crw.ui.component.TextPanel;
 import crw.ui.component.WorldWindPanel;
 import java.awt.Component;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Random;
@@ -75,7 +77,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
     }
 
     @Override
-    public MarkupComponent getCreationComponent(Type type, ArrayList<Markup> markups) {
+    public MarkupComponent getCreationComponent(Type type, Field field, ArrayList<Markup> markups) {
         // Find the UiComponent class that can be used to create the object and supports the largest number of markups
         Class bestClass = null;
         int bestScore = -1;
@@ -83,7 +85,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
             if ((MarkupComponent.class).isAssignableFrom(compClass)) {
                 try {
                     MarkupComponent temp = (MarkupComponent) compClass.newInstance();
-                    int score = temp.getCreationComponentScore(type, markups);
+                    int score = temp.getCreationComponentScore(type, field, markups);
 //                    System.out.println("### Creation component score of class " + compClass + " for object class " + objectClass.getSimpleName() + " and markups " + markups.toString() + " is " + score);
                     if (score > -1 && score > bestScore) {
                         bestScore = score;
@@ -102,7 +104,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
 //            System.out.println("### Best creation class for " + objectClass.getSimpleName() + " is " + bestClass.getSimpleName());
             try {
                 MarkupComponent temp = (MarkupComponent) bestClass.newInstance();
-                component = temp.useCreationComponent(type, markups);
+                component = temp.useCreationComponent(type, field, markups);
             } catch (InstantiationException ex) {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             } catch (IllegalAccessException ex) {
@@ -123,7 +125,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
             if ((MarkupComponent.class).isAssignableFrom(compClass)) {
                 try {
                     MarkupComponent temp = (MarkupComponent) compClass.newInstance();
-                    int score = temp.getSelectionComponentScore(type, markups);
+                    int score = temp.getSelectionComponentScore(type, value, markups);
 //                    System.out.println("### Selection component score of class " + compClass + " for object class " + selectionObject.getClass().getSimpleName() + " and markups " + markups.toString() + " is " + score);
                     if (score > -1 && score > bestScore) {
                         bestScore = score;

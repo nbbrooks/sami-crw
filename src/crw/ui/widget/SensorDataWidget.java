@@ -8,17 +8,12 @@ import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
-import gov.nasa.worldwind.layers.MarkerLayer;
 import gov.nasa.worldwind.layers.RenderableLayer;
 import gov.nasa.worldwind.render.BasicShapeAttributes;
 import gov.nasa.worldwind.render.Material;
 import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.render.ShapeAttributes;
 import gov.nasa.worldwind.render.SurfaceQuad;
-import gov.nasa.worldwind.render.markers.BasicMarker;
-import gov.nasa.worldwind.render.markers.BasicMarkerAttributes;
-import gov.nasa.worldwind.render.markers.BasicMarkerShape;
-import gov.nasa.worldwind.render.markers.Marker;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
@@ -59,6 +54,8 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     // MarkupComponentWidget variables
     public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
     public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableCreationClasses = new Hashtable<Class, ArrayList<Class>>();
+    public final Hashtable<Class, ArrayList<Class>> supportedHashtableSelectionClasses = new Hashtable<Class, ArrayList<Class>>();
     public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
     //
     private static final Logger LOGGER = Logger.getLogger(SensorDataWidget.class.getName());
@@ -529,13 +526,13 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     }
 
     @Override
-    public int getCreationWidgetScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedMarkups, type, markups);
+    public int getCreationWidgetScore(Type type, Field field, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedHashtableCreationClasses, supportedMarkups, type, field, markups);
     }
 
     @Override
-    public int getSelectionWidgetScore(Type type, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedMarkups, type, markups);
+    public int getSelectionWidgetScore(Type type, Object object, ArrayList<Markup> markups) {
+        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedHashtableSelectionClasses, supportedMarkups, type, object, markups);
     }
 
     @Override
@@ -592,9 +589,9 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     @Override
     public void disableMarkup(Markup markup) {
     }
-    
+
     @Override
     public ArrayList<Class> getSupportedCreationClasses() {
-        return (ArrayList<Class>)supportedCreationClasses.clone();
+        return (ArrayList<Class>) supportedCreationClasses.clone();
     }
 }

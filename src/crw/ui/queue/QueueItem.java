@@ -107,14 +107,14 @@ public class QueueItem {
                         // Add in component for creating the item
                         MarkupComponent markupComponent = null;
                         JComponent visualization = null;
-                        markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), creationMessage.getMarkups());
+                        markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), field, creationMessage.getMarkups());
                         if (markupComponent == null) {
                             LOGGER.severe("Got null creation component for field: " + field);
                             visualization = new JLabel("");
                         } else {
                             if (eventSpec != null) {
-                                Object definition = eventSpec.getFieldValues().get(field.getName());
-                                if (definition != null) {
+                                if (eventSpec.getFieldValues().containsKey(field.getName())) {
+                                    Object definition = eventSpec.getFieldValues().get(field.getName());
                                     CrwUiComponentGenerator.getInstance().setComponentValue(markupComponent, definition);
                                 }
                             } else {
@@ -294,30 +294,5 @@ public class QueueItem {
 
     public static JComponent getFillerComponent() {
         return BLANK_COMPONENT;
-    }
-
-    public static void main(String[] args) throws ClassNotFoundException {
-//        try {
-//            Field f = DecisionQueueComponent.class.getDeclaredField("component");
-//            Hashtable<Field, String> h = new Hashtable<Field, String>();
-//            h.put(f, "asdf");
-//            echo(f, h);
-//        } catch (NoSuchFieldException ex) {
-//            Logger.getLogger(DecisionQueueComponent.class.getName()).log(Level.SEVERE, null, ex);
-//        } catch (SecurityException ex) {
-//            Logger.getLogger(DecisionQueueComponent.class.getName()).log(Level.SEVERE, null, ex);
-//        }
-        Hashtable h = new Hashtable<Field, JComponent>();
-//        h.put(null, new JLabel("asdf"));
-        Class c = Class.forName("crw.event.output.service.AllocationRequest");
-        for (Field f : c.getFields()) {
-            System.out.println(f.toString());
-            h.put(f, new JLabel(""));
-        }
-
-    }
-
-    public static void echo(Field f, Hashtable<Field, String> h) {
-        System.out.println(h.containsKey(f));
     }
 }
