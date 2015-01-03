@@ -182,6 +182,9 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                         proxyLocations = lawnmowerLocations.subList(i * MAX_SEGMENTS_PER_PROXY, Math.min(lawnmowerLocations.size(), (i + 1) * MAX_SEGMENTS_PER_PROXY));
                         // Send the path
 //                        LOGGER.log(Level.FINE, "Creating ProxyExecutePath with " + proxyLocations.size() + " waypoints for proxy " + tokenProxies.get(proxyIndex));
+                        if (proxyLocations.isEmpty()) {
+                            LOGGER.warning("ExploreArea path for proxy " + tokensWithProxy.get(proxyIndex).getProxy().getProxyName() + " is empty");
+                        }
                         PathUtm path = new PathUtm(proxyLocations);
                         Hashtable<ProxyInt, Path> thisProxyPath = new Hashtable<ProxyInt, Path>();
                         thisProxyPath.put(tokensWithProxy.get(proxyIndex).getProxy(), path);

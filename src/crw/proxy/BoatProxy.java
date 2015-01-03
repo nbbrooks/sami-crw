@@ -768,6 +768,12 @@ public class BoatProxy extends Thread implements ProxyInt {
                             UtmPose pose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
                             _curWaypoints.add(pose);
                         }
+                        if (_curWaypoints.isEmpty()) {
+                            // Add current position so waypoint complete fires
+                            LOGGER.info("Constructed curWaypoints was empty, adding current boat position");
+                            UtmPose pose = new UtmPose(new Pose3D(utmCoord.getEasting(), utmCoord.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmCoord.getZone(), utmCoord.getHemisphere().contains("North")));
+                            _curWaypoints.add(pose);
+                        }
                     } else {
                         if (!executePath.getProxyPaths().containsKey(this)) {
                             LOGGER.severe("Proxy Paths has no entry for this proxy: " + this + ": " + executePath.getProxyPaths());

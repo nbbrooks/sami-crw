@@ -115,7 +115,11 @@ public class QueueItem {
                             if (eventSpec != null) {
                                 if (eventSpec.getFieldValues().containsKey(field.getName())) {
                                     Object definition = eventSpec.getFieldValues().get(field.getName());
-                                    CrwUiComponentGenerator.getInstance().setComponentValue(markupComponent, definition);
+                                    if (definition != null) {
+                                        CrwUiComponentGenerator.getInstance().setComponentValue(markupComponent, definition);
+                                    } else {
+                                        LOGGER.warning("NULL definition for field " + field.getName() + " in message " + decisionMessage.toString());
+                                    }
                                 }
                             } else {
                                 LOGGER.severe("Failed to retrieve eventSpec for field: " + field.getName());

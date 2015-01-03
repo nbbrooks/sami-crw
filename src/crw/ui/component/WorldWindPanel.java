@@ -350,6 +350,10 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
 
     @Override
     public boolean setComponentValue(Object value) {
+        if(value == null) {
+            LOGGER.severe("Tried to set component value to NULL");
+            return false;
+        }
         boolean success = false;
         if (value.getClass().equals(Location.class)) {
             // Grab or create the geometry widget
