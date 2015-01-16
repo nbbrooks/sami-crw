@@ -76,7 +76,15 @@ public class BoatProxy extends Thread implements ProxyInt {
     final int MIN_TIME_BTW_CMDS = 1000; // Required time between sending waypoint update commands to avoid unexpected server behavior (ms)
     // Lossy comms simulation
     final boolean SIMULATE_COMM_LOSS = false;
+    // Probability to drop message
     final double COMM_LOSS_PROB = 0.9;
+    // Drift simulation
+    final boolean SIMULATE_DRIFT = false;
+    // Timer for generating drift
+    final int DRIFT_TIMER = 2500; // ms
+    // Each time drift timer triggers, randomly generate westerly and southerly drift in range [0, DRIFT_DISTANCE]
+    final double DRIFT_DISTANCE = 1.0;
+    Random random = new Random();
     // Pose recorder file for offline analysis
     final boolean RECORD_POSE = false;
     // InputEvent generation rates
@@ -141,11 +149,14 @@ public class BoatProxy extends Thread implements ProxyInt {
     // End stuff for simulated data creation
     public BoatProxy(final String name, Color color, final int boatNo, InetSocketAddress addr) {
 
+        String message = "Boat proxy created with name: " + name + ", color: " + color + ", addr: " + addr;
         if (SIMULATE_COMM_LOSS) {
-            LOGGER.info("Boat proxy with COMM_LOSS_PROB: " + COMM_LOSS_PROB + ", name: " + name + ", color: " + color + ", addr: " + addr);
-        } else {
-            LOGGER.info("Boat proxy created with name: " + name + ", color: " + color + ", addr: " + addr);
+            message += ", COMM_LOSS_PROB: " + COMM_LOSS_PROB;
         }
+        if (SIMULATE_DRIFT) {
+            message += ", DRIFT_TIMER: " + DRIFT_TIMER + ", DRIFT_DISTANCE: " + DRIFT_DISTANCE;
+        }
+        LOGGER.info(message);
 
         if (RECORD_POSE) {
             try {
@@ -164,6 +175,30 @@ public class BoatProxy extends Thread implements ProxyInt {
             }
         });
         stateTimer.start();
+
+        if (SIMULATE_DRIFT) {
+            Timer driftTimer = new Timer(DRIFT_TIMER, new ActionListener() {
+
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    if (_pose != null) {
+                        // Randomly generate westerly and southerly drift in range [0, DRIFT_DISTANCE]
+                        int longZone = _pose.origin.zone;
+                        // Convert hemisphere to arbitrary worldwind codes
+                        // Notice that there is a "typo" in South that exists in the WorldWind code
+                        // String wwHemi = (_pose.origin.isNorth) ? "gov.nasa.worldwind.avkey.North" : "gov.nasa.worldwdind.avkey.South";
+                        String wwHemi = (_pose.origin.isNorth) ? AVKey.NORTH : AVKey.SOUTH;
+
+                        // Fill in UTM data structure
+                        UTMCoord utm = UTMCoord.fromUTM(longZone, wwHemi, _pose.pose.getX() - random.nextDouble() * DRIFT_DISTANCE, _pose.pose.getY() - random.nextDouble() * DRIFT_DISTANCE);
+                        UtmPose driftPose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), _pose.pose.getZ(), _pose.pose.getRotation()), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
+
+                        _server.setPose(driftPose, null);
+                    }
+                }
+            });
+            driftTimer.start();
+        }
 
         // this.masterURI = masterURI;
         this.name = name;

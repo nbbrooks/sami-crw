@@ -99,7 +99,7 @@ public class QueueTest implements ResponseListener {
                 }
             }
             MissingParamsRequest oe = new MissingParamsRequest(null, eventSpecToFieldDescriptions);
-            GetParamsMessage msg = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, oe.getFieldDescriptions());
+            GetParamsMessage msg = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, oe.getEventToFieldDescriptions());
             oif.toUiMessageReceived(msg);
         } catch (NoSuchFieldException e) {
             e.printStackTrace();
