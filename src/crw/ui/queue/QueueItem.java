@@ -5,6 +5,7 @@ import crw.ui.component.QueueThumbnail;
 import sami.uilanguage.MarkupManager;
 import crw.ui.CrwUiComponentGenerator;
 import crw.uilanguage.message.fromui.CrwFromUiMessageGenerator;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -20,6 +21,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -55,6 +57,7 @@ public class QueueItem {
     protected QueueThumbnail thumbnail = null;
     protected QueueContent content = null;
     protected MarkupManager markupManager = null;
+    final JButton doneButton = new JButton();
 
     public QueueItem(ToUiMessage decisionMessage, ActionListener listener) {
         this.decisionMessage = decisionMessage;
@@ -134,16 +137,22 @@ public class QueueItem {
                     }
                 }
                 // Add "Done" button
-                JButton button = new JButton("Done");
-                button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
-                button.addActionListener(new ActionListener() {
+                doneButton.setName("Done");
+                doneButton.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+                doneButton.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent ae) {
-                        creationDone();
-                        listener.actionPerformed(ae);
+                        if (checkIfAllDefined()) {
+                            creationDone();
+                            listener.actionPerformed(ae);
+                        } else {
+                            doneButton.setText("Missing Definition");
+                            doneButton.setForeground(Color.RED);
+                            doneButton.setBorder(BorderFactory.createLineBorder(Color.RED));
+                        }
                     }
                 });
-                content.add(button, constraints);
+                content.add(doneButton, constraints);
                 constraints.gridy = constraints.gridy + 1;
                 maxColWidth = Math.max(maxColWidth, BUTTON_WIDTH);
                 cumulComponentHeight += BUTTON_HEIGHT;
@@ -258,6 +267,25 @@ public class QueueItem {
             markupManager.addComponent(thumbnail);
         }
         return thumbnail;
+    }
+
+    /**
+     * Checks for any creation components which have not been used to define a
+     * value
+     *
+     * @return True if all creation components have a definition
+     */
+    public boolean checkIfAllDefined() {
+        for (ReflectedEventSpecification eventSpec : eventSpecToComponentTable.keySet()) {
+            Hashtable<Field, MarkupComponent> componentTable = eventSpecToComponentTable.get(eventSpec);
+            for (Field field : componentTable.keySet()) {
+                Object value = CrwUiComponentGenerator.getInstance().getComponentValue(componentTable.get(field), field.getType());
+                if (value == null) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     public void creationDone() {

@@ -8,7 +8,6 @@ import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.DecimalFormat;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -134,39 +133,39 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
 
         // Thrust PID
         temp = stringToDouble(thrustPTF.getText());
-        if (temp != thrustP) {
+        if (Double.isFinite(temp) && temp != thrustP) {
             thrustP = temp;
             thrustPidChanged = true;
         }
         temp = stringToDouble(thrustITF.getText());
-        if (temp != thrustI) {
+        if (Double.isFinite(temp) && temp != thrustI) {
             thrustI = temp;
             thrustPidChanged = true;
         }
         temp = stringToDouble(thrustDTF.getText());
-        if (temp != thrustD) {
+        if (Double.isFinite(temp) && temp != thrustD) {
             thrustD = temp;
             thrustPidChanged = true;
         }
         // Rudder PID
         temp = stringToDouble(rudderPTF.getText());
-        if (temp != rudderP) {
+        if (Double.isFinite(temp) && temp != rudderP) {
             rudderP = temp;
             rudderPidChanged = true;
         }
         temp = stringToDouble(rudderITF.getText());
-        if (temp != rudderI) {
+        if (Double.isFinite(temp) && temp != rudderI) {
             rudderI = temp;
             rudderPidChanged = true;
         }
         temp = stringToDouble(rudderDTF.getText());
-        if (temp != rudderD) {
+        if (Double.isFinite(temp) && temp != rudderD) {
             rudderD = temp;
             rudderPidChanged = true;
         }
         // Winch
         temp = stringToDouble(winchTF.getText());
-        if (temp != winch) {
+        if (Double.isFinite(temp) && temp != winch) {
             winch = temp;
             winchChanged = true;
         }
@@ -175,11 +174,11 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
             // Send value
             activeVehicle.setGains(THRUST_GAINS_AXIS, new double[]{thrustP, thrustI, thrustD}, new FunctionObserver<Void>() {
                 public void completed(Void v) {
-                    System.out.println("Set thrust gains succeeded");
+                    LOGGER.fine("Set thrust gains succeeded: Axis [" + THRUST_GAINS_AXIS + "] PID [" + thrustP + ", " + thrustI + ", " + thrustD + "]");
                 }
 
                 public void failed(FunctionObserver.FunctionError fe) {
-                    System.out.println("Set thrust gains failed");
+                    LOGGER.severe("Set thrust gains failed: Axis [" + THRUST_GAINS_AXIS + "] PID [" + thrustP + ", " + thrustI + ", " + thrustD + "]");
                 }
             });
         }
@@ -187,11 +186,11 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
             // Send value
             activeVehicle.setGains(RUDDER_GAINS_AXIS, new double[]{rudderP, rudderI, rudderD}, new FunctionObserver<Void>() {
                 public void completed(Void v) {
-                    System.out.println("Set rudder gains succeeded");
+                    LOGGER.fine("Set rudder gains succeeded: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + rudderP + ", " + rudderI + ", " + rudderD + "]");
                 }
 
                 public void failed(FunctionObserver.FunctionError fe) {
-                    System.out.println("Set rudder gains failed");
+                    LOGGER.severe("Set rudder gains failed: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + rudderP + ", " + rudderI + ", " + rudderD + "]");
                 }
             });
         }
@@ -199,11 +198,11 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
             // Send value
             activeVehicle.setGains(WINCH_GAINS_AXIS, new double[]{winch, winch, winch}, new FunctionObserver<Void>() {
                 public void completed(Void v) {
-                    System.out.println("Set winch gains succeeded");
+                    LOGGER.fine("Set winch gains succeeded: Axis [" + WINCH_GAINS_AXIS + "] PID [" + winch + ", " + winch + ", " + winch + "]");
                 }
 
                 public void failed(FunctionObserver.FunctionError fe) {
-                    System.out.println("Set winch gains failed");
+                    LOGGER.severe("Set winch gains failed: Axis [" + WINCH_GAINS_AXIS + "] PID [" + winch + ", " + winch + ", " + winch + "]");
                 }
             });
         }
@@ -223,41 +222,42 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
             activeVehicle = boatProxy.getVehicleServer();
             // Retrieve vehicle specific values
             //@todo Ideally we would only do this if the teleop panel is opened
+
             // Thrust gains
             activeVehicle.getGains(THRUST_GAINS_AXIS, new FunctionObserver<double[]>() {
                 public void completed(double[] values) {
-                    LOGGER.log(Level.FINE, "Get thrust gains succeeded");
+                    LOGGER.fine("Get thrust gains succeeded: Axis [" + THRUST_GAINS_AXIS + "] PID [" + values[0] + ", " + values[1] + ", " + values[2] + "]");
                     thrustPTF.setText("" + values[0]);
                     thrustITF.setText("" + values[1]);
                     thrustDTF.setText("" + values[2]);
                 }
 
                 public void failed(FunctionObserver.FunctionError fe) {
-                    LOGGER.severe("Get thrust gains failed");
+                    LOGGER.severe("Get thrust gains failed: Axis [" + THRUST_GAINS_AXIS + "]");
                 }
             });
             // Rudder gains
             activeVehicle.getGains(RUDDER_GAINS_AXIS, new FunctionObserver<double[]>() {
                 public void completed(double[] values) {
-                    LOGGER.log(Level.FINE, "Get rudder gains succeeded");
+                    LOGGER.fine("Get rudder gains succeeded: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + values[0] + ", " + values[1] + ", " + values[2] + "]");
                     rudderPTF.setText("" + values[0]);
                     rudderITF.setText("" + values[1]);
                     rudderDTF.setText("" + values[2]);
                 }
 
                 public void failed(FunctionObserver.FunctionError fe) {
-                    LOGGER.severe("Get rudder gains failed");
+                    LOGGER.severe("Get rudder gains failed: Axis [" + RUDDER_GAINS_AXIS + "]");
                 }
             });
             // Winch
             activeVehicle.getGains(WINCH_GAINS_AXIS, new FunctionObserver<double[]>() {
                 public void completed(double[] values) {
-                    LOGGER.log(Level.FINE, "Get winch gains succeeded");
+                    LOGGER.fine("Get winch gains succeeded: Axis [" + WINCH_GAINS_AXIS + "] Value [" + values[0] + "]");
                     winchTF.setText("" + values[0]);
                 }
 
                 public void failed(FunctionObserver.FunctionError fe) {
-                    LOGGER.severe("Get winch gains failed");
+                    LOGGER.severe("Get winch gains failed: Axis [" + WINCH_GAINS_AXIS + "]");
                 }
             });
             winchL.setText("Winch value: ---");
