@@ -2,10 +2,9 @@ package crw.ui.widget;
 
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
-import crw.CrwHelper;
 import crw.event.output.proxy.ProxyExecutePath;
 import crw.proxy.BoatProxy;
-import crw.ui.BoatMarker;
+import crw.ui.worldwind.BoatMarker;
 import crw.ui.VideoFeedPanel;
 import crw.ui.teleop.GainsPanel;
 import crw.ui.teleop.VelocityPanel;
@@ -81,7 +80,6 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
     //
     // This increases the "grab" radius for proxy markers to make selecting a proxy easier
-    private final int CLICK_RADIUS = 25;
     private boolean visible = true;
     private ArrayList<Marker> markers = new ArrayList<Marker>();
     private ArrayList<Position> selectedPositions = new ArrayList<Position>();
@@ -93,7 +91,11 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private final Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
     private final Hashtable<BoatProxy, UUID> proxyToWpEventId = new Hashtable<BoatProxy, UUID>();
     private JButton teleopButton, pointButton, pathButton, cancelButton, autoButton;
-    private JPanel topPanel, btmPanel, buttonPanel;
+    // controlModeP: Contains buttons for navigation control modes for selected proxy
+    // expandedPanel: Contains components for teleoperation and setting gains of selected proxy
+    //  expanded by selectin "Teleop" mode in controlModeP
+    // combinedPanel: Combines controlModeP and expandedPanel
+    private JPanel controlModeP, expandedP, combinedPanel;
     private List<ControlMode> enabledModes;
     private Marker selectedMarker = null;
     private MarkerLayer markerLayer;
@@ -204,20 +206,19 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     @Override
     public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
-        if (wwd.getCurrentPosition() == null) {
+        Position clickPosition = wwd.getCurrentPosition();
+        if (clickPosition == null) {
             LOGGER.warning("wwd.getCurrentPosition() is NULL");
             return false;
         }
 
         switch (controlMode) {
             case POINT:
-                // Calculate elevation above sea level at click position
-                doPoint(CrwHelper.getPositionAsl(wwd.getView().getGlobe(), wwd.getCurrentPosition()));
+                doPoint(clickPosition);
                 setControlMode(ControlMode.NONE);
                 return true;
             case PATH:
-                // Calculate elevation above sea level at click position
-                selectedPositions.add(CrwHelper.getPositionAsl(wwd.getView().getGlobe(), wwd.getCurrentPosition()));
+                selectedPositions.add(clickPosition);
                 // Update temporary path
                 if (polyline != null) {
                     renderableLayer.removeRenderable(polyline);
@@ -355,15 +356,15 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             return;
         }
 
-        topPanel = new JPanel();
-        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.X_AXIS));
-        btmPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        buttonPanel = new JPanel(new BorderLayout());
+        expandedP = new JPanel();
+        expandedP.setLayout(new BoxLayout(expandedP, BoxLayout.X_AXIS));
+        controlModeP = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        combinedPanel = new JPanel(new BorderLayout());
 
         if (enabledModes.contains(ControlMode.TELEOP)) {
             teleopButton = new JButton("Teleop");
             teleopButton.setEnabled(false);
-            btmPanel.add(teleopButton);
+            controlModeP.add(teleopButton);
             teleopButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent ae) {
@@ -374,7 +375,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (enabledModes.contains(ControlMode.POINT)) {
             pointButton = new JButton("Point");
             pointButton.setEnabled(false);
-            btmPanel.add(pointButton);
+            controlModeP.add(pointButton);
             pointButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent ae) {
@@ -385,7 +386,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (enabledModes.contains(ControlMode.PATH)) {
             pathButton = new JButton("Path");
             pathButton.setEnabled(false);
-            btmPanel.add(pathButton);
+            controlModeP.add(pathButton);
             pathButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent ae) {
@@ -396,7 +397,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         if (enabledModes.size() > 0) {
             cancelButton = new JButton("Cancel");
             cancelButton.setEnabled(false);
-            btmPanel.add(cancelButton);
+            controlModeP.add(cancelButton);
             cancelButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent ae) {
@@ -417,11 +418,11 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             }
         });
         autoButton.setEnabled(false);
-        btmPanel.add(autoButton);
+        controlModeP.add(autoButton);
 
-        buttonPanel.add(topPanel, BorderLayout.NORTH);
-        buttonPanel.add(btmPanel, BorderLayout.SOUTH);
-        wwPanel.buttonPanels.add(buttonPanel, BorderLayout.SOUTH);
+        combinedPanel.add(expandedP, BorderLayout.NORTH);
+        combinedPanel.add(controlModeP, BorderLayout.SOUTH);
+        wwPanel.buttonPanels.add(combinedPanel, BorderLayout.SOUTH);
         wwPanel.buttonPanels.revalidate();
     }
 
@@ -432,9 +433,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         velocityP.setVisible(false);
         gainsP = new GainsPanel();
         gainsP.setVisible(false);
-        topPanel.add(videoP);
-        topPanel.add(velocityP);
-        topPanel.add(gainsP);
+        expandedP.add(videoP);
+        expandedP.add(velocityP);
+        expandedP.add(gainsP);
         wwPanel.buttonPanels.revalidate();
     }
 

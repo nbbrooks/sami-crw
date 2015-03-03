@@ -115,10 +115,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
         } else if (oe instanceof ProxyExploreArea) {
             // Get the lawnmower path for the whole area
-            // How many meters the proxy should move north after each horizontal section of the lawnmower pattern
-            double latDegInc = M_PER_LAT_D * 10;
             ArrayList<Position> positions = new ArrayList<Position>();
             Area2D area = ((ProxyExploreArea) oe).getArea();
+            // How many meters the proxy should move north after each horizontal section of the lawnmower pattern
+            double latDegInc = ((ProxyExploreArea) oe).getSpacing() * M_PER_LAT_D;
             for (Location location : area.getPoints()) {
                 positions.add(Conversion.locationToPosition(location));
             }

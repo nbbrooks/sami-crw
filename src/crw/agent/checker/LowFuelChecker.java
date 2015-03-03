@@ -4,6 +4,7 @@ import crw.event.input.service.BatteryCritical;
 import dreaam.agent.checker.CheckerAgent;
 import dreaam.agent.checker.CheckerAgent.AgentMessage;
 import java.util.ArrayList;
+import sami.engine.Mediator;
 import sami.event.InputEvent;
 import sami.mission.MissionPlanSpecification;
 import sami.mission.Place;
@@ -24,7 +25,7 @@ public class LowFuelChecker extends CheckerAgent {
         boolean hasLowFuelTransition;
         ArrayList<AgentMessage> msgs = new ArrayList<AgentMessage>();
         // Check that each place has a transition with a LowFuelEvent trigger
-        for (MissionPlanSpecification missionPlanSpecification : mediator.getProjectSpec().getAllMissionPlans()) {
+        for (MissionPlanSpecification missionPlanSpecification : Mediator.getInstance().getProject().getAllMissionPlans()) {
             for (Vertex v : missionPlanSpecification.getGraph().getVertices()) {
                 if (v instanceof Place && !((Place) v).isEnd()) {
                     hasLowFuelTransition = false;

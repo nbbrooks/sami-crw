@@ -75,20 +75,14 @@ public class AllocationFrame extends UiFrame implements TaskAllocationListenerIn
         JPanel newAllocatedPanel = new JPanel();
         JPanel newUnallocatedPanel = new JPanel();
         if (resourceAllocation != null) {
-
-            System.out.println("New alloc: " + resourceAllocation.getAssetToTasks().toString());
-
-            // newAllocatedPanel
             int maxTasks = 0;
             for (AbstractAsset asset : resourceAllocation.getAssetToTasks().keySet()) {
                 if (resourceAllocation.getAssetToTasks().get(asset).size() > maxTasks) {
                     maxTasks = resourceAllocation.getAssetToTasks().get(asset).size();
                 }
             }
-            System.out.println("maxTasks " + maxTasks);
             newAllocatedPanel.setLayout(new GridLayout(resourceAllocation.getAssetToTasks().size(), maxTasks + 1));
             for (AbstractAsset asset : resourceAllocation.getAssetToTasks().keySet()) {
-                System.out.print(asset.getName() + "\t");
                 // Asset
                 JLabel assetL = new JLabel(asset.getName());
                 ProxyInt proxy = Engine.getInstance().getProxyServer().getProxy(asset);
@@ -111,7 +105,6 @@ public class AllocationFrame extends UiFrame implements TaskAllocationListenerIn
                     }
 
                     JLabel taskL = new JLabel(iTask.getName());
-                    System.out.print(iTask.getName() + "\t");
                     taskL.setBorder(BorderFactory.createLineBorder(pmColor, BORDER_WIDTH));
                     newAllocatedPanel.add(taskL);
                     blankSpaces--;
@@ -119,10 +112,8 @@ public class AllocationFrame extends UiFrame implements TaskAllocationListenerIn
                 // Fill in remaining spaces in this row
                 while (blankSpaces > 0) {
                     newAllocatedPanel.add(new JLabel(""));
-                    System.out.print("blank\t");
                     blankSpaces--;
                 }
-                System.out.println("");
             }
 
             // newUnallocatedPanel

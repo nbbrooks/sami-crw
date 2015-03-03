@@ -69,8 +69,6 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     final double RECT_OPACITY = 0.5;
     // Opacity of spheres that are fixed size in pixels (> ALT_THRESH)
     final double SPHERE_OPACITY = 1.0;
-    // Sphere size
-    final int SPHERE_SIZE = 30;
     private Hashtable<String, Integer> sensorNameToIndex = new Hashtable<String, Integer>();
     private Hashtable<Integer, String> indexToSensorName = new Hashtable<Integer, String>();
     private ArrayList<ArrayList<Renderable>> lowAltRenderables = new ArrayList<ArrayList<Renderable>>();

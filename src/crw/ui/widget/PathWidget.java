@@ -7,7 +7,7 @@ import sami.event.InputEvent;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyListenerInt;
 import crw.proxy.BoatProxy;
-import crw.ui.BoatMarker;
+import crw.ui.worldwind.BoatMarker;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;

@@ -4,7 +4,6 @@ import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
 import crw.proxy.BoatProxy;
 import crw.ui.ColorSlider;
-import dreaam.developer.Mediator;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -24,7 +23,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.TableCellRenderer;
 import sami.allocation.ResourceAllocation;
-import sami.engine.Engine;
+import sami.engine.Mediator;
 import sami.markup.Markup;
 import sami.mission.MissionPlanSpecification;
 import sami.uilanguage.MarkupComponent;
@@ -124,13 +123,8 @@ public class TextPanel implements MarkupComponent {
                 component = new JTextField();
                 component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
             } else if (objectClass.equals(MissionPlanSpecification.class)) {
-                if (Engine.getInstance().getProjectSpecification() != null) {
-                    component = new JComboBox(Engine.getInstance().getProjectSpecification().getAllMissionPlans().toArray());
-                } else {
-                    Mediator mediator = new Mediator();
-                    if (mediator.getProjectSpec() != null) {
-                        component = new JComboBox(mediator.getProjectSpec().getAllMissionPlans().toArray());
-                    }
+                if (Mediator.getInstance().getProject() != null) {
+                    component = new JComboBox(Mediator.getInstance().getProject().getAllMissionPlans().toArray());
                 }
                 if (component == null) {
                     LOGGER.severe("No loaded project spec to retrieve mission plan list from");
