@@ -137,7 +137,7 @@ public class QueueItem {
                     }
                 }
                 // Add "Done" button
-                doneButton.setName("Done");
+                doneButton.setText("Done");
                 doneButton.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
                 doneButton.addActionListener(new ActionListener() {
                     @Override
