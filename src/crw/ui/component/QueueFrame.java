@@ -20,6 +20,7 @@ import sami.engine.PlanManager;
 import sami.engine.PlanManagerListenerInt;
 import sami.mission.MissionPlanSpecification;
 import sami.mission.Place;
+import sami.mission.Transition;
 import sami.uilanguage.UiClientInt;
 import sami.uilanguage.UiClientListenerInt;
 import sami.uilanguage.UiFrame;
@@ -203,6 +204,10 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
     @Override
     public void planLeftPlace(PlanManager planManager, Place place) {
+    }
+
+    @Override
+    public void planExecutedTransition(PlanManager planManager, Transition transition) {
     }
 
     @Override
