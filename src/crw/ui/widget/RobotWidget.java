@@ -207,36 +207,43 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     @Override
     public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
         Position clickPosition = wwd.getCurrentPosition();
-        if (clickPosition == null) {
-            LOGGER.warning("wwd.getCurrentPosition() is NULL");
-            return false;
-        }
+        boolean complexHandled = false;
 
         switch (controlMode) {
             case POINT:
-                doPoint(clickPosition);
-                setControlMode(ControlMode.NONE);
-                return true;
-            case PATH:
-                selectedPositions.add(clickPosition);
-                // Update temporary path
-                if (polyline != null) {
-                    renderableLayer.removeRenderable(polyline);
+                if (clickPosition != null) {
+                    doPoint(clickPosition);
+                    setControlMode(ControlMode.NONE);
+                    return true;
                 }
-                polyline = new Polyline(selectedPositions);
-                polyline.setColor(Color.yellow);
-                polyline.setLineWidth(8);
-                polyline.setFollowTerrain(true);
-                renderableLayer.addRenderable(polyline);
+                break;
+            case PATH:
+                if (clickPosition != null) {
+                    selectedPositions.add(clickPosition);
+                    // Update temporary path
+                    if (polyline != null) {
+                        renderableLayer.removeRenderable(polyline);
+                    }
+                    polyline = new Polyline(selectedPositions);
+                    polyline.setColor(Color.yellow);
+                    polyline.setLineWidth(8);
+                    polyline.setFollowTerrain(true);
+                    renderableLayer.addRenderable(polyline);
 
-                wwd.redraw();
-                if (evt.getClickCount() > 1) {
+                    wwd.redraw();
+                    complexHandled = true;
+                }
+                if (evt.getClickCount() > 1 && !evt.isConsumed()) {
                     // Finish path
                     doPath(selectedPositions);
                     clearPath();
                     setControlMode(ControlMode.NONE);
+                    complexHandled = true;
                 }
-                return true;
+                if (complexHandled) {
+                    return true;
+                }
+                break;
             case NONE:
                 // Selected or deselected a proxy?
                 synchronized (highlightedLock) {

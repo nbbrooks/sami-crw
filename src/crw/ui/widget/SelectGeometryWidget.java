@@ -134,6 +134,7 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
     @Override
     public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
         Position clickPosition = wwd.getCurrentPosition();
+        boolean complexHandled = false;
         // Continue creating a new area?
         switch (selectMode) {
             case POINT:
@@ -181,12 +182,16 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
 //                    path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
 //                    renderableLayer.addRenderable(path);
                     wwd.redraw();
-                    if (evt.getClickCount() > 1) {
-                        // Finish path
-                        polyline = null;
+                    complexHandled = true;
+                }
+                if (evt.getClickCount() > 1 && !evt.isConsumed()) {
+                    // Finish path
+                    polyline = null;
 //                        path = null;
-                        setSelectMode(SelectMode.NONE);
-                    }
+                    setSelectMode(SelectMode.NONE);
+                    complexHandled = true;
+                }
+                if (complexHandled) {
                     return true;
                 }
                 break;
@@ -206,11 +211,15 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     area.setAttributes(attributes);
                     renderableLayer.addRenderable(area);
                     wwd.redraw();
-                    if (evt.getClickCount() > 1) {
-                        // Finish area
-                        area = null;
-                        setSelectMode(SelectMode.NONE);
-                    }
+                    complexHandled = true;
+                }
+                if (evt.getClickCount() > 1 && !evt.isConsumed()) {
+                    // Finish area
+                    area = null;
+                    setSelectMode(SelectMode.NONE);
+                    complexHandled = true;
+                }
+                if (complexHandled) {
                     return true;
                 }
                 break;

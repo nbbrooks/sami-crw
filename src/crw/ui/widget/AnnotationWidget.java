@@ -34,6 +34,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -41,11 +44,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.logging.Logger;
+import java.util.prefs.Preferences;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import sami.area.Area2D;
 import sami.engine.Mediator;
+import static sami.engine.Mediator.LAST_EPF_FOLDER;
 import sami.environment.EnvironmentListenerInt;
 import sami.environment.EnvironmentProperties;
 import sami.markup.Markup;
@@ -62,6 +70,8 @@ import sami.uilanguage.MarkupManager;
  * @author nbb
  */
 public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetInt, EnvironmentListenerInt {
+
+    private static final Logger LOGGER = Logger.getLogger(AnnotationWidget.class.getName());
 
     public enum SelectMode {
 
@@ -86,7 +96,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
     private boolean visible = true;
     private ArrayList<Marker> markers = new ArrayList<Marker>();
     private ArrayList<Position> selectedPositions = new ArrayList<Position>();
-    private JButton pointButton, pathButton, areaButton, noneButton, deleteButton, newButton, loadButton, saveButton, saveAsButton;
+    private JButton pointButton, pathButton, areaButton, noneButton, deleteButton, newButton, loadButton, saveButton, saveAsButton, exportButton;
     private JPanel selectModeP;
     private List<SelectMode> enabledModes;
     private MarkerLayer markerLayer;
@@ -100,7 +110,6 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
     private AnnotatedSurfacePolygon highlightedArea = null;
     private boolean selectListenerEnabled = false;
     private SelectListener selectListener;
-
     private final Object highlightedLock = new Object();
 
     public AnnotationWidget() {
@@ -222,6 +231,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
     @Override
     public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
         Position clickPosition = wwd.getCurrentPosition();
+        boolean complexHandled = false;
         // Continue creating a new area?
         switch (selectMode) {
             case POINT:
@@ -245,14 +255,17 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                     polyline.setFollowTerrain(true);
                     renderableLayer.addRenderable(polyline);
                     wwd.redraw();
-                    if (evt.getClickCount() > 1) {
-                        // Finish path
-                        polyline = null;
-                        setSelectMode(SelectMode.NONE);
-                    }
+                    complexHandled = true;
+                }
+                if (evt.getClickCount() > 1 && !evt.isConsumed()) {
+                    // Finish path
+                    polyline = null;
+                    setSelectMode(SelectMode.NONE);
+                    complexHandled = true;
+                }
+                if (complexHandled) {
                     return true;
                 }
-
                 break;
             case AREA:
                 if (clickPosition != null) {
@@ -264,11 +277,15 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                     area = new AnnotatedSurfacePolygon(UNSEL_AREA_ATTR, selectedPositions);
                     renderableLayer.addRenderable(area);
                     wwd.redraw();
-                    if (evt.getClickCount() > 1) {
-                        // Finish area
-                        area = null;
-                        setSelectMode(SelectMode.NONE);
-                    }
+                    complexHandled = true;
+                }
+                if (evt.getClickCount() > 1 && !evt.isConsumed()) {
+                    // Finish area
+                    area = null;
+                    setSelectMode(SelectMode.NONE);
+                    complexHandled = true;
+                }
+                if (complexHandled) {
                     return true;
                 }
                 break;
@@ -389,7 +406,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                     pathButton.setSelected(false);
                 }
                 if (enabledModes.contains(SelectMode.AREA)) {
-                    areaButton.setSelected(true);
+                    areaButton.setSelected(false);
                 }
                 if (enabledModes.contains(SelectMode.DELETE)) {
                     deleteButton.setSelected(true);
@@ -610,6 +627,15 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
             public void actionPerformed(ActionEvent ae) {
                 prepareValues();
                 Mediator.getInstance().saveEnvironmentAs();
+            }
+        });
+
+        exportButton = new JButton("Export");
+        selectModeP.add(exportButton);
+        exportButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                exportValues();
             }
         });
 
@@ -848,11 +874,14 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                 for (LatLon l : area.getLocations()) {
                     points.add(Conversion.latLonToLocation(l));
                 }
-                linePoints.add(points);
+                areaPoints.add(points);
             }
         }
 
         EnvironmentProperties environment = Mediator.getInstance().getEnvironment();
+        Position defaultPosition = wwPanel.getCanvas().getView().getCurrentEyePosition();
+        Location defaultLocation = Conversion.positionToLocation(defaultPosition);
+        environment.setDefaultLocation(defaultLocation);
         environment.setMarkerPoints(markerPoints);
         environment.setLinePoints(linePoints);
         environment.setAreaPoints(areaPoints);
@@ -866,34 +895,90 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         ArrayList<ArrayList<Location>> linePoints = environment.getLinePoints();
         ArrayList<ArrayList<Location>> areaPoints = environment.getAreaPoints();
 
+        // AnnotatedMarker
         for (Location point : markerPoints) {
             AnnotatedMarker circle = new AnnotatedMarker(Conversion.locationToPosition(point), UNSEL_MARKER_ATTR);
             markers.add(circle);
         }
-
+        // AnnotatedPolyline
         for (ArrayList<Location> points : linePoints) {
             ArrayList<Position> obstaclePositions = new ArrayList<Position>();
             for (Location location : points) {
-                Position position = Conversion.utmToPosition(location.getCoordinate(), 0);
-                obstaclePositions.add(position);
+                obstaclePositions.add(Conversion.locationToPosition(location));
             }
             AnnotatedPolyline line = new AnnotatedPolyline(obstaclePositions);
             line.setColor(UNSEL_POLYLINE_COLOR);
             line.setLineWidth(UNSEL_POLYLINE_WIDTH);
+            line.setFollowTerrain(true);
             renderableLayer.addRenderable(line);
         }
-
+        // AnnotatedSurfacePolygon
         for (ArrayList<Location> points : areaPoints) {
             ArrayList<Position> obstaclePositions = new ArrayList<Position>();
             for (Location location : points) {
-                Position position = Conversion.utmToPosition(location.getCoordinate(), 0);
-                obstaclePositions.add(position);
+                obstaclePositions.add(Conversion.locationToPosition(location));
             }
-            AnnotatedSurfacePolygon area = new AnnotatedSurfacePolygon(obstaclePositions);
-            area.setAttributes(UNSEL_AREA_ATTR);
+            AnnotatedSurfacePolygon area = new AnnotatedSurfacePolygon(UNSEL_AREA_ATTR, selectedPositions);
             renderableLayer.addRenderable(area);
         }
 
         wwPanel.wwCanvas.redraw();
+    }
+
+    private void exportValues() {
+        File exportF;
+        Preferences p = Preferences.userRoot();
+        String folder = p.get(LAST_EPF_FOLDER, "");
+        JFileChooser chooser = new JFileChooser(folder);
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("Exported Environment Properties", "txt");
+        chooser.setFileFilter(filter);
+        int ret = chooser.showSaveDialog(null);
+        if (ret == JFileChooser.APPROVE_OPTION) {
+            if (chooser.getSelectedFile().getName().endsWith(".txt")) {
+                exportF = chooser.getSelectedFile();
+            } else {
+                exportF = new File(chooser.getSelectedFile().getAbsolutePath() + ".txt");
+            }
+            LOGGER.info("Exporting environment properties as: " + exportF.toString());
+            try {
+                exportF.createNewFile();
+                FileWriter writer = new FileWriter(exportF);
+
+                prepareValues();
+                EnvironmentProperties environment = Mediator.getInstance().getEnvironment();
+                ArrayList<Location> markerPoints = environment.getMarkerPoints();
+                ArrayList<ArrayList<Location>> linePoints = environment.getLinePoints();
+                ArrayList<ArrayList<Location>> areaPoints = environment.getAreaPoints();
+
+                for (Location l : markerPoints) {
+                    Position pos = Conversion.locationToPosition(l);
+                    writer.write("P\n");
+                    writer.write(pos.latitude.toDecimalDegreesString(10) + "\n");
+                    writer.write(pos.longitude.toDecimalDegreesString(10) + "\n");
+                    writer.write("\n");
+                }
+                for (ArrayList<Location> line : linePoints) {
+                    writer.write("L\n");
+                    for (Location l : line) {
+                        Position pos = Conversion.locationToPosition(l);
+                        writer.write(pos.latitude.toDecimalDegreesString(10) + "\n");
+                        writer.write(pos.longitude.toDecimalDegreesString(10) + "\n");
+                    }
+                    writer.write("\n");
+                }
+                for (ArrayList<Location> area : areaPoints) {
+                    writer.write("A\n");
+                    for (Location l : area) {
+                        Position pos = Conversion.locationToPosition(l);
+                        writer.write(pos.latitude.toDecimalDegreesString(10) + "\n");
+                        writer.write(pos.longitude.toDecimalDegreesString(10) + "\n");
+                    }
+                    writer.write("\n");
+                }
+                writer.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
     }
 }

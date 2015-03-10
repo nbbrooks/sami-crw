@@ -5,13 +5,11 @@ import crw.ui.widget.AnnotationWidget;
 import java.awt.BorderLayout;
 import java.io.File;
 import java.security.AccessControlException;
-import java.util.ArrayList;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import javax.swing.JFrame;
 import sami.engine.Mediator;
 import sami.environment.EnvironmentListenerInt;
-import sami.environment.EnvironmentProperties;
 import static sami.ui.MissionMonitor.LAST_EPF_FILE;
 
 /**
@@ -21,8 +19,6 @@ import static sami.ui.MissionMonitor.LAST_EPF_FILE;
 public class EnvironmentManagerF extends JFrame implements EnvironmentListenerInt {
 
     private static final Logger LOGGER = Logger.getLogger(EnvironmentManagerF.class.getName());
-    EnvironmentProperties environmentProperties = new EnvironmentProperties();
-    private File file = null;
     WorldWindPanel wwPanel;
 
     public EnvironmentManagerF() {
@@ -31,13 +27,8 @@ public class EnvironmentManagerF extends JFrame implements EnvironmentListenerIn
         getContentPane().setLayout(new BorderLayout());
 
         // Add map
-        ArrayList<String> layerNames = new ArrayList<String>();
-        layerNames.add("Bing Imagery");
-        layerNames.add("Blue Marble (WMS) 2004");
-        layerNames.add("Scale bar");
-        layerNames.add("Place Names");
         wwPanel = new WorldWindPanel();
-        wwPanel.createMap(layerNames);
+        wwPanel.createMap();
         getContentPane().add(wwPanel.component, BorderLayout.CENTER);
         // Add widgets
         AnnotationWidget annotation = new AnnotationWidget(wwPanel);
