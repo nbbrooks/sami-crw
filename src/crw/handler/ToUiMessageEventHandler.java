@@ -15,6 +15,7 @@ import sami.engine.Engine;
 import sami.event.MissingParamsRequest;
 import sami.event.OperatorApprove;
 import sami.event.OutputEvent;
+import sami.event.RedefineVariablesRequest;
 import sami.handler.EventHandlerInt;
 import sami.markup.Markup;
 import sami.markup.Priority;
@@ -23,6 +24,7 @@ import sami.markup.RelevantProxy;
 import sami.mission.Token;
 import sami.proxy.ProxyInt;
 import sami.uilanguage.toui.GetParamsMessage;
+import sami.uilanguage.toui.GetVariablesMessage;
 import sami.uilanguage.toui.InformationMessage;
 import sami.uilanguage.toui.ToUiMessage;
 import sami.uilanguage.toui.YesNoOptionsMessage;
@@ -70,7 +72,6 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                 message = new AllocationOptionsMessage(oe.getId(), oe.getMissionId(), priority, ((OperatorAllocationOptions) oe).getOptions());
             }
         } else if (oe instanceof OperatorSelectBoat) {
-            // Retreive AllocationOptionsMessage
             ArrayList<ProxyInt> proxyOptionsList = new ArrayList<ProxyInt>();
             for (Token token : tokens) {
                 if (token.getProxy() != null) {
@@ -79,7 +80,6 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
             }
             message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, false, proxyOptionsList);
         } else if (oe instanceof OperatorSelectBoatList) {
-            // Retreive AllocationOptionsMessage
             ArrayList<ProxyInt> proxyOptionsList = new ArrayList<ProxyInt>();
             for (Token token : tokens) {
                 if (token.getProxy() != null) {
@@ -88,15 +88,15 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
             }
             message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, true, proxyOptionsList);
         } else if (oe instanceof MissingParamsRequest) {
-            // Retreive AllocationOptionsMessage
             MissingParamsRequest mpr = (MissingParamsRequest) oe;
             message = new GetParamsMessage(oe.getId(), oe.getMissionId(), priority, mpr.getEventToFieldDescriptions());
+        } else if (oe instanceof RedefineVariablesRequest) {
+            RedefineVariablesRequest rvr = (RedefineVariablesRequest) oe;
+            message = new GetVariablesMessage(oe.getId(), oe.getMissionId(), priority, rvr.getVariableNameToDescription());
         } else if (oe instanceof DisplayMessage) {
-            // Retreive AllocationOptionsMessage
             DisplayMessage dm = (DisplayMessage) oe;
             message = new InformationMessage(oe.getId(), oe.getMissionId(), priority, dm.getMessage());
         } else if (oe instanceof OperatorApprove) {
-            // Retreive AllocationOptionsMessage
             OperatorApprove oa = (OperatorApprove) oe;
             message = new YesNoOptionsMessage(oe.getId(), oe.getMissionId(), priority);
         } else {

@@ -20,6 +20,7 @@ import sami.event.GeneratedInputEventSubscription;
 import sami.event.InputEvent;
 import sami.event.MissingParamsReceived;
 import sami.event.NoOption;
+import sami.event.RedefinedVariablesReceived;
 import sami.event.YesOption;
 import sami.path.Path;
 import sami.proxy.ProxyInt;
@@ -32,6 +33,7 @@ import sami.uilanguage.fromui.AllocationSelectedMessage;
 import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.fromui.ParamsSelectedMessage;
 import sami.uilanguage.fromui.PathSelectedMessage;
+import sami.uilanguage.fromui.VariablesDefinedMessage;
 import sami.uilanguage.fromui.YesNoSelectedMessage;
 
 /**
@@ -77,14 +79,15 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
         } else if (m instanceof ParamsSelectedMessage) {
             ParamsSelectedMessage psm = (ParamsSelectedMessage) m;
             generatorEvent = new MissingParamsReceived(psm.getRelevantOutputEventId(), psm.getMissionId(), psm.getEventSpecToFieldValues());
-//        } else if (m instanceof AreaCreatedMessage) {
-//            generatorEvent = new OperatorCreatesArea(((AreaCreatedMessage) m).getArea(), ((AreaCreatedMessage) m).getUuid());
         } else if (m instanceof YesNoSelectedMessage) {
             if (((YesNoSelectedMessage) m).getYes()) {
                 generatorEvent = new YesOption(m.getRelevantOutputEventId(), m.getMissionId());
             } else {
                 generatorEvent = new NoOption(m.getRelevantOutputEventId(), m.getMissionId());
             }
+        } else if (m instanceof VariablesDefinedMessage) {
+            VariablesDefinedMessage vdm = (VariablesDefinedMessage) m;
+            generatorEvent = new RedefinedVariablesReceived(vdm.getRelevantOutputEventId(), vdm.getMissionId(), vdm.getVariableToValue());
         } else {
             LOGGER.log(Level.SEVERE, "Unhandled incoming UI event type: " + m.getClass() + ", " + m);
             return;
@@ -132,7 +135,8 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoatList.class)
                 || sub.getSubscriptionClass().equals(MissingParamsReceived.class)
                 || sub.getSubscriptionClass().equals(YesOption.class)
-                || sub.getSubscriptionClass().equals(NoOption.class)) {
+                || sub.getSubscriptionClass().equals(NoOption.class)
+                || sub.getSubscriptionClass().equals(RedefinedVariablesReceived.class)) {
             LOGGER.log(Level.FINE, "\tCrwUiServerListener taking subscription: " + sub);
             if (!listeners.contains(sub.getListener())) {
                 LOGGER.log(Level.FINE, "\t\tCrwUiServerListener adding listener: " + sub.getListener());
@@ -158,7 +162,8 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoatList.class)
                 || sub.getSubscriptionClass().equals(MissingParamsReceived.class)
                 || sub.getSubscriptionClass().equals(YesOption.class)
-                || sub.getSubscriptionClass().equals(NoOption.class))
+                || sub.getSubscriptionClass().equals(NoOption.class)
+                || sub.getSubscriptionClass().equals(RedefinedVariablesReceived.class))
                 && listeners.contains(sub.getListener())) {
             LOGGER.log(Level.FINE, "\tCrwUiServerListener canceling subscription: " + sub);
             if (listenerGCCount.get(sub.getListener()) == 1) {

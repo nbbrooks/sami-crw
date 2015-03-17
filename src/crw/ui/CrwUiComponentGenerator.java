@@ -4,7 +4,6 @@ import crw.ui.component.TextPanel;
 import crw.ui.component.WorldWindPanel;
 import java.awt.Component;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Random;
