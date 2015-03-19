@@ -199,6 +199,10 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     }
 
     @Override
+    public void planInstantiated(PlanManager planManager) {
+    }
+
+    @Override
     public void planEnteredPlace(PlanManager planManager, Place place) {
     }
 
