@@ -4,7 +4,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -21,8 +20,6 @@ import sami.mission.Place;
 import sami.mission.Transition;
 import sami.mission.Vertex;
 import sami.service.information.InformationServiceProviderInt;
-import sami.uilanguage.UiClientInt;
-import sami.uilanguage.UiServerInt;
 
 /**
  *
@@ -31,9 +28,6 @@ import sami.uilanguage.UiServerInt;
 public class InterruptPanel extends javax.swing.JPanel implements InformationServiceProviderInt, PlanManagerListenerInt {
 
     private static final Logger LOGGER = Logger.getLogger(InterruptPanel.class.getName());
-    UiClientInt uiClient;
-    UiServerInt uiServer;
-    Hashtable<PlanManager, JPanel> pmToPanel = new Hashtable<PlanManager, JPanel>();
 
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
@@ -56,7 +50,7 @@ public class InterruptPanel extends javax.swing.JPanel implements InformationSer
 
                             @Override
                             public void actionPerformed(ActionEvent e) {
-                                OperatorInterruptReceived received = new OperatorInterruptReceived(oir.getId(), oir.getMissionId(), oir.getRelevantOutputEventId());
+                                OperatorInterruptReceived received = new OperatorInterruptReceived(oir.getId(), oir.getMissionId(), oir.getRelevantOutputEventId(), oir.getInterruptName());
                                 planManager.eventGenerated(received);
                             }
                         });
@@ -71,7 +65,6 @@ public class InterruptPanel extends javax.swing.JPanel implements InformationSer
             for (JButton button : buttons) {
                 buttonPanel.add(button);
             }
-            pmToPanel.put(planManager, buttonPanel);
             add(buttonPanel);
         }
     }
