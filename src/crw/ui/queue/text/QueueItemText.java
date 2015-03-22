@@ -1,7 +1,6 @@
-package crw.ui.queue;
+package crw.ui.queue.text;
 
-import crw.ui.component.QueueContent;
-import crw.ui.component.QueueThumbnail;
+import crw.ui.queue.QueueContent;
 import sami.uilanguage.MarkupManager;
 import crw.ui.CrwUiComponentGenerator;
 import crw.uilanguage.message.fromui.CrwFromUiMessageGenerator;
@@ -9,12 +8,10 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -42,32 +39,31 @@ import sami.variable.VariableName;
  *
  * @author nbb
  */
-public class QueueItem {
+public class QueueItemText {
 
-    private final static Logger LOGGER = Logger.getLogger(QueueItem.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(QueueItemText.class.getName());
     final static int BUTTON_WIDTH = 100;
     final static int BUTTON_HEIGHT = 50;
-    public final static int THUMB_SCALED_WIDTH = 200;
-    public final static int THUMB_SCALED_HEIGHT = 60;
     final static JComponent BLANK_COMPONENT = new JPanel();
-    final static BufferedImage BLANK_THUMBNAIL = new BufferedImage(THUMB_SCALED_WIDTH, THUMB_SCALED_HEIGHT, BufferedImage.TYPE_INT_ARGB);
+    final static JComponent BLANK_THUMBNAIL = new JLabel("BLANK");
     protected ActionListener listener;
     protected ToUiMessage decisionMessage;
     protected final AtomicBoolean viewed = new AtomicBoolean(false);
     List<Object> optionList = new ArrayList<Object>();
     Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>> eventSpecToComponentTable = new Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>>();
     Hashtable<String, MarkupComponent> variableNameToComponentTable = new Hashtable<String, MarkupComponent>();
+//    protected QueueThumbnailText thumbnail = null;
     protected QueueThumbnail thumbnail = null;
     protected QueueContent content = null;
     protected MarkupManager markupManager = null;
     final JButton doneButton = new JButton();
 
-    public QueueItem(ToUiMessage decisionMessage, ActionListener listener) {
+    public QueueItemText(ToUiMessage decisionMessage, ActionListener listener) {
         this.decisionMessage = decisionMessage;
         this.listener = listener;
     }
 
-    public QueueItem(ToUiMessage decisionMessage, ActionListener listener, MarkupManager markupManager) {
+    public QueueItemText(ToUiMessage decisionMessage, ActionListener listener, MarkupManager markupManager) {
         this.decisionMessage = decisionMessage;
         this.listener = listener;
         this.markupManager = markupManager;
@@ -370,11 +366,11 @@ public class QueueItem {
 //        viddb.setViewed(this, viewed);
     }
 
-    public static Image getFillerThumbnail() {
-        return BLANK_THUMBNAIL;
-    }
-
-    public static JComponent getFillerComponent() {
-        return BLANK_COMPONENT;
-    }
+//    public static Image getFillerThumbnail() {
+//        return BLANK_THUMBNAIL;
+//    }
+//
+//    public static JComponent getFillerComponent() {
+//        return BLANK_COMPONENT;
+//    }
 }

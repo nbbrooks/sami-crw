@@ -1,9 +1,9 @@
-package crw.ui.queue;
+package crw.ui.queue.image;
 
-import crw.ui.component.QueueFrame;
-import static crw.ui.queue.QueueItem.BLANK_THUMBNAIL;
-import static crw.ui.queue.QueueItem.THUMB_SCALED_HEIGHT;
-import static crw.ui.queue.QueueItem.THUMB_SCALED_WIDTH;
+import crw.ui.queue.QueueDatabase;
+import static crw.ui.queue.image.QueueItem.BLANK_THUMBNAIL;
+import static crw.ui.queue.image.QueueItem.THUMB_SCALED_HEIGHT;
+import static crw.ui.queue.image.QueueItem.THUMB_SCALED_WIDTH;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;

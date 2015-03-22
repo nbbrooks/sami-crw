@@ -1,6 +1,5 @@
-package crw.ui.queue;
+package crw.ui.queue.text;
 
-import crw.ui.component.QueueFrame;
 import sami.allocation.ResourceAllocation;
 import sami.proxy.ProxyInt;
 import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
@@ -52,7 +51,7 @@ public class QueueTest implements ResponseListener {
         int numTasks = 1;
         int numProxies = 3;
 //        proxies = createProxies(numProxies);
-        oif = new QueueFrame(new QueueDatabase());
+        oif = new QueueFrame();
         ArrayList<AbstractAsset> assetList = new ArrayList<AbstractAsset>();
         for (int i = 0; i < numProxies; i++) {
             assetList.add(new BoatAsset(i));
@@ -65,6 +64,7 @@ public class QueueTest implements ResponseListener {
             taskList.add(new CollectSampleTask("SA_" + i));
         }
 
+        getRA(assetList, taskList, 1);
         getRA(assetList, taskList, 1);
 //        getPP(3);
 //        getBP(proxies);

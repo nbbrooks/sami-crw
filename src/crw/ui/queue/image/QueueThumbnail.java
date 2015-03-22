@@ -1,7 +1,7 @@
-package crw.ui.component;
+package crw.ui.queue.image;
 
-import static crw.ui.queue.QueueItem.THUMB_SCALED_HEIGHT;
-import static crw.ui.queue.QueueItem.THUMB_SCALED_WIDTH;
+import static crw.ui.queue.image.QueueItem.THUMB_SCALED_HEIGHT;
+import static crw.ui.queue.image.QueueItem.THUMB_SCALED_WIDTH;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;

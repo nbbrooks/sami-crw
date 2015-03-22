@@ -1,4 +1,4 @@
-package crw.ui.queue;
+package crw.ui.queue.text;
 
 import java.util.UUID;
 
@@ -9,7 +9,7 @@ import java.util.UUID;
  */
 public interface QueuePanelInt {
 
-    public QueueItem getCurrentContent();
+    public QueueItemText getCurrentContent();
 
     public boolean removeMessageId(UUID messageId);
 
