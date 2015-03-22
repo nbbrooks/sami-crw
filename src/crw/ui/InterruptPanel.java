@@ -1,5 +1,7 @@
 package crw.ui;
 
+import crw.CrwHelper;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -9,6 +11,7 @@ import java.util.logging.Logger;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import sami.engine.Engine;
 import sami.engine.PlanManager;
 import sami.engine.PlanManagerListenerInt;
 import sami.event.GeneratedEventListenerInt;
@@ -61,7 +64,9 @@ public class InterruptPanel extends javax.swing.JPanel implements InformationSer
         }
         if (!buttons.isEmpty()) {
             JPanel buttonPanel = new JPanel();
-            buttonPanel.add(new JLabel(planManager.getPlanName()));
+            Color[] doubleColor = Engine.getInstance().getPlanManagerColor(planManager);
+            String text = "<html><font style='background-color:" + CrwHelper.colorToHtmlColor(doubleColor[0]) + "; color:" + CrwHelper.colorToHtmlColor(doubleColor[1]) + ";'>" + planManager.getPlanName() + "</font></html>";
+            buttonPanel.add(new JLabel(text));
             for (JButton button : buttons) {
                 buttonPanel.add(button);
             }

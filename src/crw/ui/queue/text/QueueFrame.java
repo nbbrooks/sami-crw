@@ -38,9 +38,8 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
     private final static Logger LOGGER = Logger.getLogger(QueueFrame.class.getName());
     private Dimension frameDim = new Dimension(600 + 98, 600);
-    private Dimension activeQueueDim = new Dimension(600 + 98, 200);
-    private Dimension inactiveQueueDim = new Dimension(600 + 98, 150);
-    private Dimension contentDim = new Dimension(600 + 98, 400);
+    private Dimension activeQueueDim = new Dimension(Integer.MAX_VALUE, 200);
+    private Dimension inactiveQueueDim = new Dimension(Integer.MAX_VALUE, 150);
     // LRU ordered list of queue panels
     private LinkedList<QueuePanelInt> queuePanels = new LinkedList<QueuePanelInt>();
     private DecisionQueuePanel nominalQueuePanel, recoveryQueuePanel;

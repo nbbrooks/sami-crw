@@ -22,6 +22,7 @@ import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
 import crw.ui.ImagePanel;
+import dreaam.DreaamHelper;
 import edu.cmu.ri.crw.CrwNetworkUtils;
 import edu.cmu.ri.crw.VehicleServer;
 import edu.cmu.ri.crw.data.Utm;
@@ -38,7 +39,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -80,7 +80,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
     int portCounter = 0;
-    final Random RANDOM = new Random();
     private Hashtable<UUID, Integer> eventIdToAssembleCounter = new Hashtable<UUID, Integer>();
 
     public ProxyEventHandler() {
@@ -360,10 +359,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 UTMCoordinate utmc = createEvent.startLocation.getCoordinate();
                 UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(Hemisphere.NORTH)));
                 server.setPose(p1);
-                name = CrwHelper.getUniqueName(name, proxyNames);
+                name = DreaamHelper.getUniqueName(name, proxyNames);
                 proxyNames.add(name);
                 ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, new InetSocketAddress("localhost", 11411 + portCounter));
-                color = randomColor();
+                color = CrwHelper.randomColor();
                 portCounter++;
 
                 if (proxy != null) {
@@ -485,14 +484,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
 
     @Override
     public void proxyRemoved(ProxyInt p) {
-    }
-
-    private Color randomColor() {
-        float r = RANDOM.nextFloat();
-        float g = RANDOM.nextFloat();
-        float b = RANDOM.nextFloat();
-
-        return new Color(r, g, b);
     }
 
     private Object[] getLawnmowerPath(Polygon area, double stepSize) {

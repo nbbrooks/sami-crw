@@ -3,6 +3,7 @@ package crw.ui;
 import java.awt.BorderLayout;
 import java.util.Hashtable;
 import java.util.logging.Logger;
+import javax.swing.BoxLayout;
 import sami.engine.Engine;
 import sami.engine.PlanManager;
 import sami.engine.PlanManagerListenerInt;
@@ -25,7 +26,7 @@ public class InterruptFrame extends UiFrame implements PlanManagerListenerInt {
 
     public InterruptFrame() {
         super("InterruptFrame");
-        getContentPane().setLayout(new BorderLayout());
+        getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
         pack();
         setVisible(true);
 
@@ -62,6 +63,7 @@ public class InterruptFrame extends UiFrame implements PlanManagerListenerInt {
         if (pmToPanel.containsKey(planManager)) {
             getContentPane().remove(pmToPanel.get(planManager));
             pmToPanel.remove(planManager);
+            this.revalidate();
         }
     }
 

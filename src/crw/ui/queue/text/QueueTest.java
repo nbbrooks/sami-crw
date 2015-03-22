@@ -8,6 +8,7 @@ import com.perc.mitpas.adi.mission.planning.resourceallocation.ResourceAllocatio
 import com.perc.mitpas.adi.mission.planning.resourceallocation.ResourceAllocationResponse;
 import com.perc.mitpas.adi.mission.planning.resourceallocation.ResponseListener;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
+import crw.CrwHelper;
 import crw.asset.BoatAsset;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.proxy.BoatProxy;
@@ -111,7 +112,7 @@ public class QueueTest implements ResponseListener {
     public ArrayList<ProxyInt> createProxies(int numProxies) {
         ArrayList<ProxyInt> proxies = new ArrayList<ProxyInt>();
         for (int i = 0; i < numProxies; i++) {
-            proxies.add(new BoatProxy("Boat" + i, randomColor(), i, new InetSocketAddress("localhost", 11411 + i)));
+            proxies.add(new BoatProxy("Boat" + i, CrwHelper.randomColor(), i, new InetSocketAddress("localhost", 11411 + i)));
         }
         return proxies;
     }
@@ -172,15 +173,5 @@ public class QueueTest implements ResponseListener {
             AllocationOptionsMessage msg = new AllocationOptionsMessage(null, null, randomPri.nextInt(3) + 1, allocs);
             oif.toUiMessageReceived(msg);
         }
-    }
-
-    private Color randomColor() {
-        Random rand = new Random();
-
-        float r = rand.nextFloat();
-        float g = rand.nextFloat();
-        float b = rand.nextFloat();
-
-        return new Color(r, g, b);
     }
 }

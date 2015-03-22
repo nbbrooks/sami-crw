@@ -37,7 +37,6 @@ public class AllocationFrame extends UiFrame implements TaskAllocationListenerIn
     private static final Logger LOGGER = Logger.getLogger(AllocationFrame.class.getName());
     private final Random RANDOM = new Random();
     private final int BORDER_WIDTH = 3;
-    private final HashMap<PlanManager, Color> pmToColor = new HashMap<PlanManager, Color>();
     private ResourceAllocation resourceAllocation;
     UiClientInt uiClient;
     UiServerInt uiServer;
@@ -95,17 +94,9 @@ public class AllocationFrame extends UiFrame implements TaskAllocationListenerIn
                 int blankSpaces = maxTasks;
                 for (ITask iTask : resourceAllocation.getAssetToTasks().get(asset)) {
                     PlanManager pm = Engine.getInstance().getPlanManager((Task) iTask);
-
-                    Color pmColor;
-                    if (pmToColor.containsKey(pm)) {
-                        pmColor = pmToColor.get(pm);
-                    } else {
-                        pmColor = randomColor();
-                        pmToColor.put(pm, pmColor);
-                    }
-
+                    Color[] pmColors = Engine.getInstance().getPlanManagerColor(pm);
                     JLabel taskL = new JLabel(iTask.getName());
-                    taskL.setBorder(BorderFactory.createLineBorder(pmColor, BORDER_WIDTH));
+                    taskL.setBorder(BorderFactory.createLineBorder(pmColors[0], BORDER_WIDTH));
                     newAllocatedPanel.add(taskL);
                     blankSpaces--;
                 }
@@ -133,15 +124,11 @@ public class AllocationFrame extends UiFrame implements TaskAllocationListenerIn
                 newUnallocatedPanel.setLayout(new GridLayout(pmToUnallocated.size(), 2));
                 for (PlanManager pm : pmToUnallocated.keySet()) {
                     // PM
-                    Color pmColor;
-                    if (pmToColor.containsKey(pm)) {
-                        pmColor = pmToColor.get(pm);
-                    } else {
-                        pmColor = randomColor();
-                        pmToColor.put(pm, pmColor);
-                    }
+                    Color[] pmColors = Engine.getInstance().getPlanManagerColor(pm);
                     JLabel planL = new JLabel(pm.getPlanName());
-                    planL.setBorder(BorderFactory.createLineBorder(pmColor, BORDER_WIDTH));
+                    planL.setBackground(pmColors[0]);
+                    planL.setForeground(pmColors[1]);
+                    planL.setOpaque(true);
                     newUnallocatedPanel.add(planL);
 
                     // PM's unallocated tasks
@@ -167,14 +154,6 @@ public class AllocationFrame extends UiFrame implements TaskAllocationListenerIn
         ArrayList<ITask> tasks = assetToTasks.get(asset);
         tasks.remove(task);
         redrawAllocation();
-    }
-
-    private Color randomColor() {
-        float r = RANDOM.nextFloat();
-        float g = RANDOM.nextFloat();
-        float b = RANDOM.nextFloat();
-
-        return new Color(r, g, b);
     }
 
     @Override
