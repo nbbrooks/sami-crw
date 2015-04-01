@@ -365,3 +365,4 @@ public class QueueItemText {
         viewed.set(true);
 //        viddb.setViewed(this, viewed);
     }
+}
