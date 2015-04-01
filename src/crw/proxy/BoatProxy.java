@@ -52,6 +52,7 @@ import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.Timer;
 import robotutils.Pose3D;
+import sami.CoreHelper;
 import sami.engine.Engine;
 import sami.engine.PlanManager;
 import sami.event.InputEvent;
@@ -84,7 +85,6 @@ public class BoatProxy extends Thread implements ProxyInt {
     final int DRIFT_TIMER = 2500; // ms
     // Each time drift timer triggers, randomly generate westerly and southerly drift in range [0, DRIFT_DISTANCE]
     final double DRIFT_DISTANCE = 1.0;
-    Random random = new Random();
     // Pose recorder file for offline analysis
     final boolean RECORD_POSE = false;
     // InputEvent generation rates
@@ -138,8 +138,6 @@ public class BoatProxy extends Thread implements ProxyInt {
     long goSlowRestTime = 20000L;
     long goSlowToWaypointTime = 20000L;
     double maxWPDist = 30.0;
-    // Lossy comms simulation
-    final Random COMM_LOSS_RANDOM = new Random(0L);
     // Pose recorder file for offline analysis
     private PrintWriter poseWriter;
     // InputEvent generation
@@ -190,7 +188,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                         String wwHemi = (_pose.origin.isNorth) ? AVKey.NORTH : AVKey.SOUTH;
 
                         // Fill in UTM data structure
-                        UTMCoord utm = UTMCoord.fromUTM(longZone, wwHemi, _pose.pose.getX() - random.nextDouble() * DRIFT_DISTANCE, _pose.pose.getY() - random.nextDouble() * DRIFT_DISTANCE);
+                        UTMCoord utm = UTMCoord.fromUTM(longZone, wwHemi, _pose.pose.getX() - CoreHelper.RANDOM.nextDouble() * DRIFT_DISTANCE, _pose.pose.getY() - CoreHelper.RANDOM.nextDouble() * DRIFT_DISTANCE);
                         UtmPose driftPose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), _pose.pose.getZ(), _pose.pose.getRotation()), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
 
                         _server.setPose(driftPose, null);
@@ -961,7 +959,7 @@ public class BoatProxy extends Thread implements ProxyInt {
             // There weren't any more waypoints - stop the proxy
             // Stop proxy as opposed to sending empty list of waypoints because 
             //  that will make the system think it finished assigned waypoints
-            if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
+            if (SIMULATE_COMM_LOSS && CoreHelper.RANDOM.nextDouble() <= COMM_LOSS_PROB) {
                 LOGGER.fine("*** Dropping _server.stopWaypoints");
             } else {
                 LOGGER.fine("*** Sending _server.stopWaypoints");
@@ -985,7 +983,7 @@ public class BoatProxy extends Thread implements ProxyInt {
     private void sendCurrentWaypointsGoFast() {
         LOGGER.fine("sendCurrentWaypointsGoFast: " + _curWaypoints.toString());
         activateAutonomy(true);
-        if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
+        if (SIMULATE_COMM_LOSS && CoreHelper.RANDOM.nextDouble() <= COMM_LOSS_PROB) {
             LOGGER.fine("*** Dropping _server.startWaypoints");
         } else {
             LOGGER.fine("*** Sending _server.startWaypoints");
@@ -1059,7 +1057,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                         if (System.currentTimeMillis() - timeLastGoSlowSent > goSlowToWaypointTime) {
                             LOGGER.log(Level.FINE, "Failed to reach waypoint in time, " + goSlowRestTime + " resting");
 
-                            if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
+                            if (SIMULATE_COMM_LOSS && CoreHelper.RANDOM.nextDouble() <= COMM_LOSS_PROB) {
                                 LOGGER.fine("*** Dropping _server.stopWaypoints");
                             } else {
                                 LOGGER.fine("*** Sending _server.stopWaypoints");
@@ -1085,7 +1083,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                 }).start();
 
                 activateAutonomy(true);
-                if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
+                if (SIMULATE_COMM_LOSS && CoreHelper.RANDOM.nextDouble() <= COMM_LOSS_PROB) {
                     LOGGER.fine("*** Dropping _server.startWaypoints");
                 } else {
                     LOGGER.fine("*** Sending _server.startWaypoints");
@@ -1134,7 +1132,7 @@ public class BoatProxy extends Thread implements ProxyInt {
      * @param t
      */
     public void setExternalVelocity(Twist t) {
-        if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
+        if (SIMULATE_COMM_LOSS && CoreHelper.RANDOM.nextDouble() <= COMM_LOSS_PROB) {
             LOGGER.fine("*** Dropping _server.setVelocity");
         } else {
             LOGGER.fine("*** Sending _server.setVelocity");
@@ -1152,7 +1150,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     public void activateAutonomy(final boolean activate) {
 
-        if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
+        if (SIMULATE_COMM_LOSS && CoreHelper.RANDOM.nextDouble() <= COMM_LOSS_PROB) {
             LOGGER.fine("*** Dropping _server.setAutonomous");
         } else {
             LOGGER.fine("*** Sending _server.setAutonomous");
@@ -1174,7 +1172,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     public void asyncGetWaypointStatus(FunctionObserver<WaypointState> fo) {
 
-        if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
+        if (SIMULATE_COMM_LOSS && CoreHelper.RANDOM.nextDouble() <= COMM_LOSS_PROB) {
             LOGGER.fine("*** Dropping _server.getWaypointStatus");
         } else {
             LOGGER.fine("*** Sending _server.getWaypointStatus");

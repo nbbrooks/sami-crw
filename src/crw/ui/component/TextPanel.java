@@ -25,8 +25,9 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.TableCellRenderer;
 import sami.allocation.ResourceAllocation;
+import sami.engine.Engine;
 import sami.engine.Mediator;
-import sami.event.Event;
+import sami.engine.PlanManager;
 import sami.markup.Markup;
 import sami.mission.MissionPlanSpecification;
 import sami.uilanguage.MarkupComponent;
@@ -111,7 +112,7 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups) {
+    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (type instanceof Class) {
             Class objectClass = (Class) type;
             if (objectClass.equals(Color.class)) {
@@ -149,10 +150,17 @@ public class TextPanel implements MarkupComponent {
                 }
                 component = new JComboBox(vector);
             } else if (objectClass.equals(VariableName.class)) {
-                ArrayList<String> existingVariables = Mediator.getInstance().getProject().getVariables();
+                ArrayList<String> inScopeVariables;
+                if (pmScope != null) {
+                    inScopeVariables = Engine.getInstance().getVariablesInScope(pmScope);
+                } else if (mSpecScope != null) {
+                    inScopeVariables = Mediator.getInstance().getProject().getVariablesInScope(mSpecScope);
+                } else {
+                    inScopeVariables = Mediator.getInstance().getProject().getAllVariables();
+                }
                 ArrayList<VariableName> variableNames = new ArrayList<VariableName>();
                 variableNames.add(null);
-                for (String var : existingVariables) {
+                for (String var : inScopeVariables) {
                     variableNames.add(new VariableName(var));
                 }
                 component = new JComboBox(variableNames.toArray());
@@ -167,7 +175,7 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups) {
+    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (object instanceof ResourceAllocation) {
             ResourceAllocation allocation = (ResourceAllocation) object;
             Map<AbstractAsset, ArrayList<ITask>> assetToTasks = allocation.getAssetToTasks();

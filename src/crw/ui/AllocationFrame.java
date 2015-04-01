@@ -35,7 +35,6 @@ import sami.uilanguage.toui.ToUiMessage;
 public class AllocationFrame extends UiFrame implements TaskAllocationListenerInt, UiClientListenerInt {
 
     private static final Logger LOGGER = Logger.getLogger(AllocationFrame.class.getName());
-    private final Random RANDOM = new Random();
     private final int BORDER_WIDTH = 3;
     private ResourceAllocation resourceAllocation;
     UiClientInt uiClient;

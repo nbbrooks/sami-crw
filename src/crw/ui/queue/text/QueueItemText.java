@@ -110,7 +110,7 @@ public class QueueItemText {
                             // Add in component for creating the item
                             MarkupComponent markupComponent = null;
                             JComponent visualization = null;
-                            markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), field, creationMessage.getMarkups());
+                            markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), field, creationMessage.getMarkups(), null, Engine.getInstance().getPlanManager(creationMessage.getMissionId()));
                             if (markupComponent == null) {
                                 LOGGER.severe("Got null creation component for field: " + field);
                                 visualization = new JLabel("");
@@ -142,7 +142,7 @@ public class QueueItemText {
                         // Add in description of item to be created
                         String variableName = key.variableName;
                         String description = creationMessage.getVariableNameToDescription().get(key);
-                        Object currentDefinition = Engine.getInstance().getVariableValue(variableName, null);
+                        Object currentDefinition = Engine.getInstance().getVariableValue(variableName, Engine.getInstance().getPlanManager(creationMessage.getMissionId()));
 
                         Class variableClass = currentDefinition.getClass();
                         JLabel descriptionLabel = new JLabel(variableName + " (" + variableClass.getSimpleName() + "): " + description);
@@ -155,7 +155,7 @@ public class QueueItemText {
                         MarkupComponent markupComponent = null;
                         JComponent visualization = null;
 
-                        markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(variableClass, null, new ArrayList<Markup>());
+                        markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(variableClass, null, new ArrayList<Markup>(), null, Engine.getInstance().getPlanManager(creationMessage.getMissionId()));
                         if (markupComponent == null) {
                             LOGGER.severe("Got null creation component for variable: " + variableName + " (" + variableClass.getSimpleName() + ")");
                             visualization = new JLabel("");
@@ -201,7 +201,7 @@ public class QueueItemText {
                 int maxColWidth = BUTTON_WIDTH;
                 int cumulComponentHeight = 0;
                 for (final Object option : selectionMessage.getOptionsList()) {
-                    MarkupComponent markupComponent = CrwUiComponentGenerator.getInstance().getSelectionComponent(option.getClass(), option, selectionMessage.getMarkups());
+                    MarkupComponent markupComponent = CrwUiComponentGenerator.getInstance().getSelectionComponent(option.getClass(), option, selectionMessage.getMarkups(), null, Engine.getInstance().getPlanManager(selectionMessage.getMissionId()));
                     JComponent visualization;
                     if (markupComponent != null) {
                         visualization = markupComponent.getComponent();
@@ -365,12 +365,3 @@ public class QueueItemText {
         viewed.set(true);
 //        viddb.setViewed(this, viewed);
     }
-
-//    public static Image getFillerThumbnail() {
-//        return BLANK_THUMBNAIL;
-//    }
-//
-//    public static JComponent getFillerComponent() {
-//        return BLANK_COMPONENT;
-//    }
-}

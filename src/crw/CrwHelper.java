@@ -6,10 +6,9 @@ import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.Vec4;
 import gov.nasa.worldwind.globes.Globe;
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.Random;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
+import sami.CoreHelper;
 
 /**
  *
@@ -18,7 +17,6 @@ import javax.swing.JFrame;
 public class CrwHelper {
 
     private static final Logger LOGGER = Logger.getLogger(CrwHelper.class.getName());
-    private static final Random RANDOM = new Random();
 
     public static boolean isPositionBetween(Position position, Position northWest, Position southEast) {
         if (position == null || northWest == null || southEast == null) {
@@ -92,9 +90,9 @@ public class CrwHelper {
     }
 
     public static Color randomColor() {
-        float r = RANDOM.nextFloat();
-        float g = RANDOM.nextFloat();
-        float b = RANDOM.nextFloat();
+        float r = CoreHelper.RANDOM.nextFloat();
+        float g = CoreHelper.RANDOM.nextFloat();
+        float b = CoreHelper.RANDOM.nextFloat();
 
         return new Color(r, g, b);
     }

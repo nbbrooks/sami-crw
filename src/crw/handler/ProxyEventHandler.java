@@ -267,7 +267,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 }
             }
             if (numProxies == 0) {
-                LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has no tokens with proxies attached: " + oe);
+                LOGGER.log(Level.WARNING, "Place with AssembleLocationRequest has no tokens with proxies attached: " + oe);
             }
 
             eventIdToAssembleCounter.put(request.getId(), assembleCounter);

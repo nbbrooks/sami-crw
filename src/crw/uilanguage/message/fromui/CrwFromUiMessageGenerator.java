@@ -81,7 +81,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
             LOGGER.fine("variableNameToComponentTable: " + variableNameToComponentTable);
             Hashtable<String, Object> variableToValue = new Hashtable<String, Object>();
             for (String variableName : variableNameToComponentTable.keySet()) {
-                Object curValue = Engine.getInstance().getVariableValue(variableName, null);
+                Object curValue = Engine.getInstance().getVariableValue(variableName, Engine.getInstance().getPlanManager(creationMessage.getMissionId()));
                 Class variableClass = curValue.getClass();
                 Object value = CrwUiComponentGenerator.getInstance().getComponentValue(variableNameToComponentTable.get(variableName), variableClass);
                 if (value == null) {

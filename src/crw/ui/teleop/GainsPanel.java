@@ -126,86 +126,68 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
             LOGGER.warning("Tried to apply field values to a null vehicle server!");
             return;
         }
-        boolean winchChanged = false;
-        boolean thrustPidChanged = false;
-        boolean rudderPidChanged = false;
         double temp;
 
         // Thrust PID
         temp = stringToDouble(thrustPTF.getText());
-        if (Double.isFinite(temp) && temp != thrustP) {
+        if (Double.isFinite(temp)) {
             thrustP = temp;
-            thrustPidChanged = true;
         }
         temp = stringToDouble(thrustITF.getText());
-        if (Double.isFinite(temp) && temp != thrustI) {
+        if (Double.isFinite(temp)) {
             thrustI = temp;
-            thrustPidChanged = true;
         }
         temp = stringToDouble(thrustDTF.getText());
-        if (Double.isFinite(temp) && temp != thrustD) {
+        if (Double.isFinite(temp)) {
             thrustD = temp;
-            thrustPidChanged = true;
         }
         // Rudder PID
         temp = stringToDouble(rudderPTF.getText());
-        if (Double.isFinite(temp) && temp != rudderP) {
+        if (Double.isFinite(temp)) {
             rudderP = temp;
-            rudderPidChanged = true;
         }
         temp = stringToDouble(rudderITF.getText());
-        if (Double.isFinite(temp) && temp != rudderI) {
+        if (Double.isFinite(temp)) {
             rudderI = temp;
-            rudderPidChanged = true;
         }
         temp = stringToDouble(rudderDTF.getText());
-        if (Double.isFinite(temp) && temp != rudderD) {
+        if (Double.isFinite(temp)) {
             rudderD = temp;
-            rudderPidChanged = true;
         }
         // Winch
         temp = stringToDouble(winchTF.getText());
-        if (Double.isFinite(temp) && temp != winch) {
+        if (Double.isFinite(temp)) {
             winch = temp;
-            winchChanged = true;
         }
 
-        if (thrustPidChanged) {
-            // Send value
-            activeVehicle.setGains(THRUST_GAINS_AXIS, new double[]{thrustP, thrustI, thrustD}, new FunctionObserver<Void>() {
-                public void completed(Void v) {
-                    LOGGER.fine("Set thrust gains succeeded: Axis [" + THRUST_GAINS_AXIS + "] PID [" + thrustP + ", " + thrustI + ", " + thrustD + "]");
-                }
+        // Always send in case of communication problems
+        activeVehicle.setGains(THRUST_GAINS_AXIS, new double[]{thrustP, thrustI, thrustD}, new FunctionObserver<Void>() {
+            public void completed(Void v) {
+                LOGGER.fine("Set thrust gains succeeded: Axis [" + THRUST_GAINS_AXIS + "] PID [" + thrustP + ", " + thrustI + ", " + thrustD + "]");
+            }
 
-                public void failed(FunctionObserver.FunctionError fe) {
-                    LOGGER.severe("Set thrust gains failed: Axis [" + THRUST_GAINS_AXIS + "] PID [" + thrustP + ", " + thrustI + ", " + thrustD + "]");
-                }
-            });
-        }
-        if (rudderPidChanged) {
-            // Send value
-            activeVehicle.setGains(RUDDER_GAINS_AXIS, new double[]{rudderP, rudderI, rudderD}, new FunctionObserver<Void>() {
-                public void completed(Void v) {
-                    LOGGER.fine("Set rudder gains succeeded: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + rudderP + ", " + rudderI + ", " + rudderD + "]");
-                }
+            public void failed(FunctionObserver.FunctionError fe) {
+                LOGGER.severe("Set thrust gains failed: Axis [" + THRUST_GAINS_AXIS + "] PID [" + thrustP + ", " + thrustI + ", " + thrustD + "]");
+            }
+        });
+        activeVehicle.setGains(RUDDER_GAINS_AXIS, new double[]{rudderP, rudderI, rudderD}, new FunctionObserver<Void>() {
+            public void completed(Void v) {
+                LOGGER.fine("Set rudder gains succeeded: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + rudderP + ", " + rudderI + ", " + rudderD + "]");
+            }
 
-                public void failed(FunctionObserver.FunctionError fe) {
-                    LOGGER.severe("Set rudder gains failed: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + rudderP + ", " + rudderI + ", " + rudderD + "]");
-                }
-            });
-        }
-        if (winchChanged) {
-            // Send value
-            activeVehicle.setGains(WINCH_GAINS_AXIS, new double[]{winch, winch, winch}, new FunctionObserver<Void>() {
-                public void completed(Void v) {
-                    LOGGER.fine("Set winch gains succeeded: Axis [" + WINCH_GAINS_AXIS + "] PID [" + winch + ", " + winch + ", " + winch + "]");
-                }
+            public void failed(FunctionObserver.FunctionError fe) {
+                LOGGER.severe("Set rudder gains failed: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + rudderP + ", " + rudderI + ", " + rudderD + "]");
+            }
+        });
+        activeVehicle.setGains(WINCH_GAINS_AXIS, new double[]{winch, winch, winch}, new FunctionObserver<Void>() {
+            public void completed(Void v) {
+                LOGGER.fine("Set winch gains succeeded: Axis [" + WINCH_GAINS_AXIS + "] PID [" + winch + ", " + winch + ", " + winch + "]");
+            }
 
-                public void failed(FunctionObserver.FunctionError fe) {
-                    LOGGER.severe("Set winch gains failed: Axis [" + WINCH_GAINS_AXIS + "] PID [" + winch + ", " + winch + ", " + winch + "]");
-                }
-            });
-        }
+            public void failed(FunctionObserver.FunctionError fe) {
+                LOGGER.severe("Set winch gains failed: Axis [" + WINCH_GAINS_AXIS + "] PID [" + winch + ", " + winch + ", " + winch + "]");
+            }
+        });
     }
 
     public void setProxy(BoatProxy boatProxy) {

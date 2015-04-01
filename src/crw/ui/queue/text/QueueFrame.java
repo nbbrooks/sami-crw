@@ -20,7 +20,6 @@ import sami.engine.PlanManagerListenerInt;
 import sami.mission.MissionPlanSpecification;
 import sami.mission.Place;
 import sami.mission.Transition;
-import sami.mission.Vertex;
 import sami.uilanguage.MarkupManager;
 import sami.uilanguage.UiClientInt;
 import sami.uilanguage.UiClientListenerInt;
@@ -38,13 +37,13 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
     private final static Logger LOGGER = Logger.getLogger(QueueFrame.class.getName());
     private Dimension frameDim = new Dimension(600 + 98, 600);
-    private Dimension activeQueueDim = new Dimension(Integer.MAX_VALUE, 200);
+    private Dimension activeQueueDim = new Dimension(Integer.MAX_VALUE, 150);
     private Dimension inactiveQueueDim = new Dimension(Integer.MAX_VALUE, 150);
     // LRU ordered list of queue panels
     private LinkedList<QueuePanelInt> queuePanels = new LinkedList<QueuePanelInt>();
-    private DecisionQueuePanel nominalQueuePanel, recoveryQueuePanel;
+    private DecisionQueuePanel nominalQueuePanel;
     private QueuePanelInt activeQueuePanel = null;
-    private QueueDatabase nominalQdb, recoveryQdb;
+    private QueueDatabase nominalQdb;
     UiClientInt uiClient;
     UiServerInt uiServer;
 
@@ -60,7 +59,6 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
     public QueueFrame() {
         nominalQdb = new QueueDatabase();
-        recoveryQdb = new QueueDatabase();
 
         activeQueueFilmstripP = new JPanel(new BorderLayout());
         activeQueueFilmstripP.setPreferredSize(activeQueueDim);
@@ -71,7 +69,6 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
         inActiveQueueFilmstripsP = new JPanel();
         inActiveQueueFilmstripsP.setLayout(new BoxLayout(inActiveQueueFilmstripsP, BoxLayout.Y_AXIS));
-        inActiveQueueFilmstripsP.setPreferredSize(inactiveQueueDim);
         inActiveQueueFilmstripsP.setMaximumSize(inactiveQueueDim);
 
         inactiveQueueFilmstripsSP = new JScrollPane();
@@ -107,10 +104,8 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
 
         // Create decision queue panel and set it as active queue
         nominalQueuePanel = new DecisionQueuePanel(this, nominalQdb, "NOMINAL");
-        recoveryQueuePanel = new DecisionQueuePanel(this, recoveryQdb, "RECOVERY");
 
         queuePanels.add(nominalQueuePanel);
-        queuePanels.add(recoveryQueuePanel);
         moveToTop(nominalQueuePanel);
 
         Engine.getInstance().addListener(this);
@@ -167,19 +162,6 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
             // Determine which database to add the message to
             //  By default, add to nominal db
             QueueDatabase qdb = nominalQdb;
-            PlanManager pm = Engine.getInstance().getPlanManager(toUiMsg.getMissionId());
-            if (pm == null) {
-                LOGGER.severe("No PM lookup for UUID " + toUiMsg.getMissionId());
-            } else {
-                Place place = pm.getPlace(toUiMsg.getRelevantOutputEventId());
-                if (place == null) {
-                    LOGGER.severe("No place lookup for UUID " + toUiMsg.getRelevantOutputEventId());
-                } else {
-                    if (place.getFunctionMode() != Vertex.FunctionMode.Nominal) {
-                        qdb = recoveryQdb;
-                    }
-                }
-            }
             qdb.addDecision(toUiMsg, manager);
         }
     }
@@ -191,11 +173,6 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
         removed = nominalQdb.removeMessageId(toUiMessageId);
         if (removed) {
             LOGGER.fine("Removed 1+ items from nominal queue DB due matching ToUiMessage id: " + toUiMessageId);
-        }
-
-        removed = recoveryQdb.removeMessageId(toUiMessageId);
-        if (removed) {
-            LOGGER.fine("Removed 1+ items from recovery queue DB due matching ToUiMessage id: " + toUiMessageId);
         }
 
         removed = activeQueuePanel.removeMessageId(toUiMessageId);
@@ -272,9 +249,6 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
         numRemoved = nominalQdb.removeMissionId(planManager.missionId);
         LOGGER.fine("Removed " + numRemoved + " items from nominal queue DB due to plan " + planManager.getPlanName() + " finishing");
 
-        numRemoved = recoveryQdb.removeMissionId(planManager.missionId);
-        LOGGER.fine("Removed " + numRemoved + " items from recovery queue DB due to plan " + planManager.getPlanName() + " finishing");
-
         numRemoved = activeQueuePanel.removeMissionId(planManager.missionId);
         LOGGER.fine("Removed 1+ items from " + activeQueuePanel + " due to plan " + planManager.getPlanName() + " finishing");
 
@@ -290,9 +264,6 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
         int numRemoved;
         numRemoved = nominalQdb.removeMissionId(planManager.missionId);
         LOGGER.fine("Removed " + numRemoved + " items from nominal queue DB due to plan " + planManager.getPlanName() + " aborting");
-
-        numRemoved = recoveryQdb.removeMissionId(planManager.missionId);
-        LOGGER.fine("Removed " + numRemoved + " items from recovery queue DB due to plan " + planManager.getPlanName() + " aborting");
 
         numRemoved = activeQueuePanel.removeMissionId(planManager.missionId);
         LOGGER.fine("Removed " + numRemoved + " items from " + activeQueuePanel + " due to plan " + planManager.getPlanName() + " aborting");

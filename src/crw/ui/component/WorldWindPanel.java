@@ -50,9 +50,11 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import sami.area.Area2D;
 import sami.engine.Mediator;
+import sami.engine.PlanManager;
 import sami.environment.EnvironmentListenerInt;
 import sami.markup.Markup;
 import sami.markup.RelevantArea;
+import sami.mission.MissionPlanSpecification;
 import sami.path.Location;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
@@ -249,7 +251,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     @Override
-    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups) {
+    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (wwCanvas == null) {
             createMap();
         }
@@ -272,7 +274,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     @Override
-    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups) {
+    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (wwCanvas == null) {
             createMap();
         }

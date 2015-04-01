@@ -13,11 +13,9 @@ import crw.asset.BoatAsset;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.proxy.BoatProxy;
 import crw.task.CollectSampleTask;
-import java.awt.Color;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import crw.task.EcMeasTask;
 import crw.uilanguage.message.toui.AllocationOptionsMessage;
 import crw.uilanguage.message.toui.ProxyOptionsMessage;
@@ -25,6 +23,7 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.logging.Logger;
+import sami.CoreHelper;
 import sami.event.MissingParamsRequest;
 import sami.event.ReflectedEventSpecification;
 import sami.event.ReflectionHelper;
@@ -39,8 +38,6 @@ import sami.uilanguage.toui.GetParamsMessage;
 public class QueueTest implements ResponseListener {
 
     private final static Logger LOGGER = Logger.getLogger(QueueTest.class.getName());
-    public static Random randomOpt = new Random(0);
-    public static Random randomPri = new Random(0);
     public QueueFrame oif;
     public ArrayList<ProxyInt> proxies = new ArrayList<ProxyInt>();
 
@@ -146,7 +143,7 @@ public class QueueTest implements ResponseListener {
     }
 
     public void getBP(ArrayList<ProxyInt> boatProxyList) {
-        ProxyOptionsMessage msg = new ProxyOptionsMessage(null, null, randomPri.nextInt(3) + 1, true, boatProxyList);
+        ProxyOptionsMessage msg = new ProxyOptionsMessage(null, null, CoreHelper.RANDOM.nextInt(3) + 1, true, boatProxyList);
         Attention a = new Attention();
         a.attentionType = Attention.AttentionType.BLINK;
         a.blink = new BlinkOption();
@@ -155,7 +152,7 @@ public class QueueTest implements ResponseListener {
         msg.addMarkup(a);
         oif.toUiMessageReceived(msg);
 
-        msg = new ProxyOptionsMessage(null, null, randomPri.nextInt(3) + 1, true, boatProxyList);
+        msg = new ProxyOptionsMessage(null, null, CoreHelper.RANDOM.nextInt(3) + 1, true, boatProxyList);
         a = new Attention();
         a.attentionType = Attention.AttentionType.HIGHLIGHT;
         a.attentionTarget = Attention.AttentionTarget.PANEL;
@@ -170,7 +167,7 @@ public class QueueTest implements ResponseListener {
 
         for (int i = 0; i < 3; i++) {
             allocs.add(new ResourceAllocation(list.get(0).getAllocation(), list.get(0).getTaskTimings()));
-            AllocationOptionsMessage msg = new AllocationOptionsMessage(null, null, randomPri.nextInt(3) + 1, allocs);
+            AllocationOptionsMessage msg = new AllocationOptionsMessage(null, null, CoreHelper.RANDOM.nextInt(3) + 1, allocs);
             oif.toUiMessageReceived(msg);
         }
     }

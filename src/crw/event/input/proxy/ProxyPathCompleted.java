@@ -37,6 +37,6 @@ public class ProxyPathCompleted extends InputEvent {
 
     @Override
     public String toString() {
-        return "ProxyPathCompleted [" + (relevantProxyList != null ? relevantProxyList.toString() : "null") + "]";
+        return "ProxyPathCompleted [" + (relevantProxyList != null ? relevantProxyList.toString() : "null") + ", " + blocking + "]";
     }
 }
