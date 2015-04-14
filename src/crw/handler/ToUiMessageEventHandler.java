@@ -78,6 +78,9 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                     proxyOptionsList.add(token.getProxy());
                 }
             }
+            if(proxyOptionsList.isEmpty()) {
+                LOGGER.log(Level.WARNING, "Place with OperatorSelectBoat has no tokens with proxies attached: " + oe);
+            }
             message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, false, proxyOptionsList);
         } else if (oe instanceof OperatorSelectBoatList) {
             ArrayList<ProxyInt> proxyOptionsList = new ArrayList<ProxyInt>();
@@ -85,6 +88,9 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                 if (token.getProxy() != null) {
                     proxyOptionsList.add(token.getProxy());
                 }
+            }
+            if(proxyOptionsList.isEmpty()) {
+                LOGGER.log(Level.WARNING, "Place with OperatorSelectBoat has no tokens with proxies attached: " + oe);
             }
             message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, true, proxyOptionsList);
         } else if (oe instanceof MissingParamsRequest) {

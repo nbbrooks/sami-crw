@@ -3,14 +3,11 @@ package crw;
 import crw.ui.component.WorldWindPanel;
 import crw.ui.widget.AnnotationWidget;
 import java.awt.BorderLayout;
-import java.io.File;
-import java.security.AccessControlException;
 import java.util.logging.Logger;
-import java.util.prefs.Preferences;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import sami.engine.Mediator;
 import sami.environment.EnvironmentListenerInt;
-import static sami.ui.MissionMonitor.LAST_EPF_FILE;
 
 /**
  *
@@ -40,14 +37,10 @@ public class EnvironmentManagerF extends JFrame implements EnvironmentListenerIn
 
         // Try to load the last used EPF file
         LOGGER.info("Load EPF");
-        Preferences p = Preferences.userRoot();
-        try {
-            String lastEpfPath = p.get(LAST_EPF_FILE, null);
-            if (lastEpfPath != null) {
-                Mediator.getInstance().openEnvironment(new File(lastEpfPath));
-            }
-        } catch (AccessControlException e) {
-            LOGGER.severe("Failed to load last used EPF");
+        boolean success = Mediator.getInstance().openLatestEnvironment();
+        if (!success) {
+            JOptionPane.showMessageDialog(null, "Failed to load previous environment, opening new environment");
+            Mediator.getInstance().newEnvironment();
         }
     }
 
