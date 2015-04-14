@@ -1,5 +1,6 @@
 package crw.handler;
 
+import com.madara.KnowledgeBase;
 import crw.Conversion;
 import crw.CrwHelper;
 import crw.event.input.proxy.ProxyCreated;
@@ -21,6 +22,8 @@ import crw.event.output.proxy.ProxyResendWaypoints;
 import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
+import crw.proxy.CrwProxyServer;
+import crw.proxy.LutraGamsServer;
 import crw.ui.ImagePanel;
 import edu.cmu.ri.crw.CrwNetworkUtils;
 import edu.cmu.ri.crw.VehicleServer;
@@ -56,9 +59,9 @@ import sami.path.Location;
 import sami.path.Path;
 import sami.path.PathUtm;
 import sami.path.UTMCoordinate;
-import sami.path.UTMCoordinate.Hemisphere;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyListenerInt;
+import sami.proxy.ProxyServerInt;
 import sami.proxy.ProxyServerListenerInt;
 import sami.service.information.InformationServer;
 import sami.service.information.InformationServiceProviderInt;
@@ -357,17 +360,39 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 // Create a simulated boat and run a ROS server around it
                 VehicleServer server = new FastSimpleBoatSimulator();
                 UdpVehicleService rosServer = new UdpVehicleService(11411 + portCounter, server);
-                UTMCoordinate utmc = createEvent.startLocation.getCoordinate();
-                UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(Hemisphere.NORTH)));
-                server.setPose(p1);
                 name = CrwHelper.getUniqueName(name, proxyNames);
                 proxyNames.add(name);
-                ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, new InetSocketAddress("localhost", 11411 + portCounter));
+                InetSocketAddress socketAddress = new InetSocketAddress("localhost", 11411 + portCounter);
+                ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, socketAddress);
                 color = randomColor();
                 portCounter++;
 
+                // Set initial pose
+                ProxyServerInt proxyServer = Engine.getInstance().getProxyServer();
+                if (proxyServer instanceof CrwProxyServer) {
+                    KnowledgeBase knowledge = ((CrwProxyServer) proxyServer).getKnowledgeBase();
+                    UTMCoordinate utmc = createEvent.startLocation.getCoordinate();
+                    String ipAddress = socketAddress.toString().substring(socketAddress.toString().indexOf("/") + 1);
+                    knowledge.set(ipAddress + ".pose.x", utmc.getEasting());
+                    knowledge.set(ipAddress + ".pose.y", utmc.getNorthing());
+                    knowledge.set(ipAddress + ".pose.z", "");
+                    knowledge.set(ipAddress + ".pose.roll", "");
+                    knowledge.set(ipAddress + ".pose.pitch", "");
+                    knowledge.set(ipAddress + ".pose.yaw", "0");
+                    knowledge.set(ipAddress + ".pose.zone", utmc.getZoneNumber());
+                    knowledge.set(ipAddress + ".pose.hemsphere", utmc.getHemisphere().toString());
+                    knowledge.sendModifieds();
+                } else {
+                    LOGGER.severe("ProxyServer is not a CrwProxyServer");
+                }
+
+                // Start simulated GAMS server
                 if (proxy != null) {
                     relevantProxyList.add(proxy);
+                    if (proxy instanceof BoatProxy) {
+                        BoatProxy bp = (BoatProxy) proxy;
+                        new Thread(new LutraGamsServer(bp.getServer(), bp.getIpAddress())).start();
+                    }
                 } else {
                     LOGGER.severe("Failed to create simulated proxy");
                     error = true;

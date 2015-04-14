@@ -1,5 +1,6 @@
 package crw.proxy;
 
+import com.madara.KnowledgeBase;
 import com.perc.mitpas.adi.mission.planning.task.Task;
 import crw.Conversion;
 import crw.event.input.proxy.ProxyPathCompleted;
@@ -9,12 +10,11 @@ import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyResendWaypoints;
 import crw.sensor.CrwObserverServer;
+import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.FunctionObserver;
 import edu.cmu.ri.crw.FunctionObserver.FunctionError;
-import edu.cmu.ri.crw.ImageListener;
 import edu.cmu.ri.crw.PoseListener;
 import edu.cmu.ri.crw.SensorListener;
-import edu.cmu.ri.crw.VehicleServer.WaypointState;
 import edu.cmu.ri.crw.WaypointListener;
 import edu.cmu.ri.crw.data.Twist;
 import edu.cmu.ri.crw.data.Utm;
@@ -27,29 +27,17 @@ import gov.nasa.worldwind.geom.coords.UTMCoord;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.InetSocketAddress;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.imageio.ImageIO;
 import javax.swing.Timer;
 import robotutils.Pose3D;
 import sami.engine.Engine;
@@ -74,19 +62,6 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     private static final Logger LOGGER = Logger.getLogger(BoatProxy.class.getName());
     final int MIN_TIME_BTW_CMDS = 1000; // Required time between sending waypoint update commands to avoid unexpected server behavior (ms)
-    // Lossy comms simulation
-    final boolean SIMULATE_COMM_LOSS = false;
-    // Probability to drop message
-    final double COMM_LOSS_PROB = 0.9;
-    // Drift simulation
-    final boolean SIMULATE_DRIFT = false;
-    // Timer for generating drift
-    final int DRIFT_TIMER = 2500; // ms
-    // Each time drift timer triggers, randomly generate westerly and southerly drift in range [0, DRIFT_DISTANCE]
-    final double DRIFT_DISTANCE = 1.0;
-    Random random = new Random();
-    // Pose recorder file for offline analysis
-    final boolean RECORD_POSE = false;
     // InputEvent generation rates
     final int EVENT_GENERATION_TIMER = 500; // ms
 
@@ -126,46 +101,65 @@ public class BoatProxy extends Thread implements ProxyInt {
     Iterable<Position> _futureWaypointsPos = null;
     // FunctionObserver variables
     final AtomicBoolean autonomyActive = new AtomicBoolean(false);
-    // Go slow variables
-    private boolean goSlow = false;
-    private boolean goSlowExecuting = false;
-    Iterator<Position> goSlowWPs = null;
-    UtmPose lastSentGoSlowPose = null;
-    long timeLastGoSlowSent = 0L;
-    long timeLastGoSlowDone = 0L;
-    UtmPose goSlowCurrentTarget = null;
-    // Go slow configurable variables
-    long goSlowRestTime = 20000L;
-    long goSlowToWaypointTime = 20000L;
-    double maxWPDist = 30.0;
-    // Lossy comms simulation
-    final Random COMM_LOSS_RANDOM = new Random(0L);
-    // Pose recorder file for offline analysis
-    private PrintWriter poseWriter;
     // InputEvent generation
     final AtomicBoolean sendEvent = new AtomicBoolean(true);
     long lastTime = -1;
+    // IP address
+    private final InetSocketAddress address;
+    private final String ipAddress;
+    // MADARA KB and containers
+    KnowledgeBase knowledge;
+    final BoatProxy bp;
+    com.madara.containers.Vector waypoints;
+    com.madara.containers.String wpEventId;
+    com.madara.containers.String wpState;
+    com.madara.containers.String wpController;
+    com.madara.containers.Integer waypointsReceivedAck;
+    com.madara.containers.Integer waypointsCompletedAck;
+    com.madara.containers.Integer autonomyEnabled;
+    com.madara.containers.Integer autonomyEnabledReceivedAck;
+    // MADARA threads
+    static final int MADARA_POSE_UPDATE_RATE = 1000; // ms
+    static final int MADARA_WP_UPDATE_RATE = 1000; // ms
+
+    public String getIpAddress() {
+        return ipAddress;
+    }
 
     // End stuff for simulated data creation
-    public BoatProxy(final String name, Color color, final int boatNo, InetSocketAddress addr) {
+    public BoatProxy(final String name, Color color, final int boatNo, InetSocketAddress addr, KnowledgeBase knowledge) {
+        this._boatNo = boatNo;
+        this.address = addr;
+        this.knowledge = knowledge;
+        ipAddress = address.toString().substring(address.toString().indexOf("/") + 1);
+
+        // Initialize MADARA containers
+        waypoints = new com.madara.containers.Vector();
+        waypoints.setName(knowledge, ipAddress + ".waypoints");
+
+        wpEventId = new com.madara.containers.String();
+        wpEventId.setName(knowledge, ipAddress + ".waypoints.eventId");
+
+        wpState = new com.madara.containers.String();
+        wpState.setName(knowledge, ipAddress + ".waypoints.state");
+
+        wpController = new com.madara.containers.String();
+        wpController.setName(knowledge, ipAddress + ".waypoints.controller");
+
+        waypointsReceivedAck = new com.madara.containers.Integer();
+        waypointsReceivedAck.setName(knowledge, ipAddress + ".waypoints.received");
+
+        waypointsCompletedAck = new com.madara.containers.Integer();
+        waypointsCompletedAck.setName(knowledge, ipAddress + ".waypoints.completed");
+
+        autonomyEnabled = new com.madara.containers.Integer();
+        autonomyEnabled.setName(knowledge, ipAddress + ".autonomy");
+
+        autonomyEnabledReceivedAck = new com.madara.containers.Integer();
+        autonomyEnabledReceivedAck.setName(knowledge, ipAddress + ".autonomy.received");
 
         String message = "Boat proxy created with name: " + name + ", color: " + color + ", addr: " + addr;
-        if (SIMULATE_COMM_LOSS) {
-            message += ", COMM_LOSS_PROB: " + COMM_LOSS_PROB;
-        }
-        if (SIMULATE_DRIFT) {
-            message += ", DRIFT_TIMER: " + DRIFT_TIMER + ", DRIFT_DISTANCE: " + DRIFT_DISTANCE;
-        }
         LOGGER.info(message);
-
-        if (RECORD_POSE) {
-            try {
-                String filename = new SimpleDateFormat("yyyyMMddhhmmss'_" + name + ".txt'").format(new Date());
-                poseWriter = new PrintWriter(new File(filename));
-            } catch (FileNotFoundException ex) {
-                Logger.getLogger(BoatProxy.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
 
         Timer stateTimer = new Timer(EVENT_GENERATION_TIMER, new ActionListener() {
 
@@ -176,185 +170,33 @@ public class BoatProxy extends Thread implements ProxyInt {
         });
         stateTimer.start();
 
-        if (SIMULATE_DRIFT) {
-            Timer driftTimer = new Timer(DRIFT_TIMER, new ActionListener() {
-
-                @Override
-                public void actionPerformed(ActionEvent ae) {
-                    if (_pose != null) {
-                        // Randomly generate westerly and southerly drift in range [0, DRIFT_DISTANCE]
-                        int longZone = _pose.origin.zone;
-                        // Convert hemisphere to arbitrary worldwind codes
-                        // Notice that there is a "typo" in South that exists in the WorldWind code
-                        // String wwHemi = (_pose.origin.isNorth) ? "gov.nasa.worldwind.avkey.North" : "gov.nasa.worldwdind.avkey.South";
-                        String wwHemi = (_pose.origin.isNorth) ? AVKey.NORTH : AVKey.SOUTH;
-
-                        // Fill in UTM data structure
-                        UTMCoord utm = UTMCoord.fromUTM(longZone, wwHemi, _pose.pose.getX() - random.nextDouble() * DRIFT_DISTANCE, _pose.pose.getY() - random.nextDouble() * DRIFT_DISTANCE);
-                        UtmPose driftPose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), _pose.pose.getZ(), _pose.pose.getRotation()), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
-
-                        _server.setPose(driftPose, null);
-                    }
-                }
-            });
-            driftTimer.start();
-        }
-
         // this.masterURI = masterURI;
         this.name = name;
         this.color = color;
 
         //Initialize the boat by initalizing a proxy server for it
         // Connect to boat
-        _boatNo = boatNo;
-
         if (addr == null) {
             LOGGER.severe("INetAddress is null!");
         }
 
         _server = new UdpVehicleServer(addr);
+        bp = this;
 
-        final BoatProxy bp = this;
-
-        _stateListener = new PoseListener() {
-            public void receivedPose(UtmPose upwcs) {
-
-                if (RECORD_POSE) {
-                    // Logger.getLogger(this.getClass().getName()).log(Level.INFO, "Boat pose update", this);
-                    poseWriter.write(new SimpleDateFormat("yyyy-MM-dd-hh.mm.ss.SSS'\t" + upwcs.toString() + "\n'").format(new Date()));
-                    poseWriter.flush();
-                }
-
-                _pose = upwcs.clone();
-
-                // System.out.println("Pose: [" + _pose.pose.position.x + ", " + _pose.pose.position.y + "], zone = " + _pose.utm.zone);
-                try {
-
-                    int longZone = _pose.origin.zone;
-
-                    // Convert hemisphere to arbitrary worldwind codes
-                    // Notice that there is a "typo" in South that exists in the WorldWind code
-                    // String wwHemi = (_pose.origin.isNorth) ? "gov.nasa.worldwind.avkey.North" : "gov.nasa.worldwdind.avkey.South";
-                    String wwHemi = (_pose.origin.isNorth) ? AVKey.NORTH : AVKey.SOUTH;
-
-                    // Fill in UTM data structure
-                    // System.out.println("Converting from " + longZone + " " + wwHemi + " " + _pose.pose.getX() + " " + _pose.pose.getY());
-                    UTMCoord boatPos = UTMCoord.fromUTM(longZone, wwHemi, _pose.pose.getX(), _pose.pose.getY());
-
-                    LatLon latlon = new LatLon(boatPos.getLatitude(), boatPos.getLongitude());
-
-                    // System.out.println("boatPos " + boatPos.getLatitude() + " " +  boatPos.getLongitude() + " latlon " + latlon.latitude.degrees + " " + latlon.longitude.degrees + " " + latlon);
-                    Position p = new Position(latlon, 0.0);
-
-                    // Update state variables
-                    position = p;
-                    utmCoord = boatPos;
-                    location = Conversion.positionToLocation(position);
-
-                    for (ProxyListenerInt boatProxyListener : listeners) {
-                        boatProxyListener.poseUpdated();
-                    }
-
-                } catch (Exception e) {
-                    LOGGER.warning("BoatProxy: Invalid pose received: " + e + " Pose: [" + _pose.pose.getX() + ", " + _pose.pose.getY() + "], zone = " + _pose.origin.zone);
-                    // e.printStackTrace();
-                }
-
-                // Send out event update
-                if (sendEvent.get()) {
-                    ProxyPoseUpdated ie = new ProxyPoseUpdated(null, null, bp);
-                    for (ProxyListenerInt boatProxyListener : listeners) {
-                        boatProxyListener.eventOccurred(ie);
-                    }
-                    sendEvent.set(false);
-                }
-            }
-        };
+        new Thread(new MadaraPoseListener(knowledge)).start();
+        new Thread(new MadaraWaypointListener(knowledge)).start();
 
         LOGGER.info("New boat created, boat # " + _boatNo);
-
-        //add Listeners
-        _server.addPoseListener(_stateListener, null);
-
-        _server.addWaypointListener(new WaypointListener() {
-            public void waypointUpdate(WaypointState ws) {
-
-                if (ws.equals(WaypointState.DONE)) {
-
-                    LOGGER.log(Level.FINE, "BoatProxy " + getName() + " got waypoint update " + ws + " (WaypointState.DONE)");
-
-                    // Handle the go slow
-                    if (goSlowExecuting) {
-                        timeLastGoSlowDone = System.currentTimeMillis();
-                        goSlowRun();
-                    }
-                    // This is intentionally rechecking, because goSlowRun() will change the boolean
-                    // if it is done
-                    if (!goSlowExecuting) {
-                        // Notify listeners
-                        for (ProxyListenerInt boatProxyListener : listeners) {
-                            boatProxyListener.waypointsComplete();
-                        }
-                    }
-                    if (sequentialOutputEvents.isEmpty()) {
-                        LOGGER.severe("Got a waypoints done message, but sequentialOutputEvents is empty!");
-                    } else {
-                        // Remove the OutputEvent that held this path
-                        OutputEvent oe = sequentialOutputEvents.remove(0);
-                        // Send out the InputEvent assocaited with this path
-                        InputEvent ie = sequentialInputEvents.remove(0);
-
-                        updateWaypoints(true, true);
-
-                        LOGGER.log(Level.FINE, "BoatProxy " + getName() + " completed sequential OE " + oe + ", sending out IE " + ie);
-                        for (ProxyListenerInt boatProxyListener : listeners) {
-                            boatProxyListener.eventOccurred(ie);
-                        }
-                        if (!sequentialOutputEvents.isEmpty()) {
-                            LOGGER.log(Level.FINE, "Sequential OE list is not empty, do the next one!");
-                            sendCurrentWaypoints();
-                        }
-                    }
-                }
-
-            }
-        }, null);
-
-        _server.addImageListener(new ImageListener() {
-            public void receivedImage(byte[] ci) {
-                // Take a picture, and put the resulting image into the panel
-                try {
-                    BufferedImage image = ImageIO.read(new java.io.ByteArrayInputStream(ci));
-                    LOGGER.log(Level.FINE, "Got image ... ");
-
-                    if (image != null) {
-                        // Flip the image vertically
-                        AffineTransform tx = AffineTransform.getScaleInstance(1, -1);
-                        tx.translate(0, -image.getHeight(null));
-                        AffineTransformOp op = new AffineTransformOp(tx, AffineTransformOp.TYPE_NEAREST_NEIGHBOR);
-                        image = op.filter(image, null);
-
-                        if (image == null) {
-                            LOGGER.warning("Failed to decode image.");
-                        }
-
-                        // ImagePanel.addImage(image, _pose);
-                        latestImg = image;
-                    } else {
-                        LOGGER.warning("Image was null in receivedImage");
-                    }
-                } catch (IOException ex) {
-                    LOGGER.warning("Failed to decode image: " + ex);
-                }
-
-            }
-        }, null);
 
         for (int i = 0; i < NUM_SENSOR_PORTS; i++) {
             ((CrwObserverServer) Engine.getInstance().getObserverServer()).createObserver(this, i);
         }
 
         // startCamera();
+    }
+
+    public AsyncVehicleServer getServer() {
+        return _server;
     }
 
     @Override
@@ -708,55 +550,6 @@ public class BoatProxy extends Thread implements ProxyInt {
         return _futureWaypointsPos;
     }
 
-    public boolean isGoSlow() {
-        return goSlow;
-    }
-
-    public void setGoSlow(boolean goSlow) {
-        this.goSlow = goSlow;
-    }
-
-    public void addImageListener(ImageListener l) {
-        _server.addImageListener(l, null);
-        startCamera();
-    }
-
-    public void addSensorListener(int channel, SensorListener l) {
-        _server.addSensorListener(channel, l, null);
-
-        // @todo This only allows one sensor, generalize (but I think this is only for the fake data ...)
-        _sensorListener = l;
-
-        // System.out.println("Setting SENSOR LISTENER TO: " + l);
-    }
-
-    public void addPoseListener(PoseListener l) {
-        _server.addPoseListener(l, null);
-    }
-
-    public void addWaypointListener(WaypointListener l) {
-        _server.addWaypointListener(l, null);
-    }
-
-    public void startCamera() {
-
-        (new Thread() {
-            public void run() {
-
-                try {
-                    LOGGER.log(Level.FINE, "SLEEPING BEFORE CAMERA START");
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                }
-                LOGGER.log(Level.FINE, "DONE SLEEPING BEFORE CAMERA START");
-
-                _server.startCamera(0, 30.0, 640, 480, null);
-
-                LOGGER.log(Level.FINE, "Image listener started");
-            }
-        }).start();
-    }
-
     /**
      * Updates the variables and lists used to execute and visualize current and
      * future waypoints from the output event list. Note this does not actually
@@ -957,229 +750,65 @@ public class BoatProxy extends Thread implements ProxyInt {
     public void sendCurrentWaypoints() {
         LOGGER.fine("sendCurrentWaypoints");
         if (_curWaypoints.isEmpty()) {
-            LOGGER.fine("stopWaypoints");
             // There weren't any more waypoints - stop the proxy
             // Stop proxy as opposed to sending empty list of waypoints because 
             //  that will make the system think it finished assigned waypoints
-            if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
-                LOGGER.fine("*** Dropping _server.stopWaypoints");
-            } else {
-                LOGGER.fine("*** Sending _server.stopWaypoints");
-                LOGGER.info("BoatProxy [" + toString() + "] stopWaypoints");
-
-                // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
-                checkAndSleepForCmd();
-                _server.stopWaypoints(null);
-            }
-        } else {
-            if (goSlow && _curWaypointsPos.iterator().hasNext()) {
-                LOGGER.fine("GO SLOW MODE");
-                sendCurrentWaypointsGoSlow();
-            } else if (!goSlow) {
-                LOGGER.fine("GO FAST MODE");
-                sendCurrentWaypointsGoFast();
-            }
-        }
-    }
-
-    private void sendCurrentWaypointsGoFast() {
-        LOGGER.fine("sendCurrentWaypointsGoFast: " + _curWaypoints.toString());
-        activateAutonomy(true);
-        if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
-            LOGGER.fine("*** Dropping _server.startWaypoints");
-        } else {
-            LOGGER.fine("*** Sending _server.startWaypoints");
-            LOGGER.info("BoatProxy [" + toString() + "] startWaypoints [" + _curWaypoints.toString() + "]");
+            LOGGER.info("BoatProxy [" + toString() + "] stopWaypoints");
 
             // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
             checkAndSleepForCmd();
-            _server.startWaypoints(_curWaypoints.toArray(new UtmPose[_curWaypoints.size()]), "POINT_AND_SHOOT", new FunctionObserver() {
-                int completedCounter = 0;
 
-                public void completed(Object v) {
-                    LOGGER.log(Level.FINE, "Start waypoints succeeded");
-                }
-
-                public void failed(FunctionError fe) {
-                    // @todo Do something when start waypoints fails
-                    LOGGER.severe("Start waypoints failed");
-                }
-            });
-        }
-    }
-
-    private void sendCurrentWaypointsGoSlow() {
-        goSlowWPs = _curWaypointsPos.iterator();
-        goSlowExecuting = true;
-        goSlowRun();
-    }
-
-    private void goSlowRun() {
-
-        if (System.currentTimeMillis() - timeLastGoSlowSent > goSlowRestTime
-                && System.currentTimeMillis() - timeLastGoSlowDone > goSlowRestTime) {
-
-            _curWaypoints.clear();
-
-            try {
-
-                // Get a new target point, if we don't have one
-                if (goSlowCurrentTarget == null) {
-                    Position position = goSlowWPs.next();
-                    UTMCoord utm = UTMCoord.fromLatLon(position.latitude, position.longitude);
-                    goSlowCurrentTarget = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
-                }
-
-                // If we are too far from that target point, pick some intermediate point
-                double dist = _pose.pose.getEuclideanDistance(goSlowCurrentTarget.pose);
-                LOGGER.log(Level.FINE, "DISTANCE IS " + dist);
-                UtmPose realTarget = null;
-
-                if (dist > maxWPDist) {
-                    LOGGER.log(Level.FINE, "Creating an intermediate point in go slow");
-                    double x = _pose.pose.getX() + (maxWPDist / dist) * (goSlowCurrentTarget.pose.getX() - _pose.pose.getX());
-                    double y = _pose.pose.getY() + (maxWPDist / dist) * (goSlowCurrentTarget.pose.getY() - _pose.pose.getY());
-                    realTarget = new UtmPose(new Pose3D(x, y, _pose.pose.getZ(), _pose.pose.getRotation()), new Utm(utmCoord.getZone(), utmCoord.getHemisphere().contains("North")));
-                    _curWaypoints.add(realTarget);
-                } else {
-                    // We are done with this point
-                    _curWaypoints.add(goSlowCurrentTarget);
-                    goSlowCurrentTarget = null;
-                }
-
-                timeLastGoSlowSent = System.currentTimeMillis();
-
-                // This thread monitors whether it took too long to get to the waypoint
-                (new Thread() {
-                    public void run() {
-                        try {
-                            sleep(goSlowToWaypointTime);
-                        } catch (InterruptedException e) {
-                        }
-                        if (System.currentTimeMillis() - timeLastGoSlowSent > goSlowToWaypointTime) {
-                            LOGGER.log(Level.FINE, "Failed to reach waypoint in time, " + goSlowRestTime + " resting");
-
-                            if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
-                                LOGGER.fine("*** Dropping _server.stopWaypoints");
-                            } else {
-                                LOGGER.fine("*** Sending _server.stopWaypoints");
-                                LOGGER.info("BoatProxy [" + toString() + "] stopWaypoints");
-
-                                // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
-                                checkAndSleepForCmd();
-
-                                _server.stopWaypoints(new FunctionObserver<Void>() {
-                                    public void completed(Void v) {
-                                        LOGGER.log(Level.FINE, "Resting waypoints due to too long");
-                                    }
-
-                                    public void failed(FunctionError fe) {
-                                        LOGGER.log(Level.FINE, "Failed to rest: " + fe);
-                                    }
-                                });
-                            }
-
-                            goSlowRun();
-                        }
-                    }
-                }).start();
-
-                activateAutonomy(true);
-                if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
-                    LOGGER.fine("*** Dropping _server.startWaypoints");
-                } else {
-                    LOGGER.fine("*** Sending _server.startWaypoints");
-                    LOGGER.info("BoatProxy [" + toString() + "] startWaypoints [" + _curWaypoints.toString() + "]");
-
-                    // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
-                    checkAndSleepForCmd();
-
-                    _server.startWaypoints(_curWaypoints.toArray(new UtmPose[_curWaypoints.size()]), "POINT_AND_SHOOT", new FunctionObserver() {
-                        public void completed(Object v) {
-                            LOGGER.info("Successfully sent a waypoint in Go Slow: " + _curWaypoints.peek());
-                        }
-
-                        public void failed(FunctionError fe) {
-                            // @todo Do something when start waypoints fails
-                            LOGGER.warning("Start waypoints failed");
-                        }
-                    });
-                }
-
-            } catch (NoSuchElementException e) {
-                LOGGER.info("Go slow is done! " + e);
-                goSlowExecuting = false;
-            }
-
+            // Update MADARA containers
+            waypoints.resize(0);
+//            wpState.set("");
+            wpController.set("");
+            waypointsReceivedAck.set(1);
+            waypointsCompletedAck.set(0);
+            knowledge.sendModifieds();
         } else {
+            LOGGER.info("BoatProxy [" + toString() + "] startWaypoints [" + _curWaypoints.toString() + "]");
+            activateAutonomy(true);
 
-            LOGGER.info("Too soon to send next waypoint");
+            // Make sure we don't send waypoint commands too fast - stop and go commands can get out of order otherwise
+            checkAndSleepForCmd();
 
-            (new Thread() {
-                public void run() {
-                    try {
-                        sleep(goSlowRestTime / 2);
-                        LOGGER.info("Thread awoke");
-                    } catch (InterruptedException e) {
-                    }
-                    goSlowRun();
-                }
-            }).start();
+            // Update MADARA containers
+            waypoints.resize(_curWaypoints.size());
+            UtmPose[] utmWaypoints = _curWaypoints.toArray(new UtmPose[_curWaypoints.size()]);
+            for (int i = 0; i < _curWaypoints.size(); i++) {
+                String utmString = utmWaypoints[i].pose.getX() + "," + utmWaypoints[i].pose.getY() + "," + utmWaypoints[i].origin.zone + "," + (utmWaypoints[i].origin.isNorth ? "N" : "S");
+                waypoints.set(i, utmString);
+            }
+//            wpState.set("");
+            wpController.set("POINT_AND_SHOOT");
+            waypointsReceivedAck.set(1);
+            waypointsCompletedAck.set(0);
+            knowledge.sendModifieds();
         }
     }
 
     /**
-     * Sends a twist velocity to the boat server to be executed
+     * Sends a twist velocity to the boat server to be executed Not sure if we
+     * want to set this using MADARA containers - could get messy and we would
+     * only teleoperate within close range regardless
      *
      * @param t
      */
     public void setExternalVelocity(Twist t) {
-        if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
-            LOGGER.fine("*** Dropping _server.setVelocity");
-        } else {
-            LOGGER.fine("*** Sending _server.setVelocity");
-            _server.setVelocity(t, new FunctionObserver<Void>() {
-                public void completed(Void v) {
-                    LOGGER.log(Level.FINE, "Set velocity succeeded");
-                }
+        _server.setVelocity(t, new FunctionObserver<Void>() {
+            public void completed(Void v) {
+                LOGGER.log(Level.FINE, "Set velocity succeeded");
+            }
 
-                public void failed(FunctionError fe) {
-                    LOGGER.severe("Set velocity failed!");
-                }
-            });
-        }
+            public void failed(FunctionError fe) {
+                LOGGER.severe("Set velocity failed!");
+            }
+        });
     }
 
     public void activateAutonomy(final boolean activate) {
-
-        if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
-            LOGGER.fine("*** Dropping _server.setAutonomous");
-        } else {
-            LOGGER.fine("*** Sending _server.setAutonomous");
-            _server.setAutonomous(activate, new FunctionObserver<Void>() {
-
-                @Override
-                public void completed(Void v) {
-                    LOGGER.log(Level.FINE, "Set autonomous to " + activate + " succeeded");
-                    autonomyActive.set(true);
-                }
-
-                @Override
-                public void failed(FunctionError fe) {
-                    LOGGER.severe("Set autonomous to " + activate + " failed!");
-                }
-            });
-        }
-    }
-
-    public void asyncGetWaypointStatus(FunctionObserver<WaypointState> fo) {
-
-        if (SIMULATE_COMM_LOSS && COMM_LOSS_RANDOM.nextDouble() <= COMM_LOSS_PROB) {
-            LOGGER.fine("*** Dropping _server.getWaypointStatus");
-        } else {
-            LOGGER.fine("*** Sending _server.getWaypointStatus");
-            _server.getWaypointStatus(fo);
-        }
+        autonomyEnabled.set((activate ? 1 : 0));
+        autonomyEnabledReceivedAck.set(1);
     }
 
     public Color getColor() {
@@ -1196,8 +825,8 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     @Override
     public String toString() {
-        return name + "@" + _server.getVehicleService();
-        // (masterURI == null ? "Unknown" : masterURI.toString());
+        return name;
+//        return name + "@" + _server.getVehicleService();
     }
 
     private void checkAndSleepForCmd() {
@@ -1213,5 +842,119 @@ public class BoatProxy extends Thread implements ProxyInt {
             }
         }
         lastTime = System.currentTimeMillis();
+    }
+
+    class MadaraPoseListener implements Runnable {
+
+        protected KnowledgeBase knowledge;
+
+        public MadaraPoseListener(KnowledgeBase knowledge) {
+            this.knowledge = knowledge;
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                try {
+                    Thread.sleep(MADARA_POSE_UPDATE_RATE);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(WaypointListener.class.getName()).log(Level.SEVERE, null, ex);
+                }
+
+                // Update pose from MADARA containers
+                double easting = knowledge.get(ipAddress + ".pose.x").toDouble();
+                double northing = knowledge.get(ipAddress + ".pose.y").toDouble();
+                double altitude = knowledge.get(ipAddress + ".pose.z").toDouble();
+                double roll = knowledge.get(ipAddress + ".pose.roll").toDouble();
+                double pitch = knowledge.get(ipAddress + ".pose.pitch").toDouble();
+                double yaw = knowledge.get(ipAddress + ".pose.yaw").toDouble();
+                int zone = Integer.valueOf(knowledge.get(ipAddress + ".pose.zone").toString());
+                String hemisphere = knowledge.get(ipAddress + ".pose.hemisphere").toString();
+                String wwHemi = (hemisphere.startsWith("N") || hemisphere.startsWith("n")) ? AVKey.NORTH : AVKey.SOUTH;
+
+                try {
+                    UTMCoord boatPos = UTMCoord.fromUTM(zone, wwHemi, easting, northing);
+                    LatLon latlon = new LatLon(boatPos.getLatitude(), boatPos.getLongitude());
+                    Position p = new Position(latlon, 0.0);
+
+                    // Update state variables
+                    _pose = new UtmPose(new Pose3D(easting, northing, altitude, roll, pitch, yaw), new Utm(zone, (hemisphere.startsWith("N") || hemisphere.startsWith("n"))));
+                    position = p;
+                    utmCoord = boatPos;
+                    location = Conversion.positionToLocation(position);
+
+                    for (ProxyListenerInt boatProxyListener : listeners) {
+                        boatProxyListener.poseUpdated();
+                    }
+
+                    // Send out event update
+                    if (sendEvent.get()) {
+                        ProxyPoseUpdated ie = new ProxyPoseUpdated(null, null, bp);
+                        for (ProxyListenerInt boatProxyListener : listeners) {
+                            boatProxyListener.eventOccurred(ie);
+                        }
+                        sendEvent.set(false);
+                    }
+                } catch (java.lang.IllegalArgumentException iae) {
+                    iae.printStackTrace();
+                }
+            }
+        }
+    }
+
+    class MadaraWaypointListener implements Runnable {
+
+        protected KnowledgeBase knowledge;
+        com.madara.containers.Integer waypointsCompletedAck;
+        com.madara.containers.String wpState;
+
+        public MadaraWaypointListener(KnowledgeBase knowledge) {
+            this.knowledge = knowledge;
+            waypointsCompletedAck = new com.madara.containers.Integer();
+            waypointsCompletedAck.setName(knowledge, ipAddress + ".waypoints.completed");
+            wpState = new com.madara.containers.String();
+            wpState.setName(knowledge, ipAddress + ".waypoints.state");
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                try {
+                    Thread.sleep(MADARA_WP_UPDATE_RATE);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(WaypointListener.class.getName()).log(Level.SEVERE, null, ex);
+                }
+
+                // Check if waypoints were completed
+                if (waypointsCompletedAck.get() == 1) {
+                    waypointsCompletedAck.set(0);
+                    knowledge.sendModifieds();
+
+                    // Notify listeners
+                    for (ProxyListenerInt boatProxyListener : listeners) {
+                        boatProxyListener.waypointsComplete();
+                    }
+                    if (sequentialOutputEvents.isEmpty()) {
+                        LOGGER.severe("Got a waypoints done message, but sequentialOutputEvents is empty!");
+                    } else {
+                        // Remove the OutputEvent that held this path
+                        OutputEvent oe = sequentialOutputEvents.remove(0);
+                        // Send out the InputEvent assocaited with this path
+                        InputEvent ie = sequentialInputEvents.remove(0);
+
+                        updateWaypoints(true, true);
+
+                        LOGGER.log(Level.FINE, "BoatProxy " + getName() + " completed sequential OE " + oe + ", sending out IE " + ie);
+                        for (ProxyListenerInt boatProxyListener : listeners) {
+                            boatProxyListener.eventOccurred(ie);
+                        }
+                        if (!sequentialOutputEvents.isEmpty()) {
+                            LOGGER.log(Level.FINE, "Sequential OE list is not empty, do the next one!");
+                            sendCurrentWaypoints();
+                        }
+                    }
+                }
+            }
+        }
     }
 }

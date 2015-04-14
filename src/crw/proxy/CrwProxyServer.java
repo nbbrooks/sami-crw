@@ -1,5 +1,8 @@
 package crw.proxy;
 
+import com.madara.KnowledgeBase;
+import com.madara.transport.QoSTransportSettings;
+import com.madara.transport.TransportType;
 import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.common.datamodels.Feature;
 import com.perc.mitpas.adi.common.datamodels.FeatureType;
@@ -25,14 +28,24 @@ public class CrwProxyServer implements ProxyServerInt {
     private final static Logger LOGGER = Logger.getLogger(CrwProxyServer.class.getName());
     private Random random = new Random();
     private static ArrayList<ProxyServerListenerInt> listeners = new ArrayList<ProxyServerListenerInt>();
-    private int proxyCounter = 1;
+    private int proxyCounter = 0;
     ArrayList<ProxyInt> proxies = new ArrayList<ProxyInt>();
     ArrayList<AbstractAsset> assets = new ArrayList<AbstractAsset>();
     HashMap<InetSocketAddress, ProxyInt> ipToProxyMap = new HashMap<InetSocketAddress, ProxyInt>();
     HashMap<AbstractAsset, ProxyInt> assetToProxyMap = new HashMap<AbstractAsset, ProxyInt>();
     HashMap<ProxyInt, AbstractAsset> proxyToAssetMap = new HashMap<ProxyInt, AbstractAsset>();
+    // MADARA knowlege base
+    public KnowledgeBase knowledge;
 
     public CrwProxyServer() {
+        QoSTransportSettings settings = new QoSTransportSettings();
+        settings.setHosts(new String[]{"239.255.0.1:4150"});
+        settings.setType(TransportType.MULTICAST_TRANSPORT);
+        knowledge = new KnowledgeBase("base_station", settings);
+    }
+
+    public KnowledgeBase getKnowledgeBase() {
+        return knowledge;
     }
 
     @Override
@@ -53,7 +66,7 @@ public class CrwProxyServer implements ProxyServerInt {
                 LOGGER.severe("Boat proxy's color was null, using white");
                 color = Color.WHITE;
             }
-            ProxyInt proxy = new BoatProxy(name, color, proxyCounter, addr);
+            ProxyInt proxy = new BoatProxy(name, color, proxyCounter, addr, knowledge);
             proxyCounter++;
             proxies.add(proxy);
             ipToProxyMap.put(addr, proxy);
