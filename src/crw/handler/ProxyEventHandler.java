@@ -2,6 +2,7 @@ package crw.handler;
 
 import crw.Conversion;
 import crw.CrwHelper;
+import crw.event.input.proxy.GainsSent;
 import crw.event.input.proxy.ProxyCreated;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPathFailed;
@@ -18,11 +19,15 @@ import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyResendWaypoints;
+import crw.event.output.proxy.SetGains;
 import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
 import crw.ui.ImagePanel;
+import static crw.ui.teleop.GainsPanel.RUDDER_GAINS_AXIS;
+import static crw.ui.teleop.GainsPanel.THRUST_GAINS_AXIS;
 import edu.cmu.ri.crw.CrwNetworkUtils;
+import edu.cmu.ri.crw.FunctionObserver;
 import edu.cmu.ri.crw.VehicleServer;
 import edu.cmu.ri.crw.data.Utm;
 import edu.cmu.ri.crw.data.UtmPose;
@@ -385,6 +390,51 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     listener.eventGenerated(proxyCreated);
                 }
             }
+        } else if (oe instanceof SetGains) {
+            final SetGains setGains = (SetGains) oe;
+            ArrayList<InputEvent> responses = new ArrayList<InputEvent>();
+
+            int numBoatProxies = 0;
+            ArrayList<ProxyInt> relevantProxies;
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    numBoatProxies++;
+                    
+                    BoatProxy boatProxy = (BoatProxy) token.getProxy();
+                    boatProxy.getVehicleServer().setGains(THRUST_GAINS_AXIS, new double[]{setGains.thrustP, setGains.thrustI, setGains.thrustD}, new FunctionObserver<Void>() {
+                        public void completed(Void v) {
+                            LOGGER.fine("Set thrust gains succeeded: Axis [" + THRUST_GAINS_AXIS + "] PID [" + setGains.thrustP + ", " + setGains.thrustI + ", " + setGains.thrustD + "]");
+                        }
+
+                        public void failed(FunctionObserver.FunctionError fe) {
+                            LOGGER.severe("Set thrust gains failed: Axis [" + THRUST_GAINS_AXIS + "] PID [" + setGains.thrustP + ", " + setGains.thrustI + ", " + setGains.thrustD + "]");
+                        }
+                    });
+                    boatProxy.getVehicleServer().setGains(RUDDER_GAINS_AXIS, new double[]{setGains.rudderP, setGains.rudderI, setGains.rudderD}, new FunctionObserver<Void>() {
+                        public void completed(Void v) {
+                            LOGGER.fine("Set rudder gains succeeded: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + setGains.rudderP + ", " + setGains.rudderI + ", " + setGains.rudderD + "]");
+                        }
+
+                        public void failed(FunctionObserver.FunctionError fe) {
+                            LOGGER.severe("Set rudder gains failed: Axis [" + RUDDER_GAINS_AXIS + "] PID [" + setGains.rudderP + ", " + setGains.rudderI + ", " + setGains.rudderD + "]");
+                        }
+                    });
+
+                    //@todo add in recognition of success or failure
+                    GainsSent gainsSent = new GainsSent(oe.getId(), oe.getMissionId(), boatProxy);
+                    responses.add(gainsSent);
+                }
+            }
+            if (numBoatProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with SetGains has no tokens with boat proxies attached: " + oe + ", tokens [" + tokens + "]");
+            }
+
+            for (GeneratedEventListenerInt listener : listeners) {
+                for (InputEvent response : responses) {
+                    LOGGER.log(Level.FINE, "\tSending response: " + response + " to listener: " + listener);
+                    listener.eventGenerated(response);
+                }
+            }
         } else if (oe instanceof ProxyExecutePath
                 || oe instanceof ProxyEmergencyAbort
                 || oe instanceof ProxyResendWaypoints) {
@@ -411,7 +461,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 || sub.getSubscriptionClass() == QuantityGreater.class
                 || sub.getSubscriptionClass() == QuantityLess.class
                 || sub.getSubscriptionClass() == QuantityEqual.class
-                || sub.getSubscriptionClass() == ProxyPoseUpdated.class) {
+                || sub.getSubscriptionClass() == ProxyPoseUpdated.class
+                || sub.getSubscriptionClass() == SetGains.class) {
             LOGGER.log(Level.FINE, "\tProxyEventHandler taking subscription: " + sub);
             if (!listeners.contains(sub.getListener())) {
                 LOGGER.log(Level.FINE, "\t\tProxyEventHandler adding listener: " + sub.getListener());
@@ -436,7 +487,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 || sub.getSubscriptionClass() == QuantityGreater.class
                 || sub.getSubscriptionClass() == QuantityLess.class
                 || sub.getSubscriptionClass() == QuantityEqual.class
-                || sub.getSubscriptionClass() == ProxyPoseUpdated.class)
+                || sub.getSubscriptionClass() == ProxyPoseUpdated.class
+                || sub.getSubscriptionClass() == SetGains.class)
                 && listeners.contains(sub.getListener())) {
             LOGGER.log(Level.FINE, "\tProxyEventHandler canceling subscription: " + sub);
             if (listenerGCCount.get(sub.getListener()) == 1) {

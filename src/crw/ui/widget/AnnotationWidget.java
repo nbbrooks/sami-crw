@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -602,7 +603,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         loadButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
-                boolean success = Mediator.getInstance().openEnvironment();
+                boolean success = Mediator.getInstance().openLatestEnvironment();
                 if (!success) {
                     // Couldn't load the plan
                     JOptionPane.showMessageDialog(null, "Could not load environment properties (.EPF) file");
@@ -846,8 +847,6 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
 
     @Override
     public void environmentUpdated() {
-        clearObstalces();
-
         applyValues();
     }
 
@@ -926,10 +925,28 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
     }
 
     private void exportValues() {
+        JFileChooser chooser = new JFileChooser();
         File exportF;
-        Preferences p = Preferences.userRoot();
-        String folder = p.get(LAST_EPF_FOLDER, "");
-        JFileChooser chooser = new JFileChooser(folder);
+        try {
+            Preferences p = Preferences.userRoot();
+            if (p == null) {
+                LOGGER.severe("Java preferences file is NULL");
+            } else {
+                String folderPath = p.get(LAST_EPF_FOLDER, "");
+                if (folderPath == null) {
+                    LOGGER.warning("Last EPF folder preferences entry was NULL");
+                } else {
+                    File currentFolder = new File(folderPath);
+                    if (!currentFolder.isDirectory()) {
+                        LOGGER.warning("Last EPF folder preferences entry is not a folder: " + currentFolder.getAbsolutePath());
+                    } else {
+                        chooser.setCurrentDirectory(currentFolder);
+                    }
+                }
+            }
+        } catch (AccessControlException e) {
+            LOGGER.severe("Preferences.userRoot access control exception: " + e.toString());
+        }
         FileNameExtensionFilter filter = new FileNameExtensionFilter("Exported Environment Properties", "txt");
         chooser.setFileFilter(filter);
         int ret = chooser.showSaveDialog(null);
