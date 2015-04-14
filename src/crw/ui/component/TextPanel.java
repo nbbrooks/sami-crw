@@ -4,7 +4,7 @@ import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
 import crw.proxy.BoatProxy;
 import crw.ui.ColorSlider;
-import dreaam.developer.Mediator;
+import dreaam.developer.UiComponentGenerator;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -14,6 +14,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.Vector;
 import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
@@ -25,12 +26,15 @@ import javax.swing.JTextField;
 import javax.swing.table.TableCellRenderer;
 import sami.allocation.ResourceAllocation;
 import sami.engine.Engine;
+import sami.engine.Mediator;
+import sami.engine.PlanManager;
 import sami.markup.Markup;
 import sami.mission.MissionPlanSpecification;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.MarkupComponentHelper;
 import sami.uilanguage.MarkupComponentWidget;
 import sami.uilanguage.MarkupManager;
+import sami.variable.VariableName;
 
 /**
  *
@@ -69,6 +73,7 @@ public class TextPanel implements MarkupComponent {
         supportedCreationClasses.add(Enum.class);
         supportedCreationClasses.add(Color.class);
         supportedCreationClasses.add(MissionPlanSpecification.class);
+        supportedCreationClasses.add(VariableName.class);
         // Visualization
         supportedSelectionClasses.add(String.class);
         supportedSelectionClasses.add(Double.class);
@@ -86,6 +91,7 @@ public class TextPanel implements MarkupComponent {
         supportedSelectionClasses.add(ResourceAllocation.class);
         supportedSelectionClasses.add(BoatProxy.class);
         supportedSelectionClasses.add(MissionPlanSpecification.class);
+        supportedSelectionClasses.add(VariableName.class);
         // Markups
         // Instructional text
     }
@@ -106,7 +112,7 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups) {
+    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (type instanceof Class) {
             Class objectClass = (Class) type;
             if (objectClass.equals(Color.class)) {
@@ -124,22 +130,40 @@ public class TextPanel implements MarkupComponent {
                 component = new JTextField();
                 component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
             } else if (objectClass.equals(MissionPlanSpecification.class)) {
-                if (Engine.getInstance().getProjectSpecification() != null) {
-                    component = new JComboBox(Engine.getInstance().getProjectSpecification().getAllMissionPlans().toArray());
-                } else {
-                    Mediator mediator = new Mediator();
-                    if (mediator.getProjectSpec() != null) {
-                        component = new JComboBox(mediator.getProjectSpec().getAllMissionPlans().toArray());
-                    }
+                if (Mediator.getInstance().getProject() != null) {
+                    ArrayList<MissionPlanSpecification> mSpecs = Mediator.getInstance().getProject().getAllMissionPlans();
+                    mSpecs.add(0, null);
+                    component = new JComboBox(mSpecs.toArray());
                 }
                 if (component == null) {
                     LOGGER.severe("No loaded project spec to retrieve mission plan list from");
                 }
             } else if (objectClass.equals(Boolean.class)
                     || objectClass.equals(boolean.class)) {
-                component = new JComboBox(new Object[]{true, false});
+                component = new JComboBox(new Object[]{null, true, false});
             } else if (objectClass.isEnum()) {
-                component = new JComboBox(objectClass.getEnumConstants());
+                Object[] enumConstants = objectClass.getEnumConstants();
+                Vector<Object> vector = new Vector<Object>(enumConstants.length + 1);
+                vector.add(null);
+                for (Object o : enumConstants) {
+                    vector.add(o);
+                }
+                component = new JComboBox(vector);
+            } else if (objectClass.equals(VariableName.class)) {
+                ArrayList<String> inScopeVariables;
+                if (pmScope != null) {
+                    inScopeVariables = Engine.getInstance().getVariablesInScope(pmScope);
+                } else if (mSpecScope != null) {
+                    inScopeVariables = Mediator.getInstance().getProject().getVariablesInScope(mSpecScope);
+                } else {
+                    inScopeVariables = Mediator.getInstance().getProject().getAllVariables();
+                }
+                ArrayList<VariableName> variableNames = new ArrayList<VariableName>();
+                variableNames.add(null);
+                for (String var : inScopeVariables) {
+                    variableNames.add(new VariableName(var));
+                }
+                component = new JComboBox(variableNames.toArray());
             } else {
                 LOGGER.severe("Could not generate component for object class: " + objectClass);
             }
@@ -151,7 +175,7 @@ public class TextPanel implements MarkupComponent {
     }
 
     @Override
-    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups) {
+    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (object instanceof ResourceAllocation) {
             ResourceAllocation allocation = (ResourceAllocation) object;
             Map<AbstractAsset, ArrayList<ITask>> assetToTasks = allocation.getAssetToTasks();
@@ -224,6 +248,8 @@ public class TextPanel implements MarkupComponent {
             component = new JLabel(object.toString());
         } else if (object instanceof MissionPlanSpecification) {
             component = new JLabel(((MissionPlanSpecification) object).getName());
+        } else if (object instanceof VariableName) {
+            component = new JLabel(((VariableName) object).variableName);
         } else {
             component = new JLabel("No component found");
             LOGGER.severe("Could not selection component for object class: " + object.getClass().getSimpleName());
@@ -282,13 +308,12 @@ public class TextPanel implements MarkupComponent {
                         value = Boolean.parseBoolean(text);
                     }
                 } catch (Exception e) {
-                    LOGGER.warning("Exception encountered when trying to get value for field type: " + componentClass.getSimpleName() + " from text: " + text + ", setting value to null with exception: " + e);
+                    LOGGER.warning("Exception encountered when trying to get value for field type: " + componentClass + " from text: " + text + ", setting value to null with exception: " + e);
                     value = null;
                 }
             }
         } else if (component instanceof JComboBox) {
             value = ((JComboBox) component).getSelectedItem();
-
         } else if (component instanceof ColorSlider) {
             if (componentClass.equals(Color.class)) {
                 value = ((ColorSlider) component).getColor();

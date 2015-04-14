@@ -34,4 +34,9 @@ public class ProxyPathCompleted extends InputEvent {
         relevantProxyList = new ArrayList<ProxyInt>();
         relevantProxyList.add(proxy);
     }
+
+    @Override
+    public String toString() {
+        return "ProxyPathCompleted [" + (relevantProxyList != null ? relevantProxyList.toString() : "null") + ", " + blocking + "]";
+    }
 }

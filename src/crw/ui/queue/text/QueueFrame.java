@@ -1,13 +1,11 @@
-package crw.ui.component;
+package crw.ui.queue.text;
 
-import crw.ui.queue.DecisionQueuePanel;
+import static com.sun.glass.ui.Cursor.setVisible;
+import crw.ui.queue.QueueContent;
 import crw.ui.queue.QueueDatabase;
-import crw.ui.queue.QueueItem;
-import crw.ui.queue.QueuePanelInt;
-import sami.uilanguage.MarkupManager;
-import sami.engine.Engine;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.Point;
 import java.util.LinkedList;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -16,10 +14,13 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import sami.engine.Engine;
 import sami.engine.PlanManager;
 import sami.engine.PlanManagerListenerInt;
 import sami.mission.MissionPlanSpecification;
 import sami.mission.Place;
+import sami.mission.Transition;
+import sami.uilanguage.MarkupManager;
 import sami.uilanguage.UiClientInt;
 import sami.uilanguage.UiClientListenerInt;
 import sami.uilanguage.UiFrame;
@@ -35,12 +36,14 @@ import sami.uilanguage.toui.ToUiMessage;
 public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanManagerListenerInt {
 
     private final static Logger LOGGER = Logger.getLogger(QueueFrame.class.getName());
-    private Dimension frameDim = new Dimension(DecisionQueuePanel.NUM_THUMBNAILS * QueueItem.THUMB_SCALED_WIDTH + 98, 600);
+    private Dimension frameDim = new Dimension(600 + 98, 600);
+    private Dimension activeQueueDim = new Dimension(Integer.MAX_VALUE, 150);
+    private Dimension inactiveQueueDim = new Dimension(Integer.MAX_VALUE, 150);
     // LRU ordered list of queue panels
     private LinkedList<QueuePanelInt> queuePanels = new LinkedList<QueuePanelInt>();
-    private DecisionQueuePanel decisionQueuePanel;
+    private DecisionQueuePanel nominalQueuePanel;
     private QueuePanelInt activeQueuePanel = null;
-    private QueueDatabase qdb;
+    private QueueDatabase nominalQdb;
     UiClientInt uiClient;
     UiServerInt uiServer;
 
@@ -52,33 +55,58 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     private JPanel inActiveQueueFilmstripsP;
     private JScrollPane inactiveQueueFilmstripsSP;
 
-    public QueueFrame() {
-        this(new QueueDatabase());
-    }
+    private final QueueContent blankContent = new QueueContent();
 
-    public QueueFrame(QueueDatabase qdb) {
-        this.qdb = qdb;
+    public QueueFrame() {
+        nominalQdb = new QueueDatabase();
 
         activeQueueFilmstripP = new JPanel(new BorderLayout());
-        activeQueueContentSP = new JScrollPane();
-        inActiveQueueFilmstripsP = new JPanel();
-        inactiveQueueFilmstripsSP = new JScrollPane(inActiveQueueFilmstripsP);
+        activeQueueFilmstripP.setPreferredSize(activeQueueDim);
+        activeQueueFilmstripP.setMaximumSize(activeQueueDim);
 
-        //Create and set up the frame
+        activeQueueContentSP = new JScrollPane();
+//        activeQueueContentSP.setPreferredSize(contentDim);
+
+        inActiveQueueFilmstripsP = new JPanel();
+        inActiveQueueFilmstripsP.setLayout(new BoxLayout(inActiveQueueFilmstripsP, BoxLayout.Y_AXIS));
+        inActiveQueueFilmstripsP.setMaximumSize(inactiveQueueDim);
+
+        inactiveQueueFilmstripsSP = new JScrollPane();
+        inactiveQueueFilmstripsSP.setViewportView(inActiveQueueFilmstripsP);
+
+        // Create and set up the frame
         setTitle("OperatorInteractionF");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(frameDim);
         setPreferredSize(frameDim);
+
+        // Add content
         getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
         getContentPane().add(activeQueueFilmstripP);
         getContentPane().add(activeQueueContentSP);
         getContentPane().add(inactiveQueueFilmstripsSP);
+//        // Add content
+//        getContentPane().setLayout(new GridBagLayout());
+//        GridBagConstraints constraints = new GridBagConstraints();
+//        constraints.fill = GridBagConstraints.HORIZONTAL;
+//        constraints.gridx = 0;
+//        constraints.gridy = 0;
+//        constraints.weightx = 1.0;
+//        getContentPane().add(activeQueueFilmstripP, constraints);
+//        constraints.gridy = constraints.gridy + 1;
+//        getContentPane().add(activeQueueContentSP, constraints);
+//        constraints.gridy = constraints.gridy + 1;
+//        getContentPane().add(inactiveQueueFilmstripsSP, constraints);
+//        constraints.gridy = constraints.gridy + 1;
+
         pack();
         setVisible(true);
 
         // Create decision queue panel and set it as active queue
-        decisionQueuePanel = new DecisionQueuePanel(this, qdb);
-        moveToTop(decisionQueuePanel);
+        nominalQueuePanel = new DecisionQueuePanel(this, nominalQdb, "NOMINAL");
+
+        queuePanels.add(nominalQueuePanel);
+        moveToTop(nominalQueuePanel);
 
         Engine.getInstance().addListener(this);
 
@@ -87,46 +115,40 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     }
 
     public synchronized void moveToTop(QueuePanelInt curPanel) {
-        curPanel.setIsActive(true);
         activeQueuePanel = curPanel;
-        // Clear both filmstrip panels
         activeQueueFilmstripP.removeAll();
         inActiveQueueFilmstripsP.removeAll();
-
-        // Update active queue filmstrip panel
-        activeQueueFilmstripP.add((JComponent) curPanel, BorderLayout.NORTH);
-
-        // Update active queue content panel
-        if (curPanel.getCurrentContent() != null) {
-            setActiveQueueContent(curPanel.getCurrentContent().getInteractionPanel());
-        } else {
-            setActiveQueueContent(null);
+        queuePanels.remove(nominalQueuePanel);
+        queuePanels.remove(curPanel);   // in case of curPanel == mainQueuePanel, fails silently
+        curPanel.setIsActive(true);
+        activeQueueFilmstripP.add((JComponent) curPanel);
+        if (curPanel != nominalQueuePanel) {   // don't add mainQueuePanel to bottom if it's on top
+            queuePanels.addFirst(nominalQueuePanel);
         }
-
-        // Update LRU queue panel so it only contains inactive queues, which we will use to populate the inactive queue filmstrip panel
-        // Remove currently active queue panel from ordered list of queue
-        queuePanels.remove(activeQueuePanel);
-        // Remove passed in queue panel from ordered list (if curPanel == expandedPanel, fails silently)
-        queuePanels.remove(curPanel);
-        // Update queue panel list by LRU
-        if (curPanel != activeQueuePanel) {
-            // If we are changing the active panel, add the previously active panel to the top of the list
-            queuePanels.addFirst(activeQueuePanel);
-        }
-        // Finally add all the inactive filmstrips to the collapsed filmstrip panel
         for (QueuePanelInt qPanel : queuePanels) {
             qPanel.setIsActive(false);
             inActiveQueueFilmstripsP.add((JComponent) qPanel);
         }
-
-        // After updating the inactive filmstrip p, add the active panel to the front of the list
-        if (curPanel != decisionQueuePanel) {
+        if (curPanel != nominalQueuePanel) {   // added at front for LRU reasons
             queuePanels.addFirst(curPanel);
         }
+        activeQueueContentSP.getViewport().setViewPosition(new Point(0, 0));
+
+//        nominalQueuePanel.revalidate();
+//        recoveryQueuePanel.revalidate();
+        activeQueueFilmstripP.repaint();
+        inActiveQueueFilmstripsP.repaint();
     }
 
     public void setActiveQueueContent(QueueContent content) {
+        if (content == null) {
+            content = blankContent;
+        }
         activeQueueContentSP.setViewportView(content);
+        Dimension expandedDim = content.getPreferredSize();
+        expandedDim.height += 10;
+        activeQueueContentSP.setPreferredSize(expandedDim);
+        revalidate();
     }
 
     @Override
@@ -136,8 +158,11 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
             LOGGER.info("@STAT QueueFrame ToUiMessage received: " + toUiMsg);
             MarkupManager manager = new MarkupManager(toUiMsg);
             manager.addComponent(this);
-            qdb.addDecision(toUiMsg, manager);
 
+            // Determine which database to add the message to
+            //  By default, add to nominal db
+            QueueDatabase qdb = nominalQdb;
+            qdb.addDecision(toUiMsg, manager);
         }
     }
 
@@ -145,9 +170,9 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     public void toUiMessageHandled(UUID toUiMessageId) {
         // If this item is in the queue, remove it as it has been handled externally (ex: MI autonomy made the decision)
         boolean removed;
-        removed = qdb.removeMessageId(toUiMessageId);
+        removed = nominalQdb.removeMessageId(toUiMessageId);
         if (removed) {
-            LOGGER.fine("Removed 1+ items from queue DB due matching ToUiMessage id: " + toUiMessageId);
+            LOGGER.fine("Removed 1+ items from nominal queue DB due matching ToUiMessage id: " + toUiMessageId);
         }
 
         removed = activeQueuePanel.removeMessageId(toUiMessageId);
@@ -198,11 +223,19 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     }
 
     @Override
+    public void planInstantiated(PlanManager planManager) {
+    }
+
+    @Override
     public void planEnteredPlace(PlanManager planManager, Place place) {
     }
 
     @Override
     public void planLeftPlace(PlanManager planManager, Place place) {
+    }
+
+    @Override
+    public void planExecutedTransition(PlanManager planManager, Transition transition) {
     }
 
     @Override
@@ -213,8 +246,8 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     public void planFinished(PlanManager planManager) {
         // Remove any items associated with this plan
         int numRemoved;
-        numRemoved = qdb.removeMissionId(planManager.missionId);
-        LOGGER.fine("Removed " + numRemoved + " items from queue DB due to plan " + planManager.getPlanName() + " finishing");
+        numRemoved = nominalQdb.removeMissionId(planManager.missionId);
+        LOGGER.fine("Removed " + numRemoved + " items from nominal queue DB due to plan " + planManager.getPlanName() + " finishing");
 
         numRemoved = activeQueuePanel.removeMissionId(planManager.missionId);
         LOGGER.fine("Removed 1+ items from " + activeQueuePanel + " due to plan " + planManager.getPlanName() + " finishing");
@@ -229,8 +262,8 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     public void planAborted(PlanManager planManager) {
         // Remove any items associated with this plan
         int numRemoved;
-        numRemoved = qdb.removeMissionId(planManager.missionId);
-        LOGGER.fine("Removed " + numRemoved + " items from queue DB due to plan " + planManager.getPlanName() + " aborting");
+        numRemoved = nominalQdb.removeMissionId(planManager.missionId);
+        LOGGER.fine("Removed " + numRemoved + " items from nominal queue DB due to plan " + planManager.getPlanName() + " aborting");
 
         numRemoved = activeQueuePanel.removeMissionId(planManager.missionId);
         LOGGER.fine("Removed " + numRemoved + " items from " + activeQueuePanel + " due to plan " + planManager.getPlanName() + " aborting");

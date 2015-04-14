@@ -41,11 +41,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import robotutils.Pose3D;
+import sami.CoreHelper;
 import sami.area.Area2D;
 import sami.engine.Engine;
 import sami.event.GeneratedEventListenerInt;
@@ -83,7 +83,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
     int portCounter = 0;
-    final Random RANDOM = new Random();
     private Hashtable<UUID, Integer> eventIdToAssembleCounter = new Hashtable<UUID, Integer>();
 
     public ProxyEventHandler() {
@@ -118,10 +117,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
         } else if (oe instanceof ProxyExploreArea) {
             // Get the lawnmower path for the whole area
-            // How many meters the proxy should move north after each horizontal section of the lawnmower pattern
-            double latDegInc = M_PER_LAT_D * 10;
             ArrayList<Position> positions = new ArrayList<Position>();
             Area2D area = ((ProxyExploreArea) oe).getArea();
+            // How many meters the proxy should move north after each horizontal section of the lawnmower pattern
+            double latDegInc = ((ProxyExploreArea) oe).getSpacing() * M_PER_LAT_D;
             for (Location location : area.getPoints()) {
                 positions.add(Conversion.locationToPosition(location));
             }
@@ -271,7 +270,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 }
             }
             if (numProxies == 0) {
-                LOGGER.log(Level.WARNING, "Place with ProxyExecutePath has no tokens with proxies attached: " + oe);
+                LOGGER.log(Level.WARNING, "Place with AssembleLocationRequest has no tokens with proxies attached: " + oe);
             }
 
             eventIdToAssembleCounter.put(request.getId(), assembleCounter);
@@ -360,11 +359,11 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 // Create a simulated boat and run a ROS server around it
                 VehicleServer server = new FastSimpleBoatSimulator();
                 UdpVehicleService rosServer = new UdpVehicleService(11411 + portCounter, server);
-                name = CrwHelper.getUniqueName(name, proxyNames);
+                name = CoreHelper.getUniqueName(name, proxyNames);
                 proxyNames.add(name);
                 InetSocketAddress socketAddress = new InetSocketAddress("localhost", 11411 + portCounter);
                 ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, socketAddress);
-                color = randomColor();
+                color = CrwHelper.randomColor();
                 portCounter++;
 
                 // Set initial pose
@@ -510,14 +509,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
 
     @Override
     public void proxyRemoved(ProxyInt p) {
-    }
-
-    private Color randomColor() {
-        float r = RANDOM.nextFloat();
-        float g = RANDOM.nextFloat();
-        float b = RANDOM.nextFloat();
-
-        return new Color(r, g, b);
     }
 
     private Object[] getLawnmowerPath(Polygon area, double stepSize) {

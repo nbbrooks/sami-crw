@@ -4,7 +4,6 @@ import com.madara.KnowledgeBase;
 import com.madara.transport.QoSTransportSettings;
 import com.madara.transport.TransportType;
 import crw.ui.teleop.*;
-import crw.CrwHelper;
 import crw.general.FastSimpleBoatSimulator;
 import crw.ui.component.WorldWindPanel;
 import crw.ui.widget.RobotTrackWidget;
@@ -22,6 +21,7 @@ import java.util.ArrayList;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
 import robotutils.Pose3D;
+import sami.CoreHelper;
 import sami.engine.Engine;
 import sami.path.UTMCoordinate;
 import sami.proxy.ProxyInt;
@@ -86,7 +86,7 @@ public class GamsServerTest extends JFrame {
             UdpVehicleService rosServer = new UdpVehicleService(11411 + portCounter, server);
             System.out.println("Created sim on " + rosServer.getSocketAddress().toString());
 
-            name = CrwHelper.getUniqueName(name, proxyNames);
+            name = CoreHelper.getUniqueName(name, proxyNames);
             proxyNames.add(name);
             InetSocketAddress socketAddress = new InetSocketAddress("localhost", 11411 + portCounter);
             ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, socketAddress);

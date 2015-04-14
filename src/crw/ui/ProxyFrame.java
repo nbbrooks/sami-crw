@@ -1,5 +1,6 @@
 package crw.ui;
 
+import crw.CrwHelper;
 import crw.general.FastSimpleBoatSimulator;
 import edu.cmu.ri.crw.CrwNetworkUtils;
 import edu.cmu.ri.crw.VehicleServer;
@@ -45,7 +46,7 @@ public class ProxyFrame extends UiFrame {
         initComponents();
         setVisible(true);
 
-        Color color = randomColor();
+        Color color = CrwHelper.randomColor();
         colorB.setBackground(color);
         colorB.setForeground(color);
 
@@ -255,16 +256,6 @@ public class ProxyFrame extends UiFrame {
         pack();
     }
 
-    private Color randomColor() {
-        Random rand = new Random();
-
-        float r = rand.nextFloat();
-        float g = rand.nextFloat();
-        float b = rand.nextFloat();
-
-        return new Color(r, g, b);
-    }
-
     private void createPhysicalBActionPerformed(java.awt.event.ActionEvent evt) {
         String server = physicalServerF.getText();
         // @todo connection to physical boat
@@ -310,7 +301,7 @@ public class ProxyFrame extends UiFrame {
             UtmPose p1 = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
             server.setPose(p1);
             Engine.getInstance().getProxyServer().createProxy(nameF.getText(), colorB.getBackground(), new InetSocketAddress("localhost", port + i));
-            colorB.setBackground(randomColor());
+            colorB.setBackground(CrwHelper.randomColor());
         }
 
         simPortNoS.setValue(port + count);

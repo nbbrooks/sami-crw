@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.logging.Logger;
 import sami.allocation.ResourceAllocation;
+import sami.engine.Engine;
 import sami.event.ReflectedEventSpecification;
 import sami.path.Path;
 import sami.proxy.ProxyInt;
@@ -20,9 +21,11 @@ import sami.uilanguage.fromui.CreationDoneMessage;
 import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.fromui.ParamsSelectedMessage;
 import sami.uilanguage.fromui.PathSelectedMessage;
+import sami.uilanguage.fromui.VariablesDefinedMessage;
 import sami.uilanguage.fromui.YesNoSelectedMessage;
 import sami.uilanguage.toui.CreationMessage;
 import sami.uilanguage.toui.GetParamsMessage;
+import sami.uilanguage.toui.GetVariablesMessage;
 import sami.uilanguage.toui.SelectionMessage;
 import sami.uilanguage.toui.YesNoOptionsMessage;
 
@@ -67,6 +70,27 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                 }
             }
             doneMessage = new ParamsSelectedMessage(creationMessage.getMessageId(), creationMessage.getRelevantOutputEventId(), creationMessage.getMissionId(), eventSpecToFieldValues);
+        }
+        return doneMessage;
+    }
+
+    public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>> eventSpecToComponentTable, Hashtable<String, MarkupComponent> variableNameToComponentTable) {
+        // eventSpecToFieldDescriptions is intended to be null, but is kept in argments to prevent compilation errors with type erasure
+        CreationDoneMessage doneMessage = null;
+        if (creationMessage instanceof GetVariablesMessage) {
+            LOGGER.fine("variableNameToComponentTable: " + variableNameToComponentTable);
+            Hashtable<String, Object> variableToValue = new Hashtable<String, Object>();
+            for (String variableName : variableNameToComponentTable.keySet()) {
+                Object curValue = Engine.getInstance().getVariableValue(variableName, Engine.getInstance().getPlanManager(creationMessage.getMissionId()));
+                Class variableClass = curValue.getClass();
+                Object value = CrwUiComponentGenerator.getInstance().getComponentValue(variableNameToComponentTable.get(variableName), variableClass);
+                if (value == null) {
+                    LOGGER.severe("Got null value for variable name: " + variableName);
+                } else {
+                    variableToValue.put(variableName, value);
+                }
+            }
+            doneMessage = new VariablesDefinedMessage(creationMessage.getMessageId(), creationMessage.getRelevantOutputEventId(), creationMessage.getMissionId(), variableToValue);
         }
         return doneMessage;
     }
@@ -118,7 +142,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
             } else {
                 fromUiMessage = new YesNoSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), false);
             }
-        } 
+        }
         if (fromUiMessage == null) {
             LOGGER.warning("Got SelectionMessage " + selectionMessage + " with option " + option + ", don't know what to do with it!");
         }

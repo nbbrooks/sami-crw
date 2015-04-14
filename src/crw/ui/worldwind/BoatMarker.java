@@ -1,4 +1,4 @@
-package crw.ui;
+package crw.ui.worldwind;
 
 import crw.proxy.BoatProxy;
 import gov.nasa.worldwind.geom.Angle;

@@ -1,4 +1,4 @@
-package crw.ui.component;
+package crw.ui.queue;
 
 import sami.uilanguage.UiPanel;
 

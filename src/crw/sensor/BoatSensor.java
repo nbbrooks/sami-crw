@@ -12,9 +12,9 @@ import edu.cmu.ri.crw.data.SensorData;
 import gov.nasa.worldwind.geom.Position;
 import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import sami.CoreHelper;
 
 /**
  *
@@ -56,7 +56,6 @@ public class BoatSensor implements ObserverInt, SensorListener {
         // ABHINAV COMMENT OUT THIS THREAD BEFORE RUNNING ON THE REAL BOATS!!
         if (GENERATE_FAKE_DATA) {
             (new Thread() {
-                Random rand = new Random();
 
                 public void run() {
 
@@ -71,7 +70,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
                             SensorData sd = new SensorData();
 
                             // @todo Observation
-                            if (rand.nextBoolean()) {
+                            if (CoreHelper.RANDOM.nextBoolean()) {
                                 sd.type = VehicleServer.SensorType.TE;
                             } else {
                                 sd.type = VehicleServer.SensorType.UNKNOWN;
@@ -96,12 +95,12 @@ public class BoatSensor implements ObserverInt, SensorListener {
 
                                 synchronized (xs) {
                                     // Possibly add another
-                                    if ((rand.nextDouble() < addRate && xs.size() < 20) || (xs.size() == 0)) {
+                                    if ((CoreHelper.RANDOM.nextDouble() < addRate && xs.size() < 20) || (xs.size() == 0)) {
                                         LOGGER.info("Added a fake sensor data point for " + proxy);
-                                        double lon = currLoc.longitude.degrees + (distFactor * (rand.nextDouble() - 0.5));
-                                        double lat = currLoc.latitude.degrees + (distFactor * (rand.nextDouble() - 0.5));
-                                        double value = rand.nextDouble() * valueFactor;
-                                        if (rand.nextBoolean()) {
+                                        double lon = currLoc.longitude.degrees + (distFactor * (CoreHelper.RANDOM.nextDouble() - 0.5));
+                                        double lat = currLoc.latitude.degrees + (distFactor * (CoreHelper.RANDOM.nextDouble() - 0.5));
+                                        double value = CoreHelper.RANDOM.nextDouble() * valueFactor;
+                                        if (CoreHelper.RANDOM.nextBoolean()) {
                                             value = -value;
                                         }
 

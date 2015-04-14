@@ -4,17 +4,18 @@ import crw.ui.component.TextPanel;
 import crw.ui.component.WorldWindPanel;
 import java.awt.Component;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
+import sami.CoreHelper;
+import sami.engine.PlanManager;
 import sami.markup.Markup;
+import sami.mission.MissionPlanSpecification;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.UiComponentGeneratorInt;
 
@@ -49,14 +50,13 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
         JComponent component = new JLabel("No handler");
 
         int numAllocs = 3;
-        Random random = new Random();
         Object[][] table = new Object[numAllocs][3];
         Object[] header = new Object[]{"", "", ""};
         int row = 0;
         for (int alloc = 0; alloc < numAllocs; alloc++) {
-            table[row][0] = random.nextDouble() + " (" + random.nextDouble() + ")";
+            table[row][0] = CoreHelper.RANDOM.nextDouble() + " (" + CoreHelper.RANDOM.nextDouble() + ")";
             table[row][1] = " \u21e8 ";
-            table[row][2] = random.nextDouble() + " (" + random.nextDouble() + ")";
+            table[row][2] = CoreHelper.RANDOM.nextDouble() + " (" + CoreHelper.RANDOM.nextDouble() + ")";
             row++;
 
         }
@@ -77,7 +77,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
     }
 
     @Override
-    public MarkupComponent getCreationComponent(Type type, Field field, ArrayList<Markup> markups) {
+    public MarkupComponent getCreationComponent(Type type, Field field, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         // Find the UiComponent class that can be used to create the object and supports the largest number of markups
         Class bestClass = null;
         int bestScore = -1;
@@ -104,7 +104,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
 //            System.out.println("### Best creation class for " + objectClass.getSimpleName() + " is " + bestClass.getSimpleName());
             try {
                 MarkupComponent temp = (MarkupComponent) bestClass.newInstance();
-                component = temp.useCreationComponent(type, field, markups);
+                component = temp.useCreationComponent(type, field, markups, mSpecScope, pmScope);
             } catch (InstantiationException ex) {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             } catch (IllegalAccessException ex) {
@@ -117,7 +117,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
     }
 
     @Override
-    public MarkupComponent getSelectionComponent(Type type, Object value, ArrayList<Markup> markups) {
+    public MarkupComponent getSelectionComponent(Type type, Object value, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         // Find the UiComponent class that can be used to create the object and supports the largest number of markups
         Class bestClass = null;
         int bestScore = -1;
@@ -144,7 +144,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
 //            System.out.println("### Best selection class for " + selectionObject.getClass().getSimpleName() + " is " + bestClass.getSimpleName());
             try {
                 MarkupComponent temp = (MarkupComponent) bestClass.newInstance();
-                component = temp.useSelectionComponent(value, markups);
+                component = temp.useSelectionComponent(value, markups, mSpecScope, pmScope);
             } catch (InstantiationException ex) {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             } catch (IllegalAccessException ex) {

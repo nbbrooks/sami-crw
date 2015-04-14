@@ -49,10 +49,12 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import sami.area.Area2D;
-import sami.engine.Engine;
+import sami.engine.Mediator;
+import sami.engine.PlanManager;
 import sami.environment.EnvironmentListenerInt;
 import sami.markup.Markup;
 import sami.markup.RelevantArea;
+import sami.mission.MissionPlanSpecification;
 import sami.path.Location;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
@@ -76,6 +78,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     public JComponent component = null;
     //
     private final static Logger LOGGER = Logger.getLogger(WorldWindPanel.class.getName());
+    public static final double SPHERE_SIZE = 15;
     public WorldWindowGLCanvas wwCanvas = null;
     public JPanel buttonPanels;
     protected WorldWindInputAdapter mouseHandler;
@@ -155,7 +158,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         component.setMaximumSize(new java.awt.Dimension(width, height));
         component.setPreferredSize(new java.awt.Dimension(width, height));
 
-        Engine.getInstance().addEnvironmentLister(this);
+        Mediator.getInstance().addEnvironmentListener(this);
         environmentUpdated();
     }
 
@@ -248,7 +251,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     @Override
-    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups) {
+    public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (wwCanvas == null) {
             createMap();
         }
@@ -271,7 +274,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     }
 
     @Override
-    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups) {
+    public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (wwCanvas == null) {
             createMap();
         }
@@ -309,8 +312,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                     position = (Marker) marker;
                 }
             }
-            if (position
-                    != null) {
+            if (position != null) {
                 value = Conversion.positionToLocation(position.getPosition());
             }
         } else if (componentClass.equals(PathUtm.class)) {
@@ -321,13 +323,12 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                     path = (Path) renderable;
                 }
             }
-            if (path
-                    != null) {
+            if (path != null) {
                 ArrayList<Location> locationList = new ArrayList<Location>();
                 for (Position position : path.getPositions()) {
                     locationList.add(Conversion.positionToLocation(position));
                 }
-                value = new Area2D(locationList);
+                value = new PathUtm(locationList);
             }
         } else if (componentClass.equals(Area2D.class)) {
             RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
@@ -350,7 +351,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
 
     @Override
     public boolean setComponentValue(Object value) {
-        if(value == null) {
+        if (value == null) {
             LOGGER.severe("Tried to set component value to NULL");
             return false;
         }
@@ -369,7 +370,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
             Position position = Conversion.locationToPosition(location);
             BasicMarkerAttributes attributes = new BasicMarkerAttributes();
             attributes.setShapeType(BasicMarkerShape.SPHERE);
-            attributes.setMinMarkerSize(50);
+            attributes.setMinMarkerSize(SPHERE_SIZE);
             attributes.setMaterial(Material.YELLOW);
             attributes.setOpacity(1);
             BasicMarker circle = new BasicMarker(position, attributes);
@@ -463,8 +464,8 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
 
     @Override
     public void environmentUpdated() {
-        if (Engine.getInstance().getEnvironmentProperties() != null && Engine.getInstance().getEnvironmentProperties().getDefaultLocation() != null) {
-            Position defaultPosition = Conversion.locationToPosition(Engine.getInstance().getEnvironmentProperties().getDefaultLocation());
+        if (Mediator.getInstance().getEnvironment() != null && Mediator.getInstance().getEnvironment().getDefaultLocation() != null) {
+            Position defaultPosition = Conversion.locationToPosition(Mediator.getInstance().getEnvironment().getDefaultLocation());
             Configuration.setValue(AVKey.INITIAL_LATITUDE, defaultPosition.getLatitude());
             Configuration.setValue(AVKey.INITIAL_LONGITUDE, defaultPosition.getLongitude());
             Configuration.setValue(AVKey.INITIAL_ALTITUDE, defaultPosition.getAltitude());

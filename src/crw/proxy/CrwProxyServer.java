@@ -13,8 +13,8 @@ import java.awt.Color;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Random;
 import java.util.logging.Logger;
+import sami.CoreHelper;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyServerInt;
 import sami.proxy.ProxyServerListenerInt;
@@ -26,7 +26,6 @@ import sami.proxy.ProxyServerListenerInt;
 public class CrwProxyServer implements ProxyServerInt {
 
     private final static Logger LOGGER = Logger.getLogger(CrwProxyServer.class.getName());
-    private Random random = new Random();
     private static ArrayList<ProxyServerListenerInt> listeners = new ArrayList<ProxyServerListenerInt>();
     private int proxyCounter = 0;
     ArrayList<ProxyInt> proxies = new ArrayList<ProxyInt>();
@@ -163,7 +162,7 @@ public class CrwProxyServer implements ProxyServerInt {
         if (proxies.isEmpty()) {
             return null;
         }
-        return proxies.get(random.nextInt(proxies.size()));
+        return proxies.get(CoreHelper.RANDOM.nextInt(proxies.size()));
     }
 
     public void setCameraRates(double d) {

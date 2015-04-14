@@ -2,9 +2,9 @@ package crw.ui.widget;
 
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.Conversion;
-import crw.CrwHelper;
 import crw.proxy.BoatProxy;
 import crw.ui.component.WorldWindPanel;
+import static crw.ui.component.WorldWindPanel.SPHERE_SIZE;
 import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Position;
@@ -133,17 +133,18 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
 
     @Override
     public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
-        Position clickPositionAsl = CrwHelper.getPositionAsl(wwd.getView().getGlobe(), wwd.getCurrentPosition());
+        Position clickPosition = wwd.getCurrentPosition();
+        boolean complexHandled = false;
         // Continue creating a new area?
         switch (selectMode) {
             case POINT:
-                if (clickPositionAsl != null) {
+                if (clickPosition != null) {
                     BasicMarkerAttributes attributes = new BasicMarkerAttributes();
                     attributes.setShapeType(BasicMarkerShape.SPHERE);
-                    attributes.setMinMarkerSize(50);
+                    attributes.setMinMarkerSize(SPHERE_SIZE);
                     attributes.setMaterial(Material.YELLOW);
                     attributes.setOpacity(1);
-                    BasicMarker circle = new BasicMarker(clickPositionAsl, attributes);
+                    BasicMarker circle = new BasicMarker(clickPosition, attributes);
                     markers.add(circle);
                     setSelectMode(SelectMode.NONE);
 
@@ -161,8 +162,8 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 }
                 break;
             case PATH:
-                if (clickPositionAsl != null) {
-                    selectedPositions.add(clickPositionAsl);
+                if (clickPosition != null) {
+                    selectedPositions.add(clickPosition);
                     // Update temporary path
                     if (polyline != null) {
                         renderableLayer.removeRenderable(polyline);
@@ -170,6 +171,7 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     polyline = new Polyline(selectedPositions);
                     polyline.setColor(Color.yellow);
                     polyline.setLineWidth(8);
+                    polyline.setFollowTerrain(true);
                     renderableLayer.addRenderable(polyline);
 //                    path = new Path(selectedPositions);
 //                    ShapeAttributes attributes = new BasicShapeAttributes();
@@ -180,18 +182,22 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
 //                    path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
 //                    renderableLayer.addRenderable(path);
                     wwd.redraw();
-                    if (evt.getClickCount() > 1) {
-                        // Finish path
-                        polyline = null;
+                    complexHandled = true;
+                }
+                if (evt.getClickCount() > 1 && !evt.isConsumed()) {
+                    // Finish path
+                    polyline = null;
 //                        path = null;
-                        setSelectMode(SelectMode.NONE);
-                    }
+                    setSelectMode(SelectMode.NONE);
+                    complexHandled = true;
+                }
+                if (complexHandled) {
                     return true;
                 }
                 break;
             case AREA:
-                if (clickPositionAsl != null) {
-                    selectedPositions.add(clickPositionAsl);
+                if (clickPosition != null) {
+                    selectedPositions.add(clickPosition);
                     // Update temporary area
                     if (area != null) {
                         renderableLayer.removeRenderable(area);
@@ -205,24 +211,19 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     area.setAttributes(attributes);
                     renderableLayer.addRenderable(area);
                     wwd.redraw();
-                    if (evt.getClickCount() > 1) {
-                        // Finish area
-                        area = null;
-                        setSelectMode(SelectMode.NONE);
-                    }
+                    complexHandled = true;
+                }
+                if (evt.getClickCount() > 1 && !evt.isConsumed()) {
+                    // Finish area
+                    area = null;
+                    setSelectMode(SelectMode.NONE);
+                    complexHandled = true;
+                }
+                if (complexHandled) {
                     return true;
                 }
                 break;
             case NONE:
-//                for (Marker marker : markers) {
-//                    Point clickPoint = evt.getPoint();
-//                    Position tlPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x - marker.getAttributes().getMarkerPixels(), clickPoint.y - marker.getAttributes().getMarkerPixels());
-//                    Position brPos = wwd.getView().computePositionFromScreenPoint(clickPoint.x + marker.getAttributes().getMarkerPixels(), clickPoint.y + marker.getAttributes().getMarkerPixels());
-//                    Position markerPos = marker.getPosition();
-//                    if (CrwHelper.positionBetween(markerPos, tlPos, brPos)) {
-//                        return true;
-//                    }
-//                }
                 return false;
         }
 
@@ -481,7 +482,7 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
             SelectGeometryWidget select = new SelectGeometryWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
             BasicMarkerAttributes attributes = new BasicMarkerAttributes();
             attributes.setShapeType(BasicMarkerShape.SPHERE);
-            attributes.setMinMarkerSize(50);
+            attributes.setMinMarkerSize(SPHERE_SIZE);
             attributes.setMaterial(Material.YELLOW);
             attributes.setOpacity(1);
             BasicMarker circle = new BasicMarker(position, attributes);

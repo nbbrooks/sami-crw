@@ -5,9 +5,10 @@ import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.Vec4;
 import gov.nasa.worldwind.globes.Globe;
-import java.util.ArrayList;
+import java.awt.Color;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
+import sami.CoreHelper;
 
 /**
  *
@@ -16,35 +17,6 @@ import javax.swing.JFrame;
 public class CrwHelper {
 
     private static final Logger LOGGER = Logger.getLogger(CrwHelper.class.getName());
-
-    public static String getUniqueName(String name, ArrayList<String> existingNames) {
-        boolean invalidName = existingNames.contains(name);
-        while (invalidName) {
-            int index = name.length() - 1;
-            if ((int) name.charAt(index) < (int) '0' || (int) name.charAt(index) > (int) '9') {
-                // name does not end with a number - attach a "2"
-                name += "2";
-            } else {
-                // Find the number the name ends with and increment it
-                int numStartIndex = -1, numEndIndex = -1;
-                while (index >= 0) {
-                    if ((int) name.charAt(index) >= (int) '0' && (int) name.charAt(index) <= (int) '9') {
-                        if (numEndIndex == -1) {
-                            numEndIndex = index;
-                        }
-                    } else if (numEndIndex != -1) {
-                        numStartIndex = index + 1;
-                        break;
-                    }
-                    index--;
-                }
-                int number = Integer.parseInt(name.substring(numStartIndex, numEndIndex + 1));
-                name = name.substring(0, numStartIndex) + (number + 1);
-            }
-            invalidName = existingNames.contains(name);
-        }
-        return name;
-    }
 
     public static boolean isPositionBetween(Position position, Position northWest, Position southEast) {
         if (position == null || northWest == null || southEast == null) {
@@ -115,6 +87,26 @@ public class CrwHelper {
             return true;
         }
         return false;
+    }
+
+    public static Color randomColor() {
+        float r = CoreHelper.RANDOM.nextFloat();
+        float g = CoreHelper.RANDOM.nextFloat();
+        float b = CoreHelper.RANDOM.nextFloat();
+
+        return new Color(r, g, b);
+    }
+
+    public static String colorToHtmlColor(Color color) {
+        return "rgb(" + color.getRed() + "," + color.getGreen() + "," + color.getBlue() + ")";
+    }
+
+    public static String padLeftHtml(String value, int padding) {
+        return String.format("%-" + padding + "s", value).replaceAll(" ", "&nbsp;");
+    }
+
+    public static String padRightHtml(String value, int padding) {
+        return String.format("%" + padding + "s", value).replaceAll(" ", "&nbsp;");
     }
 
     public static void main(String[] args) throws InterruptedException {

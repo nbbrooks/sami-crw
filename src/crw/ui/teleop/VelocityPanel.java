@@ -292,6 +292,8 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
 
     @Override
     public void mouseMoved(MouseEvent me) {
+        // Mouse moved over VelocityPanel, request focus for keyboard controller in case GainsPanel or something else took it away
+        requestFocus();
     }
 
     @Override
