@@ -1,4 +1,3 @@
-
 package crw.event.input.proxy;
 
 import java.util.ArrayList;

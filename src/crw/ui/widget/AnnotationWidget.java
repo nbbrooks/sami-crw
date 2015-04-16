@@ -27,14 +27,17 @@ import gov.nasa.worldwind.render.markers.BasicMarkerShape;
 import gov.nasa.worldwind.render.markers.Marker;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.FlowLayout;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -47,6 +50,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -97,7 +101,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
     private boolean visible = true;
     private ArrayList<Marker> markers = new ArrayList<Marker>();
     private ArrayList<Position> selectedPositions = new ArrayList<Position>();
-    private JButton pointButton, pathButton, areaButton, noneButton, deleteButton, newButton, loadButton, saveButton, saveAsButton, exportButton;
+    private JButton pointButton, pathButton, areaButton, noneButton, deleteButton, newButton, loadButton, saveButton, saveAsButton, exportButton, importButton;
     private JPanel selectModeP;
     private List<SelectMode> enabledModes;
     private MarkerLayer markerLayer;
@@ -536,10 +540,12 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
             return;
         }
 
-        selectModeP = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        selectModeP = new JPanel();
+        selectModeP.setLayout(new BoxLayout(selectModeP, BoxLayout.X_AXIS));
 
         if (enabledModes.contains(SelectMode.POINT)) {
             pointButton = new JButton("Point");
+            pointButton.setMinimumSize(new Dimension(pointButton.getPreferredSize().width, 10));
             selectModeP.add(pointButton);
             pointButton.addActionListener(new ActionListener() {
                 @Override
@@ -550,6 +556,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
         if (enabledModes.contains(SelectMode.PATH)) {
             pathButton = new JButton("Path");
+            pathButton.setMinimumSize(new Dimension(10, pathButton.getPreferredSize().height));
             selectModeP.add(pathButton);
             pathButton.addActionListener(new ActionListener() {
                 @Override
@@ -560,6 +567,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
         if (enabledModes.contains(SelectMode.AREA)) {
             areaButton = new JButton("Area");
+            areaButton.setMinimumSize(new Dimension(10, areaButton.getPreferredSize().height));
             selectModeP.add(areaButton);
             areaButton.addActionListener(new ActionListener() {
                 @Override
@@ -570,6 +578,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
         if (enabledModes.contains(SelectMode.NONE)) {
             noneButton = new JButton("None");
+            noneButton.setMinimumSize(new Dimension(10, noneButton.getPreferredSize().height));
             selectModeP.add(noneButton);
             noneButton.addActionListener(new ActionListener() {
                 @Override
@@ -580,6 +589,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
         if (enabledModes.contains(SelectMode.DELETE)) {
             deleteButton = new JButton("Del");
+            deleteButton.setMinimumSize(new Dimension(10, deleteButton.getPreferredSize().height));
             selectModeP.add(deleteButton);
             deleteButton.addActionListener(new ActionListener() {
                 @Override
@@ -590,6 +600,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
 
         newButton = new JButton("New");
+        newButton.setMinimumSize(new Dimension(10, newButton.getPreferredSize().height));
         selectModeP.add(newButton);
         newButton.addActionListener(new ActionListener() {
             @Override
@@ -599,11 +610,12 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         loadButton = new JButton("Load");
+        loadButton.setMinimumSize(new Dimension(10, loadButton.getPreferredSize().height));
         selectModeP.add(loadButton);
         loadButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
-                boolean success = Mediator.getInstance().openLatestEnvironment();
+                boolean success = Mediator.getInstance().openEnvironmentFromBrowser();
                 if (!success) {
                     // Couldn't load the plan
                     JOptionPane.showMessageDialog(null, "Could not load environment properties (.EPF) file");
@@ -612,6 +624,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         saveButton = new JButton("Save");
+        saveButton.setMinimumSize(new Dimension(10, saveButton.getPreferredSize().height));
         selectModeP.add(saveButton);
         saveButton.addActionListener(new ActionListener() {
             @Override
@@ -622,6 +635,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         saveAsButton = new JButton("SaveAs");
+        saveAsButton.setMinimumSize(new Dimension(10, saveAsButton.getPreferredSize().height));
         selectModeP.add(saveAsButton);
         saveAsButton.addActionListener(new ActionListener() {
             @Override
@@ -632,11 +646,23 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         exportButton = new JButton("Export");
+        exportButton.setMinimumSize(new Dimension(10, exportButton.getPreferredSize().height));
         selectModeP.add(exportButton);
         exportButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
                 exportValues();
+            }
+        });
+
+        importButton = new JButton("Import");
+        importButton.setMinimumSize(new Dimension(importButton.getPreferredSize().width, 10));
+        selectModeP.add(importButton);
+        importButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                importValues();
+                wwPanel.wwCanvas.redraw();
             }
         });
 
@@ -917,7 +943,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
             for (Location location : points) {
                 obstaclePositions.add(Conversion.locationToPosition(location));
             }
-            AnnotatedSurfacePolygon area = new AnnotatedSurfacePolygon(UNSEL_AREA_ATTR, selectedPositions);
+            AnnotatedSurfacePolygon area = new AnnotatedSurfacePolygon(UNSEL_AREA_ATTR, obstaclePositions);
             renderableLayer.addRenderable(area);
         }
 
@@ -926,7 +952,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
 
     private void exportValues() {
         JFileChooser chooser = new JFileChooser();
-        File exportF;
+        File exportFile;
         try {
             Preferences p = Preferences.userRoot();
             if (p == null) {
@@ -952,14 +978,14 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         int ret = chooser.showSaveDialog(null);
         if (ret == JFileChooser.APPROVE_OPTION) {
             if (chooser.getSelectedFile().getName().endsWith(".txt")) {
-                exportF = chooser.getSelectedFile();
+                exportFile = chooser.getSelectedFile();
             } else {
-                exportF = new File(chooser.getSelectedFile().getAbsolutePath() + ".txt");
+                exportFile = new File(chooser.getSelectedFile().getAbsolutePath() + ".txt");
             }
-            LOGGER.info("Exporting environment properties as: " + exportF.toString());
+            LOGGER.info("Exporting environment properties to: " + exportFile.toString());
             try {
-                exportF.createNewFile();
-                FileWriter writer = new FileWriter(exportF);
+                exportFile.createNewFile();
+                FileWriter writer = new FileWriter(exportFile);
 
                 prepareValues();
                 EnvironmentProperties environment = Mediator.getInstance().getEnvironment();
@@ -970,29 +996,153 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                 for (Location l : markerPoints) {
                     Position pos = Conversion.locationToPosition(l);
                     writer.write("P\n");
-                    writer.write(pos.latitude.toDecimalDegreesString(10) + "\n");
-                    writer.write(pos.longitude.toDecimalDegreesString(10) + "\n");
-                    writer.write("\n");
+                    writer.write(pos.latitude.toDecimalDegreesString(10).replace("°", "") + "," + pos.longitude.toDecimalDegreesString(10).replace("°", "") + "\n");
                 }
                 for (ArrayList<Location> line : linePoints) {
                     writer.write("L\n");
                     for (Location l : line) {
                         Position pos = Conversion.locationToPosition(l);
-                        writer.write(pos.latitude.toDecimalDegreesString(10) + "\n");
-                        writer.write(pos.longitude.toDecimalDegreesString(10) + "\n");
+                        writer.write(pos.latitude.toDecimalDegreesString(10).replace("°", "") + "," + pos.longitude.toDecimalDegreesString(10).replace("°", "") + "\n");
                     }
-                    writer.write("\n");
                 }
                 for (ArrayList<Location> area : areaPoints) {
                     writer.write("A\n");
                     for (Location l : area) {
                         Position pos = Conversion.locationToPosition(l);
-                        writer.write(pos.latitude.toDecimalDegreesString(10) + "\n");
-                        writer.write(pos.longitude.toDecimalDegreesString(10) + "\n");
+                        writer.write(pos.latitude.toDecimalDegreesString(10).replace("°", "") + "," + pos.longitude.toDecimalDegreesString(10).replace("°", "") + "\n");
                     }
-                    writer.write("\n");
                 }
                 writer.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private void importValues() {
+        SelectMode importSelectMode = SelectMode.NONE;
+        JFileChooser chooser = new JFileChooser();
+        File importFile;
+        try {
+            Preferences p = Preferences.userRoot();
+            if (p == null) {
+                LOGGER.severe("Java preferences file is NULL");
+            } else {
+                String folderPath = p.get(LAST_EPF_FOLDER, "");
+                if (folderPath == null) {
+                    LOGGER.warning("Last EPF folder preferences entry was NULL");
+                } else {
+                    File currentFolder = new File(folderPath);
+                    if (!currentFolder.isDirectory()) {
+                        LOGGER.warning("Last EPF folder preferences entry is not a folder: " + currentFolder.getAbsolutePath());
+                    } else {
+                        chooser.setCurrentDirectory(currentFolder);
+                    }
+                }
+            }
+        } catch (AccessControlException e) {
+            LOGGER.severe("Preferences.userRoot access control exception: " + e.toString());
+        }
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("Exported Environment Properties", "txt");
+        chooser.setFileFilter(filter);
+        int ret = chooser.showOpenDialog(null);
+        if (ret == JFileChooser.APPROVE_OPTION) {
+            importFile = chooser.getSelectedFile();
+            LOGGER.info("Importing environment properties geometry from: " + importFile.toString());
+            clearObstalces();
+
+            try {
+                BufferedReader br = new BufferedReader(new FileReader(importFile));
+                try {
+                    String line = br.readLine();
+                    while (line != null) {
+                        if (line.equals("P")) {
+                            // Immediately read in a point
+                            String latLon = br.readLine();
+                            if (latLon == null) {
+                                LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
+                                continue;
+                            }
+                            int split = latLon.indexOf(",");
+                            if (split == -1) {
+                                LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
+                                continue;
+                            }
+                            String lat = latLon.substring(0, split);
+                            String lon = latLon.substring(split + 1);
+                            try {
+                                double pointLat = new Double(lat).doubleValue();
+                                double pointLon = new Double(lon).doubleValue();
+                                Position position = new Position(Angle.fromDegreesLatitude(pointLat), Angle.fromDegreesLongitude(pointLon), 0);
+                                AnnotatedMarker circle = new AnnotatedMarker(position, UNSEL_MARKER_ATTR);
+                                markers.add(circle);
+                            } catch (NumberFormatException ex) {
+                                LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
+                            }
+                            selectedPositions.clear();
+                            polyline = null;
+                            area = null;
+                        } else if (line.equals("L")) {
+                            // Start reading in a line
+                            importSelectMode = SelectMode.PATH;
+                            selectedPositions.clear();
+                            polyline = null;
+                            area = null;
+                        } else if (line.equals("A")) {
+                            // Start reading in an area
+                            importSelectMode = SelectMode.AREA;
+                            selectedPositions.clear();
+                            polyline = null;
+                            area = null;
+                        } else {
+                            int split = line.indexOf(',');
+                            if (split == -1) {
+                                LOGGER.severe("Failed to process line from environment properties geometry import: " + line);
+                                continue;
+                            }
+                            String lat = line.substring(0, split);
+                            String lon = line.substring(split + 1);
+                            try {
+                                double pointLat = new Double(lat).doubleValue();
+                                double pointLon = new Double(lon).doubleValue();
+                                Position position = new Position(Angle.fromDegreesLatitude(pointLat), Angle.fromDegreesLongitude(pointLon), 0);
+
+                                switch (importSelectMode) {
+                                    case POINT:
+                                        break;
+                                    case PATH:
+                                        selectedPositions.add(position);
+                                        // Update temporary path
+                                        if (polyline != null) {
+                                            renderableLayer.removeRenderable(polyline);
+                                        }
+                                        polyline = new AnnotatedPolyline(selectedPositions);
+                                        polyline.setColor(UNSEL_POLYLINE_COLOR);
+                                        polyline.setLineWidth(UNSEL_POLYLINE_WIDTH);
+                                        polyline.setFollowTerrain(true);
+                                        renderableLayer.addRenderable(polyline);
+                                        break;
+                                    case AREA:
+                                        selectedPositions.add(position);
+                                        // Update temporary area
+                                        if (area != null) {
+                                            renderableLayer.removeRenderable(area);
+                                        }
+                                        area = new AnnotatedSurfacePolygon(UNSEL_AREA_ATTR, selectedPositions);
+                                        renderableLayer.addRenderable(area);
+                                        break;
+                                }
+                            } catch (NumberFormatException ex) {
+                                LOGGER.severe("Failed to process line from environment properties geometry import: " + line);
+                            }
+                        }
+                        line = br.readLine();
+                    }
+                } finally {
+                    br.close();
+                }
+            } catch (FileNotFoundException ex) {
+                ex.printStackTrace();
             } catch (IOException ex) {
                 ex.printStackTrace();
             }

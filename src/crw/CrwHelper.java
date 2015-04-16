@@ -112,6 +112,7 @@ public class CrwHelper {
     public static void main(String[] args) throws InterruptedException {
         JFrame frame = new JFrame();
         WorldWindPanel www = new WorldWindPanel();
+        www.createMap();
         frame.getContentPane().add(www.getComponent());
         frame.pack();
         frame.setVisible(true);

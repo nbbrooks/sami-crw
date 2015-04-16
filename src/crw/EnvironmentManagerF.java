@@ -25,7 +25,7 @@ public class EnvironmentManagerF extends JFrame implements EnvironmentListenerIn
 
         // Add map
         wwPanel = new WorldWindPanel();
-        wwPanel.createMap();
+        wwPanel.createMap(900, 600, null);
         getContentPane().add(wwPanel.component, BorderLayout.CENTER);
         // Add widgets
         AnnotationWidget annotation = new AnnotationWidget(wwPanel);
