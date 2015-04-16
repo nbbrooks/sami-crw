@@ -1110,7 +1110,6 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                                         renderableLayer.addRenderable(polyline);
                                         break;
                                     case AREA:
-                                        System.out.println("area " + selectedPositions.size());
                                         selectedPositions.add(position);
                                         // Update temporary area
                                         if (area != null) {
