@@ -27,7 +27,7 @@ import gov.nasa.worldwind.render.markers.BasicMarkerShape;
 import gov.nasa.worldwind.render.markers.Marker;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.FlowLayout;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -50,6 +50,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -539,10 +540,12 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
             return;
         }
 
-        selectModeP = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        selectModeP = new JPanel();
+        selectModeP.setLayout(new BoxLayout(selectModeP, BoxLayout.X_AXIS));
 
         if (enabledModes.contains(SelectMode.POINT)) {
             pointButton = new JButton("Point");
+            pointButton.setMinimumSize(new Dimension(pointButton.getPreferredSize().width, 10));
             selectModeP.add(pointButton);
             pointButton.addActionListener(new ActionListener() {
                 @Override
@@ -553,6 +556,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
         if (enabledModes.contains(SelectMode.PATH)) {
             pathButton = new JButton("Path");
+            pathButton.setMinimumSize(new Dimension(10, pathButton.getPreferredSize().height));
             selectModeP.add(pathButton);
             pathButton.addActionListener(new ActionListener() {
                 @Override
@@ -563,6 +567,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
         if (enabledModes.contains(SelectMode.AREA)) {
             areaButton = new JButton("Area");
+            areaButton.setMinimumSize(new Dimension(10, areaButton.getPreferredSize().height));
             selectModeP.add(areaButton);
             areaButton.addActionListener(new ActionListener() {
                 @Override
@@ -573,6 +578,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
         if (enabledModes.contains(SelectMode.NONE)) {
             noneButton = new JButton("None");
+            noneButton.setMinimumSize(new Dimension(10, noneButton.getPreferredSize().height));
             selectModeP.add(noneButton);
             noneButton.addActionListener(new ActionListener() {
                 @Override
@@ -583,6 +589,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
         if (enabledModes.contains(SelectMode.DELETE)) {
             deleteButton = new JButton("Del");
+            deleteButton.setMinimumSize(new Dimension(10, deleteButton.getPreferredSize().height));
             selectModeP.add(deleteButton);
             deleteButton.addActionListener(new ActionListener() {
                 @Override
@@ -593,6 +600,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
 
         newButton = new JButton("New");
+        newButton.setMinimumSize(new Dimension(10, newButton.getPreferredSize().height));
         selectModeP.add(newButton);
         newButton.addActionListener(new ActionListener() {
             @Override
@@ -602,6 +610,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         loadButton = new JButton("Load");
+        loadButton.setMinimumSize(new Dimension(10, loadButton.getPreferredSize().height));
         selectModeP.add(loadButton);
         loadButton.addActionListener(new ActionListener() {
             @Override
@@ -615,6 +624,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         saveButton = new JButton("Save");
+        saveButton.setMinimumSize(new Dimension(10, saveButton.getPreferredSize().height));
         selectModeP.add(saveButton);
         saveButton.addActionListener(new ActionListener() {
             @Override
@@ -625,6 +635,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         saveAsButton = new JButton("SaveAs");
+        saveAsButton.setMinimumSize(new Dimension(10, saveAsButton.getPreferredSize().height));
         selectModeP.add(saveAsButton);
         saveAsButton.addActionListener(new ActionListener() {
             @Override
@@ -635,6 +646,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         exportButton = new JButton("Export");
+        exportButton.setMinimumSize(new Dimension(10, exportButton.getPreferredSize().height));
         selectModeP.add(exportButton);
         exportButton.addActionListener(new ActionListener() {
             @Override
@@ -644,6 +656,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
         });
 
         importButton = new JButton("Import");
+        importButton.setMinimumSize(new Dimension(importButton.getPreferredSize().width, 10));
         selectModeP.add(importButton);
         importButton.addActionListener(new ActionListener() {
             @Override
