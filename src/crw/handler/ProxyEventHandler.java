@@ -88,6 +88,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
     int portCounter = 0;
+    int boatCounter = 0;
     private Hashtable<UUID, Integer> eventIdToAssembleCounter = new Hashtable<UUID, Integer>();
 
     public ProxyEventHandler() {
@@ -369,7 +370,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 InetSocketAddress socketAddress = new InetSocketAddress("localhost", 11411 + portCounter);
                 ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, socketAddress);
                 color = CrwHelper.randomColor();
-                portCounter++;
 
                 // Set initial pose
                 ProxyServerInt proxyServer = Engine.getInstance().getProxyServer();
@@ -395,12 +395,15 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     relevantProxyList.add(proxy);
                     if (proxy instanceof BoatProxy) {
                         BoatProxy bp = (BoatProxy) proxy;
-                        new Thread(new LutraGamsServer(bp.getServer(), bp.getIpAddress())).start();
+                        new Thread(new LutraGamsServer(bp.getServer(), bp.getIpAddress(), boatCounter)).start();
                     }
                 } else {
                     LOGGER.severe("Failed to create simulated proxy");
                     error = true;
                 }
+                
+                boatCounter++;
+                portCounter++;
             }
             // Sleep to give time for processes to start
             try {

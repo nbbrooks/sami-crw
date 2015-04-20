@@ -39,11 +39,9 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
 //    private int _wpIndex;
     private boolean _startNewWaypoints = false;
 
-    /**
-     * Local reference to vehicle server.
-     */
+    // Local reference to vehicle server.
     protected AsyncVehicleServer _server;
-
+    // IP address including port number
     protected String _ipAddress;
 
     public LutraAlgorithm(AsyncVehicleServer _server, String ipAddress) {
@@ -92,6 +90,9 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
 
     @Override
     public int analyze() {
+//        if(self.id.toLong() == 0) {
+//            System.out.println("ANALYZE\t " + waypointsReceivedAck.get());
+//        }
         if (autonomyEnabledReceivedAck.get() == 1) {
             if (autonomyEnabled.get() == 0) {
                 wpState.set(WaypointState.OFF.toString());
@@ -135,6 +136,9 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
 
     @Override
     public int plan() {
+//        if(self.id.toLong() == 0) {
+//            System.out.println("PLAN");
+//        }
         if (_startNewWaypoints) {
             if (_wpList.length == 0) {
                 _server.stopWaypoints(new FunctionObserver<Void>() {
@@ -151,6 +155,7 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
                 });
             } else {
                 UtmPose[] _wpListClone = _wpList.clone();
+//                System.out.println("start waypoints " + _wpListClone.length);
                 _server.startWaypoints(_wpListClone, wpController.get(), new FunctionObserver<Void>() {
 
                     @Override
@@ -172,6 +177,9 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
 
     @Override
     public int execute() {
+//        if(self.id.toLong() == 0) {
+//            System.out.println("EXECUTE");
+//        }
         return 0;
     }
 
@@ -186,9 +194,9 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
         // Convert a knowledge record into a UTM pose.
         StringTokenizer st = new StringTokenizer(utmString, ",");
         int numTokens = st.countTokens();
-        // 8 arg: easting, northing, altitude, roll, pitch, yaw, zone,hemisphere
-        // 5 arg: easting, northing, yaw, zone,hemisphere
-        // 4 arg: easting, northing, zone,hemisphere
+        // 8 arg: easting, northing, altitude, roll, pitch, yaw, zone, hemisphere
+        // 5 arg: easting, northing, yaw, zone, hemisphere
+        // 4 arg: easting, northing, zone, hemisphere
         double easting;
         double northing;
         double altitude = 0;
@@ -213,7 +221,6 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
                 // 5 arg: easting, northing, yaw, zone,hemisphere
                 easting = Double.valueOf(st.nextToken());
                 northing = Double.valueOf(st.nextToken());
-                altitude = Double.valueOf(st.nextToken());
                 yaw = Double.valueOf(st.nextToken());
                 zone = Integer.valueOf(st.nextToken());
                 hemisphere = st.nextToken();

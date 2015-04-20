@@ -84,32 +84,22 @@ public class GamsServerTest extends JFrame {
             // Create a simulated boat and run a ROS server around it
             VehicleServer server = new FastSimpleBoatSimulator();
             UdpVehicleService rosServer = new UdpVehicleService(11411 + portCounter, server);
-            System.out.println("Created sim on " + rosServer.getSocketAddress().toString());
 
             name = CoreHelper.getUniqueName(name, proxyNames);
             proxyNames.add(name);
             InetSocketAddress socketAddress = new InetSocketAddress("localhost", 11411 + portCounter);
             ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, socketAddress);
             portCounter++;
-
-            // Set initial pose
-            UTMCoordinate utmc = new UTMCoordinate(25.354663489915286, 51.52825995070042);
-            UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH)));
             String ipAddress = socketAddress.toString().substring(socketAddress.toString().indexOf("/") + 1);
-            knowledge.set(ipAddress + ".pose.x", utmc.getEasting());
-            knowledge.set(ipAddress + ".pose.y", utmc.getNorthing());
-            knowledge.set(ipAddress + ".pose.z", "");
-            knowledge.set(ipAddress + ".pose.roll", "");
-            knowledge.set(ipAddress + ".pose.pitch", "");
-            knowledge.set(ipAddress + ".pose.yaw", "0");
-            knowledge.set(ipAddress + ".pose.zone", utmc.getZoneNumber());
-            knowledge.set(ipAddress + ".pose.hemsphere", utmc.getHemisphere().toString());
-            knowledge.sendModifieds();
 
             BoatProxy boatProxy = null;
             if (proxy instanceof BoatProxy) {
                 boatProxy = (BoatProxy) proxy;
-                new Thread(new LutraGamsServer(((BoatProxy) proxy).getServer(), boatProxy.getIpAddress())).start();
+                // Set initial pose
+                UTMCoordinate utmc = new UTMCoordinate(25.3543021007, 51.5283080718);
+                UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH)));
+                boatProxy.getServer().setPose(p1, null);
+                new Thread(new LutraGamsServer(((BoatProxy) proxy).getServer(), boatProxy.getIpAddress(), i)).start();
             }
         }
     }

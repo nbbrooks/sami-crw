@@ -13,6 +13,7 @@ import crw.sensor.CrwObserverServer;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.FunctionObserver;
 import edu.cmu.ri.crw.FunctionObserver.FunctionError;
+import edu.cmu.ri.crw.ImageListener;
 import edu.cmu.ri.crw.PoseListener;
 import edu.cmu.ri.crw.SensorListener;
 import edu.cmu.ri.crw.WaypointListener;
@@ -550,6 +551,22 @@ public class BoatProxy extends Thread implements ProxyInt {
         return _futureWaypointsPos;
     }
 
+    public void addImageListener(ImageListener l) {
+//        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void addSensorListener(int channel, SensorListener l) {
+//        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void addPoseListener(PoseListener l) {
+//        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void addWaypointListener(WaypointListener l) {
+//        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
     /**
      * Updates the variables and lists used to execute and visualize current and
      * future waypoints from the output event list. Note this does not actually
@@ -896,7 +913,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                         sendEvent.set(false);
                     }
                 } catch (java.lang.IllegalArgumentException iae) {
-                    iae.printStackTrace();
+//                    iae.printStackTrace();
                 }
             }
         }

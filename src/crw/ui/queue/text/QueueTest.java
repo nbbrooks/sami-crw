@@ -109,7 +109,7 @@ public class QueueTest implements ResponseListener {
     public ArrayList<ProxyInt> createProxies(int numProxies) {
         ArrayList<ProxyInt> proxies = new ArrayList<ProxyInt>();
         for (int i = 0; i < numProxies; i++) {
-            proxies.add(new BoatProxy("Boat" + i, CrwHelper.randomColor(), i, new InetSocketAddress("localhost", 11411 + i)));
+            proxies.add(new BoatProxy("Boat" + i, CrwHelper.randomColor(), i, new InetSocketAddress("localhost", 11411 + i), null));
         }
         return proxies;
     }

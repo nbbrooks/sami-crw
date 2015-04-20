@@ -17,9 +17,15 @@ import edu.cmu.ri.crw.FunctionObserver;
 import edu.cmu.ri.crw.ImageListener;
 import edu.cmu.ri.crw.PoseListener;
 import edu.cmu.ri.crw.SensorListener;
+import edu.cmu.ri.crw.VehicleServer;
 import edu.cmu.ri.crw.data.SensorData;
+import edu.cmu.ri.crw.data.Utm;
 import edu.cmu.ri.crw.data.UtmPose;
+import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.geom.Angle;
+import gov.nasa.worldwind.geom.coords.UTMCoord;
 import java.util.logging.Logger;
+import robotutils.Pose3D;
 
 /**
  * Interface for defining a platform to be used by GAMS. Care must be taken to
@@ -36,21 +42,21 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
     com.madara.containers.String wpController;
     com.madara.containers.Integer waypointsReceivedAck;
     com.madara.containers.Integer waypointsCompletedAck;
+    com.madara.containers.NativeDoubleVector location;
+    com.madara.containers.NativeDoubleVector dest;
+    com.madara.containers.NativeDoubleVector source;
 
-    /**
-     * Local reference to vehicle server.
-     */
+    // Local reference to vehicle server.
     protected AsyncVehicleServer _server;
-
+    // IP address including port number
     protected String _ipAddress;
+    // Device id
+    protected final int id;
 
-    /**
-     * Default constructor
-     *
-     */
-    public LutraPlatform(AsyncVehicleServer _server, String ipAddress) {
+    public LutraPlatform(AsyncVehicleServer _server, String ipAddress, int id) {
         this._server = _server;
         this._ipAddress = ipAddress;
+        this.id = id;
 
         _server.addImageListener(this, new FunctionObserver<Void>() {
 
@@ -91,6 +97,9 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
     }
 
     public void init() {
+        self.init();
+        self.id.set(id);
+
         waypoints = new com.madara.containers.Vector();
         waypoints.setName(knowledge, _ipAddress + ".waypoints");
 
@@ -108,6 +117,18 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
 
         waypointsCompletedAck = new com.madara.containers.Integer();
         waypointsCompletedAck.setName(knowledge, _ipAddress + ".waypoints.completed");
+
+        location = new com.madara.containers.NativeDoubleVector();
+        location.setName(knowledge, "device.{X}.location");
+        location.resize(3);
+
+        dest = new com.madara.containers.NativeDoubleVector();
+        dest.setName(knowledge, "device.{X}.dest");
+        dest.resize(3);
+
+        source = new com.madara.containers.NativeDoubleVector();
+        source.setName(knowledge, "device.{X}.source");
+        source.resize(3);
     }
 
     /**
@@ -132,13 +153,18 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         return 0.0;
     }
 
+    public double getGpsAccuracy() {
+//    System.out.println("  Platform.getPositionAccuracy called");
+        return 0.0;
+    }
+
     /**
      * Returns the current GPS position
      *
      */
     public Position getPosition() {
 //    System.out.println("  Platform.getPosition called");
-        Position position = new Position(knowledge.get(".pose.x").toDouble(), knowledge.get(".pose.y").toDouble(), knowledge.get(".pose.z").toDouble());
+        Position position = new Position(location.get(0), location.get(1), location.get(2));
         return position;
     }
 
@@ -175,20 +201,44 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
      *
      */
     public int move(Position target, double proximity) {
-        //    System.out.println("  Platform.move called");
+//        System.out.println(id + " Platform.move called");
 
-        // Write new waypoints
-        if (knowledge.get(".pose.zone").toString().isEmpty() || knowledge.get(".pose.hemisphere").toString().isEmpty()) {
-            LOGGER.warning("Called move, but zone and hemisphere are unknown.");
+        // Update SAMI boat proxy variables
+        wpController.set("POINT_AND_SHOOT");
+        wpState.set(VehicleServer.WaypointState.GOING.toString());
+        waypointsReceivedAck.set(0);
+        waypointsCompletedAck.set(0);
+
+        // Send single point as waypoint list to server
+        UtmPose[] _wpList = new UtmPose[1];
+        UTMCoord utmCoord = UTMCoord.fromLatLon(Angle.fromDegreesLatitude(target.getX()), Angle.fromDegreesLongitude(target.getY()));
+        _wpList[0] = new UtmPose(new Pose3D(utmCoord.getEasting(), utmCoord.getNorthing(), target.getZ(), 0.0, 0.0, 0.0), new Utm(utmCoord.getZone(), utmCoord.getHemisphere().contains("North")));
+        if (_wpList[0] != null) {
+            System.out.println(id + " move: [" + target.getX() + "," + target.getY() + "," + target.getZ() + "], [" + utmCoord.getEasting() + "," + utmCoord.getNorthing() + "," + utmCoord.getZone() + "," + utmCoord.getHemisphere() + "]");
+            System.out.println(id + " locn: [" + location.get(0) + "," + location.get(1) + "," + location.get(2) + "]");
+//            System.out.println(id + " start waypoints " + _wpList.length);
+            _server.startWaypoints(_wpList, wpController.get(), new FunctionObserver<Void>() {
+
+                @Override
+                public void completed(Void v) {
+                    LOGGER.fine("startWaypoints call completed");
+                }
+
+                @Override
+                public void failed(FunctionObserver.FunctionError fe) {
+                    LOGGER.severe("startWaypoints call failed");
+                }
+            });
         }
 
-        waypoints.resize(1);
-        waypoints.set(0, target.getX() + "," + target.getX() + "," + target.getX() + "," + knowledge.get(".pose.zone").toString() + "," + knowledge.get(".pose.hemisphere").toString());
-//        // What to set this to?
-//        wpState.set("");
-        wpController.set("POINT_AND_SHOOT");
-        // Mark that new waypoints have been set
-        waypointsReceivedAck.set(1);
+        // Write destination and source to device id path
+        dest.set(0, target.getX());
+        dest.set(1, target.getY());
+        dest.set(2, target.getZ());
+        source.set(0, location.get(0));
+        source.set(1, location.get(1));
+        source.set(2, location.get(2));
+
         return Status.OK.value();
     }
 
@@ -306,7 +356,10 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
      * should be updated
      * @param utmPose the UTM pose that the knowledge base will be updated with
      */
-    public static void setUtmPose(KnowledgeBase knowledge, String knowledgePath, UtmPose utmPose) {
+    public void setUtmPose(KnowledgeBase knowledge, String knowledgePath, UtmPose utmPose) {
+        // @todo Redirect SAMI knowledge path to use device id instead of ip address
+        
+        // Write pose to ip address path
         knowledge.set(knowledgePath + ".x", utmPose.pose.getX());
         knowledge.set(knowledgePath + ".y", utmPose.pose.getY());
         knowledge.set(knowledgePath + ".z", utmPose.pose.getZ());
@@ -315,6 +368,13 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         knowledge.set(knowledgePath + ".yaw", utmPose.pose.getRotation().toYaw());
         knowledge.set(knowledgePath + ".zone", utmPose.origin.zone);
         knowledge.set(knowledgePath + ".hemisphere", utmPose.origin.isNorth ? "North" : "South");
+
+        // Write pose to device location path
+        String wwHemi = utmPose.origin.isNorth ? AVKey.NORTH : AVKey.SOUTH;
+        UTMCoord utmCoord = UTMCoord.fromUTM(utmPose.origin.zone, wwHemi, utmPose.pose.getX(), utmPose.pose.getY());
+        location.set(0, utmCoord.getLatitude().degrees);
+        location.set(1, utmCoord.getLongitude().degrees);
+        location.set(2, utmPose.pose.getZ());
     }
 
     @Override
