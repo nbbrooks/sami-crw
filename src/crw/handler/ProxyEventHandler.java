@@ -64,6 +64,7 @@ import sami.path.Location;
 import sami.path.Path;
 import sami.path.PathUtm;
 import sami.path.UTMCoordinate;
+import sami.path.UTMCoordinate.Hemisphere;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyListenerInt;
 import sami.proxy.ProxyServerInt;
