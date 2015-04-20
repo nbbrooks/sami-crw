@@ -218,54 +218,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             for (Token token : tokens) {
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
                     Location assembleLocation = getSpacedLocation(request.getLocation(), assembleCounter, request.getSpacing());
-//                    Location assembleLocation;
-//                    if (assembleCounter == 0) {
-//                        assembleLocation = request.getLocation();
-//                    } else {
-//                        int direction = (assembleCounter - 1) % 8;
-//                        int magnitude = (assembleCounter - 1) / 8 + 1;
-//                        UTMCoordinate centerCoord = request.getLocation().getCoordinate();
-//                        UTMCoordinate proxyCoord = new UTMCoordinate(centerCoord.getNorthing(), centerCoord.getEasting(), centerCoord.getZone());
-//                        switch (direction) {
-//                            case 0:
-//                                //  0: N
-//                                proxyCoord.setNorthing(centerCoord.getNorthing() + magnitude * request.getSpacing());
-//                                break;
-//                            case 1:
-//                                //  1: NE
-//                                proxyCoord.setNorthing(centerCoord.getNorthing() + magnitude * request.getSpacing());
-//                                proxyCoord.setEasting(centerCoord.getEasting() + magnitude * request.getSpacing());
-//                                break;
-//                            case 2:
-//                                //  2: E
-//                                proxyCoord.setEasting(centerCoord.getEasting() + magnitude * request.getSpacing());
-//                                break;
-//                            case 3:
-//                                //  3: SE
-//                                proxyCoord.setNorthing(centerCoord.getNorthing() - magnitude * request.getSpacing());
-//                                proxyCoord.setEasting(centerCoord.getEasting() + magnitude * request.getSpacing());
-//                                break;
-//                            case 4:
-//                                //  4: S
-//                                proxyCoord.setNorthing(centerCoord.getNorthing() - magnitude * request.getSpacing());
-//                                break;
-//                            case 5:
-//                                //  5: SW
-//                                proxyCoord.setNorthing(centerCoord.getNorthing() - magnitude * request.getSpacing());
-//                                proxyCoord.setEasting(centerCoord.getEasting() - magnitude * request.getSpacing());
-//                                break;
-//                            case 6:
-//                                //  6: W
-//                                proxyCoord.setEasting(centerCoord.getEasting() - magnitude * request.getSpacing());
-//                                break;
-//                            case 7:
-//                                //  7: NW
-//                                proxyCoord.setNorthing(centerCoord.getNorthing() + magnitude * request.getSpacing());
-//                                proxyCoord.setEasting(centerCoord.getEasting() - magnitude * request.getSpacing());
-//                                break;
-//                        }
-//                        assembleLocation = new Location(proxyCoord, request.getLocation().getAltitude());
-//                    }
                     proxyPoints.put(token.getProxy(), assembleLocation);
                     relevantProxies.add(token.getProxy());
                     numProxies++;
@@ -363,7 +315,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 VehicleServer server = new FastSimpleBoatSimulator();
                 UdpVehicleService rosServer = new UdpVehicleService(11411 + portCounter, server);
                 // Space out multiple simulated boats by 1m
-                Location spacedLocation = getSpacedLocation(createEvent.startLocation, i, 10);
+                Location spacedLocation = getSpacedLocation(createEvent.startLocation, i, 1);
                 UTMCoordinate utmc = spacedLocation.getCoordinate();
                 UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(Hemisphere.NORTH)));
                 server.setPose(p1);
