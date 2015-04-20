@@ -2,6 +2,7 @@ package crw.ui;
 
 import java.awt.BorderLayout;
 import java.util.Hashtable;
+import java.util.UUID;
 import java.util.logging.Logger;
 import javax.swing.BoxLayout;
 import sami.engine.Engine;
@@ -13,24 +14,33 @@ import sami.mission.MissionPlanSpecification;
 import sami.mission.Place;
 import sami.mission.Transition;
 import sami.mission.Vertex;
+import sami.uilanguage.UiClientInt;
+import sami.uilanguage.UiClientListenerInt;
 import sami.uilanguage.UiFrame;
+import sami.uilanguage.UiServerInt;
+import sami.uilanguage.toui.ToUiMessage;
 
 /**
  *
  * @author nbb
  */
-public class InterruptFrame extends UiFrame implements PlanManagerListenerInt {
+public class InterruptFrame extends UiFrame implements PlanManagerListenerInt, UiClientListenerInt {
 
     private static final Logger LOGGER = Logger.getLogger(InterruptFrame.class.getName());
     Hashtable<PlanManager, InterruptPanel> pmToPanel = new Hashtable<PlanManager, InterruptPanel>();
+    UiClientInt uiClient;
+    UiServerInt uiServer;
 
     public InterruptFrame() {
         super("InterruptFrame");
         getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
+        
+        Engine.getInstance().addListener(this);
+        setUiClient(Engine.getInstance().getUiClient());
+        setUiServer(Engine.getInstance().getUiServer());
+        
         pack();
         setVisible(true);
-
-        Engine.getInstance().addListener(this);
     }
 
     public void generatePanel(final PlanManager planManager, MissionPlanSpecification mSpec) {
@@ -109,5 +119,39 @@ public class InterruptFrame extends UiFrame implements PlanManagerListenerInt {
 
     public static void main(String[] args) {
         InterruptFrame interruptF = new InterruptFrame();
+    }
+
+    @Override
+    public void toUiMessageReceived(ToUiMessage m) {
+    }
+
+    @Override
+    public void toUiMessageHandled(UUID toUiMessageId) {
+    }
+
+    @Override
+    public UiClientInt getUiClient() {
+        return uiClient;
+    }
+
+    @Override
+    public void setUiClient(UiClientInt uiClient) {
+        if (this.uiClient != null) {
+            this.uiClient.removeClientListener(this);
+        }
+        this.uiClient = uiClient;
+        if (uiClient != null) {
+            uiClient.addClientListener(this);
+        }
+    }
+
+    @Override
+    public UiServerInt getUiServer() {
+        return uiServer;
+    }
+
+    @Override
+    public void setUiServer(UiServerInt uiServer) {
+        this.uiServer = uiServer;
     }
 }

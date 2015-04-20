@@ -1,6 +1,7 @@
 package crw.ui.component;
 
 import crw.Conversion;
+import crw.proxy.BoatProxy;
 import sami.uilanguage.MarkupComponent;
 import crw.ui.widget.RobotTrackWidget;
 import crw.ui.widget.PathWidget;
@@ -20,8 +21,11 @@ import gov.nasa.worldwind.BasicModel;
 import gov.nasa.worldwind.Configuration;
 import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
+import gov.nasa.worldwind.geom.Sector;
+import gov.nasa.worldwind.globes.Earth;
 import gov.nasa.worldwind.globes.EarthFlat;
 import gov.nasa.worldwind.layers.MarkerLayer;
 import gov.nasa.worldwind.layers.RenderableLayer;
@@ -35,9 +39,11 @@ import gov.nasa.worldwind.render.markers.BasicMarker;
 import gov.nasa.worldwind.render.markers.BasicMarkerAttributes;
 import gov.nasa.worldwind.render.markers.BasicMarkerShape;
 import gov.nasa.worldwind.render.markers.Marker;
+import gov.nasa.worldwind.view.ViewUtil;
 import gov.nasa.worldwind.view.orbit.FlatOrbitView;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Rectangle;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -49,9 +55,13 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import sami.area.Area2D;
+import sami.engine.Engine;
+import sami.map.ViewArea;
 import sami.engine.Mediator;
 import sami.engine.PlanManager;
 import sami.environment.EnvironmentListenerInt;
+import sami.environment.EnvironmentProperties;
+import sami.map.ViewPoint;
 import sami.markup.Markup;
 import sami.markup.RelevantArea;
 import sami.mission.MissionPlanSpecification;
@@ -85,6 +95,9 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     protected Vector<WorldWindWidgetInt> widgetList;
     protected MouseInputActionHandler handler;
     protected BorderLayout borderLayout;
+    // Multiplier for setting view area based on proxy list so WorldWind renderables are drawn and fully visible
+    //  Roughly works, although an inverted exponential function would be more appropriate
+    private static final double PROXY_VIEW_MULTIPLIER = 2.0;
 
     // Useful GPS locations
 //    // Doha Corniche
@@ -103,12 +116,31 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         populateLists();
     }
 
-    public void createMap() {
+    public void createMap(ArrayList<Markup> markups) {
+        ArrayList<String> layerNames = new ArrayList<String>();
+        layerNames.add("Blue Marble May 2004");
+        layerNames.add("Scale bar");
+        layerNames.add("Place Names");
+        layerNames.add("Bing Imagery");
+        for (final Markup markup : markups) {
+            if (markup instanceof RelevantArea) {
+                RelevantArea relevantArea = (RelevantArea) markup;
+                if (relevantArea.mapType == RelevantArea.MapType.POLITICAL) {
+                    // Remove satellite layer, add street layer
+                    layerNames.add("Open Street Map");
+                    layerNames.remove("Bing Imagery");
+                } else if (relevantArea.mapType == RelevantArea.MapType.SATELLITE) {
+                    // Remove street  layer, add satellite layer
+                    layerNames.add("Bing Imagery");
+                    layerNames.remove("Open Street Map");
+                }
+            }
+        }
         createMap(400, 300, null);
     }
 
-    public void createMap(ArrayList<String> layerNames) {
-        createMap(400, 300, layerNames);
+    public void createMap() {
+        createMap(400, 300, null);
     }
 
     public void createMap(int width, int height, ArrayList<String> layerNames) {
@@ -223,14 +255,16 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         widgetClasses.add(SensorDataWidget.class);
         widgetClasses.add(SensorDataWidget.class);
         // Creation
-        //
+        supportedCreationClasses.add(ViewArea.class);
+        supportedCreationClasses.add(ViewPoint.class);
         // Visualization
-        //
+        supportedCreationClasses.add(ViewArea.class);
+        supportedCreationClasses.add(ViewPoint.class);
         // Markups
         supportedMarkups.add(RelevantArea.AreaSelection.AREA);
-        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_ON_POINT);
-        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_ON_ALL_PROXIES);
-        supportedMarkups.add(RelevantArea.AreaSelection.CENTER_ON_RELEVANT_PROXIES);
+        supportedMarkups.add(RelevantArea.AreaSelection.POINT);
+        supportedMarkups.add(RelevantArea.AreaSelection.ALL_PROXIES);
+        supportedMarkups.add(RelevantArea.AreaSelection.RELEVANT_PROXIES);
         supportedMarkups.add(RelevantArea.MapType.POLITICAL);
         supportedMarkups.add(RelevantArea.MapType.SATELLITE);
     }
@@ -253,7 +287,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     @Override
     public MarkupComponent useCreationComponent(Type type, Field field, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (wwCanvas == null) {
-            createMap();
+            createMap(markups);
         }
         for (Class widgetClass : widgetClasses) {
             try {
@@ -276,7 +310,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     @Override
     public MarkupComponent useSelectionComponent(Object object, ArrayList<Markup> markups, MissionPlanSpecification mSpecScope, PlanManager pmScope) {
         if (wwCanvas == null) {
-            createMap();
+            createMap(markups);
         }
         for (Class widgetClass : widgetClasses) {
             try {
@@ -345,6 +379,16 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                 }
                 value = new Area2D(locationList);
             }
+        } else if (componentClass.equals(ViewArea.class)) {
+            Sector sector = getCurrentSector();
+            LatLon[] corners = sector.getCorners();
+            ArrayList<Location> locations = new ArrayList<Location>();
+            for (LatLon corner : corners) {
+                locations.add(Conversion.latLonToLocation(corner));
+            }
+            value = new Area2D(locations);
+        } else if (componentClass.equals(ViewPoint.class)) {
+            value = (ViewPoint) Conversion.positionToLocation(wwCanvas.getView().getCurrentEyePosition());
         }
         return value;
     }
@@ -424,6 +468,16 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
             polygon.setAttributes(attributes);
             selectWidget.addRenderable(polygon);
             success = true;
+        } else if (value.getClass() == ViewArea.class) {
+            Area2D area = (Area2D) value;
+            List<LatLon> points = new ArrayList<LatLon>();
+            for (Location location : area.getPoints()) {
+                points.add(Conversion.locationToPosition(location));
+            }
+            setView(points);
+        } else if (value.getClass() == ViewPoint.class) {
+            ViewPoint viewPoint = (ViewPoint) value;
+            wwCanvas.getView().setEyePosition(Conversion.locationToPosition(viewPoint));
         } else if (value.getClass() == Hashtable.class) {
             Hashtable hashtable = (Hashtable) value;
             if (!hashtable.isEmpty()) {
@@ -454,12 +508,116 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
 
     @Override
     public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        // No dynamic markups handled
+
+        // Static markups
+        for (final Markup markup : markups) {
+            if (markup instanceof RelevantArea) {
+                RelevantArea relevantArea = (RelevantArea) markup;
+                boolean handled = false;
+                List<LatLon> points = new ArrayList<LatLon>();
+                switch (relevantArea.areaSelection) {
+                    case ALL_PROXIES:
+                        switch (relevantArea.viewModification) {
+                            case EXPAND:
+                                points.addAll(getCurrentCorners());
+                                for (ProxyInt proxy : Engine.getInstance().getAllProxies()) {
+                                    if (proxy instanceof BoatProxy) {
+                                        points.add(((BoatProxy) proxy).getPosition());
+                                    } else {
+                                        LOGGER.warning("Proxy is not a BoatProxy");
+                                    }
+                                }
+                                setView(points, PROXY_VIEW_MULTIPLIER);
+                                handled = true;
+                                break;
+                            case REDUCE:
+                                for (ProxyInt proxy : Engine.getInstance().getAllProxies()) {
+                                    if (proxy instanceof BoatProxy) {
+                                        points.add(((BoatProxy) proxy).getPosition());
+                                    } else {
+                                        LOGGER.warning("Proxy is not a BoatProxy");
+                                    }
+                                }
+                                setView(points, PROXY_VIEW_MULTIPLIER);
+                                handled = true;
+                                break;
+                        }
+                        break;
+                    case AREA:
+                        switch (relevantArea.viewModification) {
+                            case EXPAND:
+                                points.addAll(locationstoLatLons(relevantArea.areaOption.area.getPoints()));
+                                points.addAll(getCurrentCorners());
+                                setView(points);
+                                handled = true;
+                                break;
+                            case REDUCE:
+                                setView(locationstoLatLons(relevantArea.areaOption.area.getPoints()));
+                                handled = true;
+                                break;
+                        }
+                        break;
+                    case POINT:
+                        switch (relevantArea.viewModification) {
+                            case EXPAND:
+                                points.addAll(getCurrentCorners());
+                                if (relevantArea.pointOption.point != null) {
+                                    Position point = Conversion.locationToPosition(relevantArea.pointOption.point);
+                                    if (point != null) {
+                                        points.add(point);
+                                    }
+                                }
+                                setView(points);
+                                handled = true;
+                                break;
+                            case REDUCE:
+                                if (relevantArea.pointOption.point != null) {
+                                    Position point = Conversion.locationToPosition(relevantArea.pointOption.point);
+                                    if (point != null) {
+                                        wwCanvas.getView().setEyePosition(point);
+                                    }
+                                }
+                                handled = true;
+                                break;
+                        }
+                        break;
+                    case RELEVANT_PROXIES:
+                        switch (relevantArea.viewModification) {
+                            case EXPAND:
+                                points.addAll(getCurrentCorners());
+                                for (ProxyInt proxy : relevantArea.getRelevantProxies()) {
+                                    if (proxy instanceof BoatProxy) {
+                                        points.add(((BoatProxy) proxy).getPosition());
+                                    } else {
+                                        LOGGER.warning("Proxy is not a BoatProxy");
+                                    }
+                                }
+                                setView(points, PROXY_VIEW_MULTIPLIER);
+                                handled = true;
+                                break;
+                            case REDUCE:
+                                for (ProxyInt proxy : relevantArea.getRelevantProxies()) {
+                                    if (proxy instanceof BoatProxy) {
+                                        points.add(((BoatProxy) proxy).getPosition());
+                                    } else {
+                                        LOGGER.warning("Proxy is not a BoatProxy");
+                                    }
+                                }
+                                setView(points, PROXY_VIEW_MULTIPLIER);
+                                handled = true;
+                                break;
+                        }
+                        break;
+
+                }
+            }
+        }
     }
 
     @Override
     public void disableMarkup(Markup markup) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        // No dynamic markups handled
     }
 
     @Override
@@ -511,5 +669,123 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
             }
         }
         return compCreationClasses;
+    }
+
+    /**
+     * Set canvas view to capture a set of lat/lon points
+     *
+     * @param points The points the view should capture
+     * @param altitudeMultiplier How much to multiply the altitude by to pad the
+     * view
+     */
+    private void setView(List<LatLon> points, double altitudeMultiplier) {
+        System.out.println("setView: " + points.toString());
+        Sector sector;
+        if (points.isEmpty()) {
+//            // Show entire globe if no points were provided
+//            sector = Sector.FULL_SPHERE;
+            // Do nothing if no points were provided
+            LOGGER.warning("setView called with empty list of points");
+            return;
+        } else {
+            sector = Sector.boundingSector(points);
+        }
+        Angle horizontalFov = getCanvas().getView().getFieldOfView();
+        Angle verticalFov = ViewUtil.computeVerticalFieldOfView(getCanvas().getView().getFieldOfView(), getCanvas().getView().getViewport());
+
+        Angle delta;
+        Angle fov;
+        if (verticalFov.compareTo(horizontalFov) > 0) {
+            delta = sector.getDeltaLon();
+            fov = horizontalFov;
+        } else {
+            delta = sector.getDeltaLat();
+            fov = verticalFov;
+        }
+
+        double altitude = 0.0;
+        if (points.size() == 1) {
+            // Use default view's altitude if one exists, otherwise use 0
+            EnvironmentProperties envProp = Mediator.getInstance().getEnvironment();
+            if (envProp != null && envProp.getDefaultLocation() != null) {
+                altitude = envProp.getDefaultLocation().getAltitude();
+                System.out.println("Using default altitude of " + altitude);
+            } else {
+                System.out.println("Using unspecified altitude of 0.0");
+            }
+        } else {
+            // Calculate altitude to show all the points
+            double arcLength = delta.radians * Earth.WGS84_EQUATORIAL_RADIUS;
+            double fieldOfView = fov.radians;
+            altitude = arcLength / (2 * Math.tan(fieldOfView / 2.0));
+            // Pad the altitude a bit so WorldWind renderables are drawn and fully visible
+            altitude *= altitudeMultiplier;
+            System.out.println("Using calculated altitude of " + altitude);
+        }
+
+        Position sectorPosition = new Position(sector.getCentroid(), altitude);
+        getCanvas().getView().setEyePosition(sectorPosition);
+        getCanvas().redrawNow();
+    }
+
+    private void setView(List<LatLon> points) {
+        setView(points, 0);
+    }
+
+    private List<LatLon> locationstoLatLons(List<Location> locations) {
+        ArrayList<LatLon> points = new ArrayList<LatLon>();
+        for (Location location : locations) {
+            if (location != null) {
+                LatLon point = Conversion.locationToPosition(location);
+                if (point != null) {
+                    points.add(point);
+                }
+            }
+        }
+        return points;
+    }
+
+    /**
+     * Gets a LatLon list of the current view's 4 corners
+     *
+     * @param position
+     * @return
+     */
+    private ArrayList<LatLon> getCurrentCorners() {
+        ArrayList<LatLon> points = new ArrayList<LatLon>();
+
+        Rectangle viewport = getCanvas().getView().getViewport();
+        Position p;
+        p = getCanvas().getView().computePositionFromScreenPoint(viewport.getMinX(), viewport.getMinY());
+        // Don't add position if it is NULL (not on globe)
+        if (p != null) {
+            points.add(p);
+        }
+        p = getCanvas().getView().computePositionFromScreenPoint(viewport.getMinX(), viewport.getMaxY());
+        if (p != null) {
+            points.add(p);
+        }
+        p = getCanvas().getView().computePositionFromScreenPoint(viewport.getMaxX(), viewport.getMaxY());
+        if (p != null) {
+            points.add(p);
+        }
+        p = getCanvas().getView().computePositionFromScreenPoint(viewport.getMaxX(), viewport.getMinY());
+        if (p != null) {
+            points.add(p);
+        }
+
+        return points;
+    }
+
+    private Sector getCurrentSector() {
+        ArrayList<LatLon> points = getCurrentCorners();
+        Sector sector;
+        if (points.isEmpty()) {
+            // Show entire globe if no points were provided
+            sector = Sector.FULL_SPHERE;
+        } else {
+            sector = Sector.boundingSector(points);
+        }
+        return sector;
     }
 }

@@ -9,14 +9,22 @@ import crw.ui.widget.RobotWidget;
 import crw.ui.widget.RobotWidget.ControlMode;
 import crw.ui.component.WorldWindPanel;
 import crw.ui.widget.AnnotationWidget;
+import java.util.UUID;
+import sami.engine.Engine;
+import sami.uilanguage.UiClientInt;
+import sami.uilanguage.UiClientListenerInt;
+import sami.uilanguage.UiServerInt;
+import sami.uilanguage.toui.ToUiMessage;
 
 /**
  *
  * @author nbb
  */
-public class MapFrame extends UiFrame {
+public class MapFrame extends UiFrame implements UiClientListenerInt {
 
     public WorldWindPanel wwPanel;
+    UiClientInt uiClient;
+    UiServerInt uiServer;
 
     public MapFrame() {
         super("MapFrame");
@@ -41,11 +49,50 @@ public class MapFrame extends UiFrame {
         AnnotationWidget annotation = new AnnotationWidget(wwPanel);
         wwPanel.addWidget(annotation);
 
+        setUiClient(Engine.getInstance().getUiClient());
+        setUiServer(Engine.getInstance().getUiServer());
+
         pack();
         setVisible(true);
     }
 
     public static void main(String[] args) {
         MapFrame mf = new MapFrame();
+    }
+
+    @Override
+    public void toUiMessageReceived(ToUiMessage m) {
+        // Check for markups in any message
+        wwPanel.handleMarkups(m.getMarkups(), null);
+    }
+
+    @Override
+    public void toUiMessageHandled(UUID toUiMessageId) {
+    }
+
+    @Override
+    public UiClientInt getUiClient() {
+        return uiClient;
+    }
+
+    @Override
+    public void setUiClient(UiClientInt uiClient) {
+        if (this.uiClient != null) {
+            this.uiClient.removeClientListener(this);
+        }
+        this.uiClient = uiClient;
+        if (uiClient != null) {
+            uiClient.addClientListener(this);
+        }
+    }
+
+    @Override
+    public UiServerInt getUiServer() {
+        return uiServer;
+    }
+
+    @Override
+    public void setUiServer(UiServerInt uiServer) {
+        this.uiServer = uiServer;
     }
 }

@@ -854,10 +854,12 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
 
     @Override
     public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+        // No dynamic markups handled
     }
 
     @Override
     public void disableMarkup(Markup markup) {
+        // No dynamic markups handled
     }
 
     @Override
