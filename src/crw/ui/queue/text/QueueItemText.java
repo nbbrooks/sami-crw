@@ -27,6 +27,7 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import sami.engine.Engine;
 import sami.event.ReflectedEventSpecification;
+import sami.markup.Description;
 import sami.markup.Markup;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.fromui.FromUiMessage;
@@ -87,12 +88,23 @@ public class QueueItemText {
             constraints.gridy = 0;
             constraints.gridx = 0;
             constraints.weightx = 1.0;
+            int maxColWidth = BUTTON_WIDTH;
+            int cumulComponentHeight = 0;
+
+            // If the event had a Description markup, put its text at the top of this panel
+            for (Markup markup : decisionMessage.getMarkups()) {
+                if (markup instanceof Description) {
+                    JLabel descriptionMarkupLabel = new JLabel(((Description) markup).textOption.text);
+                    content.add(descriptionMarkupLabel, constraints);
+                    constraints.gridy = constraints.gridy + 1;
+                    maxColWidth = Math.max(maxColWidth, (int) descriptionMarkupLabel.getPreferredSize().getWidth());
+                    cumulComponentHeight += (int) descriptionMarkupLabel.getPreferredSize().getHeight();
+                }
+            }
 
             if (decisionMessage instanceof CreationMessage) {
                 CreationMessage creationMessage = (CreationMessage) decisionMessage;
 
-                int maxColWidth = BUTTON_WIDTH;
-                int cumulComponentHeight = 0;
                 if (creationMessage.getEventSpecToFieldDescriptions() != null) {
                     for (ReflectedEventSpecification eventSpec : creationMessage.getEventSpecToFieldDescriptions().keySet()) {
                         Hashtable<Field, String> fieldDescriptions = creationMessage.getEventSpecToFieldDescriptions().get(eventSpec);
@@ -198,8 +210,6 @@ public class QueueItemText {
                 SelectionMessage selectionMessage = (SelectionMessage) decisionMessage;
 
                 int row = 0;
-                int maxColWidth = BUTTON_WIDTH;
-                int cumulComponentHeight = 0;
                 for (final Object option : selectionMessage.getOptionsList()) {
                     MarkupComponent markupComponent = CrwUiComponentGenerator.getInstance().getSelectionComponent(option.getClass(), option, selectionMessage.getMarkups(), null, Engine.getInstance().getPlanManager(selectionMessage.getMissionId()));
                     JComponent visualization;

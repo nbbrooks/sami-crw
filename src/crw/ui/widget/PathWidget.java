@@ -281,12 +281,12 @@ public class PathWidget implements MarkupComponentWidget, WorldWindWidgetInt {
 
     @Override
     public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        // No dynamic markups handled
     }
 
     @Override
     public void disableMarkup(Markup markup) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        // No dynamic markups handled
     }
 
     @Override

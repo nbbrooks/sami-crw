@@ -733,10 +733,12 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
 
     @Override
     public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+        // No dynamic markups handled
     }
 
     @Override
     public void disableMarkup(Markup markup) {
+        // No dynamic markups handled
     }
 
     @Override

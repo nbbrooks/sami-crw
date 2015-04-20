@@ -43,10 +43,6 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
         LOGGER.log(Level.FINE, "ToUiMessageEventHandler invoked with " + oe);
         ToUiMessage message = null;
 
-        // list of things to viz
-        // list of things to create
-        // list of markups
-        // how would teleop be handled? markup?
         if (oe.getId() == null) {
             LOGGER.log(Level.WARNING, "\tOutputEvent has null UUID: " + oe);
         }
@@ -78,7 +74,7 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                     proxyOptionsList.add(token.getProxy());
                 }
             }
-            if(proxyOptionsList.isEmpty()) {
+            if (proxyOptionsList.isEmpty()) {
                 LOGGER.log(Level.WARNING, "Place with OperatorSelectBoat has no tokens with proxies attached: " + oe);
             }
             message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, false, proxyOptionsList);
@@ -89,7 +85,7 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                     proxyOptionsList.add(token.getProxy());
                 }
             }
-            if(proxyOptionsList.isEmpty()) {
+            if (proxyOptionsList.isEmpty()) {
                 LOGGER.log(Level.WARNING, "Place with OperatorSelectBoat has no tokens with proxies attached: " + oe);
             }
             message = new ProxyOptionsMessage(oe.getId(), oe.getMissionId(), priority, true, proxyOptionsList);
@@ -128,8 +124,14 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                 message.addMarkup(copy);
             } else if (markup instanceof RelevantArea) {
                 // Needs to be copied
-                //@todo implement
                 RelevantArea copy = ((RelevantArea) markup).copy();
+                ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
+                for (Token t : tokens) {
+                    if (t.getProxy() != null && !relevantProxies.contains(t.getProxy())) {
+                        relevantProxies.add(t.getProxy());
+                    }
+                }
+                copy.setRelevantProxies(relevantProxies);
                 message.addMarkup(copy);
             } else {
                 message.addMarkup(markup);

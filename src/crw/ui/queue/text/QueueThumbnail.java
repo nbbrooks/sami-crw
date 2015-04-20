@@ -8,6 +8,8 @@ import java.awt.Font;
 import javax.swing.JLabel;
 import sami.engine.Engine;
 import sami.engine.PlanManager;
+import sami.markup.Description;
+import sami.markup.Markup;
 import sami.markup.Priority;
 import sami.markup.Priority.Ranking;
 import sami.uilanguage.UiPanel;
@@ -48,8 +50,16 @@ public class QueueThumbnail extends UiPanel {
         // Class of OE which generated this message
         // @todo incorporate markups (Description, RelevantProxy, RelevantTask, etc) into description
         String description = "";
+        for (Markup markup : message.getMarkups()) {
+            if (markup instanceof Description) {
+                description += CrwHelper.padLeftHtml(((Description) markup).textOption.text, 20);
+            }
+        }
         if (pm != null && message.getRelevantOutputEventId() != null) {
-            description = CrwHelper.padLeftHtml(pm.getOutputEvent(message.getRelevantOutputEventId()).getClass().getSimpleName(), 20);
+            if (!description.isEmpty()) {
+                description += "&#x007C ";
+            }
+            description += CrwHelper.padLeftHtml(pm.getOutputEvent(message.getRelevantOutputEventId()).getClass().getSimpleName(), 20);
         }
         JLabel label = new JLabel();
         label.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));

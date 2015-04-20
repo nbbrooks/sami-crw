@@ -28,6 +28,7 @@ import sami.allocation.ResourceAllocation;
 import sami.engine.Engine;
 import sami.engine.Mediator;
 import sami.engine.PlanManager;
+import sami.markup.Description;
 import sami.markup.Markup;
 import sami.mission.MissionPlanSpecification;
 import sami.uilanguage.MarkupComponent;
@@ -93,7 +94,11 @@ public class TextPanel implements MarkupComponent {
         supportedSelectionClasses.add(MissionPlanSpecification.class);
         supportedSelectionClasses.add(VariableName.class);
         // Markups
-        // Instructional text
+        supportedMarkups.add(Description.ShowPlanNameEnum.NO);
+        supportedMarkups.add(Description.ShowPlanNameEnum.YES);
+        supportedMarkups.add(Description.ShowVertexNameNum.NO);
+        supportedMarkups.add(Description.ShowVertexNameNum.YES);
+        supportedMarkups.add(Description.TextSourceEnum.SPECIFY);
     }
 
     @Override
