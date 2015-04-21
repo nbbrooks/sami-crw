@@ -1063,11 +1063,13 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                             String latLon = br.readLine();
                             if (latLon == null) {
                                 LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
+                                line = br.readLine();
                                 continue;
                             }
                             int split = latLon.indexOf(",");
                             if (split == -1) {
                                 LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
+                                line = br.readLine();
                                 continue;
                             }
                             String lat = latLon.substring(0, split);
@@ -1081,25 +1083,26 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                             } catch (NumberFormatException ex) {
                                 LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
                             }
-                            selectedPositions.clear();
+                            selectedPositions = new ArrayList<Position>();
                             polyline = null;
                             area = null;
                         } else if (line.equals("L")) {
                             // Start reading in a line
                             importSelectMode = SelectMode.PATH;
-                            selectedPositions.clear();
+                            selectedPositions = new ArrayList<Position>();
                             polyline = null;
                             area = null;
                         } else if (line.equals("A")) {
                             // Start reading in an area
                             importSelectMode = SelectMode.AREA;
-                            selectedPositions.clear();
+                            selectedPositions = new ArrayList<Position>();
                             polyline = null;
                             area = null;
                         } else {
                             int split = line.indexOf(',');
                             if (split == -1) {
                                 LOGGER.severe("Failed to process line from environment properties geometry import: " + line);
+                                line = br.readLine();
                                 continue;
                             }
                             String lat = line.substring(0, split);
@@ -1111,6 +1114,8 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
 
                                 switch (importSelectMode) {
                                     case POINT:
+                                        // Shouldn't end up here, we immediately process points
+                                        LOGGER.severe("In importSelectMode switch with Point mode, should not occur");
                                         break;
                                     case PATH:
                                         selectedPositions.add(position);
