@@ -353,7 +353,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     relevantProxyList.add(proxy);
                     if (proxy instanceof BoatProxy) {
                         BoatProxy bp = (BoatProxy) proxy;
-                        new Thread(new LutraGamsServer(bp.getServer(), bp.getIpAddress(), boatCounter)).start();
+                        new Thread(new LutraGamsServer(bp.getServer(), bp.getIpAddress(), boatCounter, BoatProxy.DEFAULT_TEAM_SIZE)).start();
                     }
                 } else {
                     LOGGER.severe("Failed to create simulated proxy");

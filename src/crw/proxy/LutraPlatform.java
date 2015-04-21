@@ -12,6 +12,7 @@ import com.gams.platforms.BasePlatform;
 import com.gams.platforms.Status;
 import com.gams.utility.Position;
 import com.madara.KnowledgeBase;
+import com.madara.KnowledgeRecord;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.FunctionObserver;
 import edu.cmu.ri.crw.ImageListener;
@@ -24,6 +25,9 @@ import edu.cmu.ri.crw.data.UtmPose;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import robotutils.Pose3D;
 
@@ -46,6 +50,9 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
     com.madara.containers.NativeDoubleVector dest;
     com.madara.containers.NativeDoubleVector source;
 
+    // Writer for recording waypoints commanded via move method
+    FileWriter moveCmdWriter;
+
     // Local reference to vehicle server.
     protected AsyncVehicleServer _server;
     // IP address including port number
@@ -57,6 +64,17 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         this._server = _server;
         this._ipAddress = ipAddress;
         this.id = id;
+        try {
+            moveCmdWriter = new FileWriter(id + "-move-cmds.txt");
+        } catch (IOException ex) {
+            Logger.getLogger(LutraPlatform.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        try {
+            moveCmdWriter.write("L\n");
+            moveCmdWriter.flush();
+        } catch (IOException ex) {
+            Logger.getLogger(LutraPlatform.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
         _server.addImageListener(this, new FunctionObserver<Void>() {
 
@@ -150,12 +168,12 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
      */
     public double getPositionAccuracy() {
 //    System.out.println("  Platform.getPositionAccuracy called");
-        return 0.0;
+        return 5.0;
     }
 
     public double getGpsAccuracy() {
 //    System.out.println("  Platform.getPositionAccuracy called");
-        return 0.0;
+        return 5.0;
     }
 
     /**
@@ -209,14 +227,22 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         waypointsReceivedAck.set(0);
         waypointsCompletedAck.set(0);
 
+        KnowledgeRecord value0 = location.toRecord(0);
+        KnowledgeRecord value1 = location.toRecord(1);
+        KnowledgeRecord value2 = location.toRecord(2);
+
         // Send single point as waypoint list to server
         UtmPose[] _wpList = new UtmPose[1];
         UTMCoord utmCoord = UTMCoord.fromLatLon(Angle.fromDegreesLatitude(target.getX()), Angle.fromDegreesLongitude(target.getY()));
         _wpList[0] = new UtmPose(new Pose3D(utmCoord.getEasting(), utmCoord.getNorthing(), target.getZ(), 0.0, 0.0, 0.0), new Utm(utmCoord.getZone(), utmCoord.getHemisphere().contains("North")));
         if (_wpList[0] != null) {
-            System.out.println(id + " move: [" + target.getX() + "," + target.getY() + "," + target.getZ() + "], [" + utmCoord.getEasting() + "," + utmCoord.getNorthing() + "," + utmCoord.getZone() + "," + utmCoord.getHemisphere() + "]");
-            System.out.println(id + " locn: [" + location.get(0) + "," + location.get(1) + "," + location.get(2) + "]");
-//            System.out.println(id + " start waypoints " + _wpList.length);
+            try {
+                moveCmdWriter.write(target.getX() + "," + target.getY() + "\n");
+                moveCmdWriter.flush();
+            } catch (IOException ex) {
+                Logger.getLogger(LutraPlatform.class.getName()).log(Level.SEVERE, null, ex);
+            }
+//            System.out.println(id + " move: [" + target.getX() + "," + target.getY() + "," + target.getZ() + "], [" + utmCoord.getEasting() + "," + utmCoord.getNorthing() + "," + utmCoord.getZone() + "," + utmCoord.getHemisphere() + "]");
             _server.startWaypoints(_wpList, wpController.get(), new FunctionObserver<Void>() {
 
                 @Override
@@ -260,7 +286,7 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
      */
     public double getMoveSpeed() {
 //    System.out.println("  Platform.getMoveSpeed called");
-        return 0.0;
+        return 10.0;
     }
 
     /**
@@ -358,7 +384,7 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
      */
     public void setUtmPose(KnowledgeBase knowledge, String knowledgePath, UtmPose utmPose) {
         // @todo Redirect SAMI knowledge path to use device id instead of ip address
-        
+
         // Write pose to ip address path
         knowledge.set(knowledgePath + ".x", utmPose.pose.getX());
         knowledge.set(knowledgePath + ".y", utmPose.pose.getY());

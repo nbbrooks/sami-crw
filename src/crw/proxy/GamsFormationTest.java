@@ -17,6 +17,8 @@ import edu.cmu.ri.crw.data.UtmPose;
 import edu.cmu.ri.crw.udp.UdpVehicleService;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.logging.Level;
@@ -41,11 +43,26 @@ public class GamsFormationTest extends JFrame {
     static KnowledgeBase knowledge = null;
     ArrayList<LutraGamsServer> gamsServers = new ArrayList<LutraGamsServer>();
 
+    final int numRobots;
+    final double regionWidth;
+    final double spacingMultiplier;
+
     public static void main(String[] args) {
-        new GamsFormationTest();
+        new GamsFormationTest(8, 100, 10);
     }
 
-    public GamsFormationTest() {
+    /**
+     *
+     * @param numRobots Number of robots to spawn and use in the formation
+     * @param regionWidth Region width to be explored (m)
+     * @param spacingMultiplier Minimum distance between robots in the
+     * cylindrical coordinate formation configuration
+     */
+    public GamsFormationTest(int numRobots, double regionWidth, double spacingMultiplier) {
+        this.numRobots = numRobots;
+        this.regionWidth = regionWidth;
+        this.spacingMultiplier = spacingMultiplier;
+
         final JFrame mapFrame = new JFrame();
         mapFrame.getContentPane().setLayout(new BorderLayout());
 
@@ -90,7 +107,6 @@ public class GamsFormationTest extends JFrame {
             Mediator.getInstance().newEnvironment();
         }
 
-        int numRobots = 3;
         int portCounter = 0;
         String name = "Boat";
         Color color = Color.YELLOW;
@@ -121,56 +137,79 @@ public class GamsFormationTest extends JFrame {
             BoatProxy boatProxy = null;
             if (proxy instanceof BoatProxy) {
                 boatProxy = (BoatProxy) proxy;
-                // Set initial pose
-                UTMCoordinate utmc = new UTMCoordinate(25.3543021007 + i *.002, 51.5283080718 + i *.002);
-                UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH)));
+                // Set initial pose, offset each progressive proxy by 1.2m north east
+                UTMCoordinate utmc = new UTMCoordinate(25.3543021007, 51.5283080718);
+                UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting() + i, utmc.getNorthing() + i, 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH)));
                 boatProxy.getServer().setPose(p1, null);
-                LutraGamsServer gamsServer = new LutraGamsServer(((BoatProxy) proxy).getServer(), boatProxy.getIpAddress(), i);
+                LutraGamsServer gamsServer = new LutraGamsServer(((BoatProxy) proxy).getServer(), boatProxy.getIpAddress(), i, numRobots);
                 gamsServers.add(gamsServer);
                 new Thread(gamsServer).start();
             }
         }
 
-//        knowledge.print();
-        // Set region
+        // Create a ~square region
+        // Center of region
+        double latCenter = 25.3550180223;
+        double lonCenter = 51.5276055616;
+        // Half the width of the square
+        final double LON_D_PER_M = 1.0 / 90000.0;
+        final double LAT_D_PER_M = 1.0 / 110000.0;
+        double halfSquareWidth = regionWidth * LON_D_PER_M;
         LOGGER.info("Set region");
         knowledge.set("region.0.type", 0);
-        knowledge.set("region.0.size", 5);
+        knowledge.set("region.0.size", 4);
         com.madara.containers.NativeDoubleVector doubleArray;
         doubleArray = new com.madara.containers.NativeDoubleVector();
         doubleArray.setName(knowledge, "region.0.0");
         doubleArray.resize(2);
-        doubleArray.set(0, 25.3541773876);
-        doubleArray.set(1, 51.5278304934);
-//        knowledge.set("region.0.0", "25.3541773876, 51.5278304934");
+        doubleArray.set(0, latCenter + halfSquareWidth);
+        doubleArray.set(1, lonCenter + halfSquareWidth);
         doubleArray = new com.madara.containers.NativeDoubleVector();
         doubleArray.setName(knowledge, "region.0.1");
         doubleArray.resize(2);
-        doubleArray.set(0, 25.3541374508);
-        doubleArray.set(1, 51.5288937134);
+        doubleArray.set(0, latCenter + halfSquareWidth);
+        doubleArray.set(1, lonCenter - halfSquareWidth);
         doubleArray = new com.madara.containers.NativeDoubleVector();
         doubleArray.setName(knowledge, "region.0.2");
         doubleArray.resize(2);
-        doubleArray.set(0, 25.3546160196);
-        doubleArray.set(1, 51.5289057336);
+        doubleArray.set(0, latCenter - halfSquareWidth);
+        doubleArray.set(1, lonCenter - halfSquareWidth);
         doubleArray = new com.madara.containers.NativeDoubleVector();
         doubleArray.setName(knowledge, "region.0.3");
         doubleArray.resize(2);
-        doubleArray.set(0, 25.3546017749);
-        doubleArray.set(1, 51.5278422742);
-        doubleArray = new com.madara.containers.NativeDoubleVector();
-        doubleArray.setName(knowledge, "region.0.4");
-        doubleArray.resize(2);
-        doubleArray.set(0, 25.3546017749);
-        doubleArray.set(1, 51.5278422742);
+        doubleArray.set(0, latCenter - halfSquareWidth);
+        doubleArray.set(1, lonCenter + halfSquareWidth);
+
+        System.out.println("Region is:\nA\n" + (latCenter + halfSquareWidth) + "," + (lonCenter + halfSquareWidth) + "\n"
+                + (latCenter + halfSquareWidth) + "," + (lonCenter - halfSquareWidth) + "\n"
+                + (latCenter - halfSquareWidth) + "," + (lonCenter - halfSquareWidth) + "\n"
+                + (latCenter - halfSquareWidth) + "," + (lonCenter + halfSquareWidth) + "\n");
+        // Write region to file importable by AnnotationWidget for visualization
+        FileWriter areaWriter;
+        try {
+            areaWriter = new FileWriter("formation-region.txt");
+            areaWriter.write("A\n" + (latCenter + halfSquareWidth) + "," + (lonCenter + halfSquareWidth) + "\n"
+                    + (latCenter + halfSquareWidth) + "," + (lonCenter - halfSquareWidth) + "\n"
+                    + (latCenter - halfSquareWidth) + "," + (lonCenter - halfSquareWidth) + "\n"
+                    + (latCenter - halfSquareWidth) + "," + (lonCenter + halfSquareWidth) + "\n");
+            areaWriter.close();
+        } catch (IOException ex) {
+            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
         knowledge.sendModifieds();
 
-//        knowledge.print();
         // Set formation commands
         LOGGER.info("Set formation commands");
+        // Produce cylindrical spacing string "x,y,z" (in meters) for each boat
+        //  Space robots using cardinal and ordinal compass directions, incrementing the distance from the center of the formation with each cycle through the compass
+
+        // Modulus counter for choosing compass direction
+        int direction;
+        // Meters to move in chosen compass direction
+        int magnitude;
         for (int i = 0; i < numRobots; i++) {
             if (i == 0) {
-                // Leader robot
+                // Leader robot is at center of formation 0,0,0
                 knowledge.set("device.0.command", "formation coverage");  // command selection
                 knowledge.set("device.0.command.size", 6);                // number of parameters
                 knowledge.set("device.0.command.0", 0);                   // lead agent ID
@@ -184,8 +223,8 @@ public class GamsFormationTest extends JFrame {
                 knowledge.set("device." + i + ".command.size", 6);                // number of parameters
                 knowledge.set("device." + i + ".command.0", 0);                   // lead agent ID
 
-                int direction = (i - 1) % 8;
-                int magnitude = (i - 1) / 8 + 1;
+                direction = (i - 1) % 8;
+                magnitude = (int) (((i - 1) / 8 + 1) * spacingMultiplier);
                 String formationLocation;
                 switch (direction) {
                     case 0:
@@ -240,7 +279,7 @@ public class GamsFormationTest extends JFrame {
         } catch (InterruptedException ex) {
             Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
         }
-        printAllKbs();
+//        printAllKbs();
     }
 
     public void printAllKbs() {

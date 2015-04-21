@@ -109,6 +109,7 @@ public class BoatProxy extends Thread implements ProxyInt {
     private final InetSocketAddress address;
     private final String ipAddress;
     // MADARA KB and containers
+    public static final int DEFAULT_TEAM_SIZE = 24;
     KnowledgeBase knowledge;
     final BoatProxy bp;
     com.madara.containers.Vector waypoints;
@@ -120,8 +121,8 @@ public class BoatProxy extends Thread implements ProxyInt {
     com.madara.containers.Integer autonomyEnabled;
     com.madara.containers.Integer autonomyEnabledReceivedAck;
     // MADARA threads
-    static final int MADARA_POSE_UPDATE_RATE = 1000; // ms
-    static final int MADARA_WP_UPDATE_RATE = 1000; // ms
+    static final int MADARA_POSE_UPDATE_RATE = 250; // ms
+    static final int MADARA_WP_UPDATE_RATE = 250; // ms
 
     public String getIpAddress() {
         return ipAddress;

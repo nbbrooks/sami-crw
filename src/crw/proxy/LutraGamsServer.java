@@ -32,7 +32,7 @@ public class LutraGamsServer implements Runnable {
     protected final LutraPlatform lutraPlatform;
     protected final LutraAlgorithm lutraAlgorithm;
 
-    public LutraGamsServer(AsyncVehicleServer server, String ipAddress, int id) {
+    public LutraGamsServer(AsyncVehicleServer server, String ipAddress, int id, int teamSize) {
         _server = server;
         _ipAddress = ipAddress;
 
@@ -41,11 +41,11 @@ public class LutraGamsServer implements Runnable {
         settings.setType(TransportType.MULTICAST_TRANSPORT);
 
         _knowledge = new KnowledgeBase(ipAddress, settings);
+//        _knowledge.evaluateNoReturn("#set_precision(9)");
+        
 //        System.out.println("Passing knowledge base to base controller...");
         controller = new BaseController(_knowledge);
 
-        // What should this be hardcoded to?
-//        controller.initVars(boatId, 24);
 //        System.out.println("Creating lutra platform");
         lutraPlatform = new LutraPlatform(_server, _ipAddress, id);
 
@@ -53,20 +53,12 @@ public class LutraGamsServer implements Runnable {
         lutraAlgorithm = new LutraAlgorithm(_server, _ipAddress);
 
 //        System.out.println("Initializing platform");
+        controller.initVars(id, teamSize);
         controller.initPlatform(lutraPlatform);
         controller.initAlgorithm(lutraAlgorithm);
 
         lutraPlatform.init();
         lutraAlgorithm.init();
-//        lutraPlatform.self.init();
-
-//        System.out.println("LutraGamsServer knowledge");
-//        _knowledge.print();
-//        System.out.println("ipAddress: " + ipAddress);
-//        System.out.println("self.id: " + lutraAlgorithm.self.id);
-//        System.out.println("self.device: " + lutraAlgorithm.self.device);
-//        System.out.println("self.device.command: " + lutraAlgorithm.self.device.command);
-//        System.out.println("");
     }
 
     public void setDeviceId(int id) {
