@@ -82,8 +82,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     // For most of the interesting part of the planet, 1 degree latitude is something like 110,000m
     // Longtitude varies a bit more, but 90,000m is a decent number for the purpose of this calculation
     // See http://www.csgnetwork.com/degreelenllavcalc.html
-    final double M_PER_LON_D = 1.0 / 90000.0;
-    final double M_PER_LAT_D = 1.0 / 110000.0;
+    final double LON_D_PER_M = 1.0 / 90000.0;
+    final double LAT_D_PER_M = 1.0 / 110000.0;
     // Sending a waypoints list of size > 68 causes failure due to data size
     final int MAX_SEGMENTS_PER_PROXY = 68;
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
@@ -127,7 +127,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             ArrayList<Position> positions = new ArrayList<Position>();
             Area2D area = ((ProxyExploreArea) oe).getArea();
             // How many meters the proxy should move north after each horizontal section of the lawnmower pattern
-            double latDegInc = ((ProxyExploreArea) oe).getSpacing() * M_PER_LAT_D;
+            double latDegInc = ((ProxyExploreArea) oe).getSpacing() * LAT_D_PER_M;
             for (Location location : area.getPoints()) {
                 positions.add(Conversion.locationToPosition(location));
             }
@@ -166,7 +166,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                         Position p2 = lawnmowerPositions.get(lawnmowerIndex);
                         if (lawnmowerIndex % 2 == 0) {
                             // Horizontal segment
-                            length = Math.abs((p1.longitude.degrees - p2.longitude.degrees) * M_PER_LON_D);
+                            length = Math.abs((p1.longitude.degrees - p2.longitude.degrees) * LON_D_PER_M);
                         } else {
                             // Vertical shift
                             length = latDegInc;
@@ -555,7 +555,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             if (leftLon != null && rightLon != null) {
                 path.add(new Position(new LatLon(curLat, leftLon), 0.0));
                 path.add(new Position(new LatLon(curLat, rightLon), 0.0));
-                totalLength += Math.abs((rightLon.degrees - leftLon.degrees) * M_PER_LON_D);
+                totalLength += Math.abs((rightLon.degrees - leftLon.degrees) * LON_D_PER_M);
             } else {
             }
             // Right to left
@@ -567,7 +567,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 if (leftLon != null && rightLon != null) {
                     path.add(new Position(new LatLon(curLat, rightLon), 0.0));
                     path.add(new Position(new LatLon(curLat, leftLon), 0.0));
-                    totalLength += Math.abs((rightLon.degrees - leftLon.degrees) * M_PER_LON_D);
+                    totalLength += Math.abs((rightLon.degrees - leftLon.degrees) * LON_D_PER_M);
                 } else {
                 }
             }
