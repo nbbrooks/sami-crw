@@ -33,7 +33,7 @@ import sami.proxy.ProxyServerInt;
  */
 public class GamsServerTest extends JFrame {
 
-    private static final Logger LOGGER = Logger.getLogger(TeleopTest.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(GamsServerTest.class.getName());
 
     public static void main(String[] args) {
 
