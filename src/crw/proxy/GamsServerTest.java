@@ -99,7 +99,7 @@ public class GamsServerTest extends JFrame {
                 UTMCoordinate utmc = new UTMCoordinate(25.3543021007, 51.5283080718);
                 UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting(), utmc.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH)));
                 boatProxy.getServer().setPose(p1, null);
-                new Thread(new LutraGamsServer(((BoatProxy) proxy).getServer(), boatProxy.getIpAddress(), i)).start();
+                new Thread(new LutraGamsServer(((BoatProxy) proxy).getServer(), boatProxy.getIpAddress(), i, BoatProxy.DEFAULT_TEAM_SIZE)).start();
             }
         }
     }

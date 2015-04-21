@@ -39,7 +39,7 @@ import sami.proxy.ProxyServerInt;
  */
 public class GamsFormationTest extends JFrame {
 
-    private static final Logger LOGGER = Logger.getLogger(TeleopTest.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(GamsFormationTest.class.getName());
     static KnowledgeBase knowledge = null;
     ArrayList<LutraGamsServer> gamsServers = new ArrayList<LutraGamsServer>();
 
