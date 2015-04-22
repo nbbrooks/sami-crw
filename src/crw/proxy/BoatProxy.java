@@ -44,7 +44,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -61,6 +60,9 @@ import sami.event.TaskComplete;
 import sami.event.TaskDelayed;
 import sami.event.TaskReleased;
 import sami.event.TaskStarted;
+import sami.markup.Markup;
+import sami.markup.Priority;
+import sami.markup.Priority.Ranking;
 import sami.path.Location;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
@@ -101,6 +103,8 @@ public class BoatProxy extends Thread implements ProxyInt {
     final ArrayList<OutputEvent> sequentialOutputEvents = new ArrayList<OutputEvent>();
     // The resulting InputEvents from sequentialOutputEvents
     final ArrayList<InputEvent> sequentialInputEvents = new ArrayList<InputEvent>();
+    // The first OE in sequentialOutputEvents not associated with a task
+    protected OutputEvent firstNoTaskOe = null;
     // The ordered list of tasks the proxy has been assigned
     final ArrayList<Task> taskList = new ArrayList<Task>();
     Task currentTask = null;
@@ -299,6 +303,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                     } else {
                         // Remove the OutputEvent that held this path
                         OutputEvent oe = sequentialOutputEvents.remove(0);
+                        updateOeTaskMapping();
                         // Send out the InputEvent assocaited with this path
                         InputEvent ie = sequentialInputEvents.remove(0);
 
@@ -399,29 +404,72 @@ public class BoatProxy extends Thread implements ProxyInt {
     @Override
     public void handleEvent(OutputEvent oe, Task task) {
         if (task != null && task != currentTask) {
+            // OEs with a defined task should only be processed after that task becomes the current task and a corresponding TaskStarted is generated
             LOGGER.severe("Proxy [" + this + "] asked to handle event [" + oe + "] for a task [" + task + "] that is not the current task [" + currentTask + "] - ignoring");
             return;
         } else {
+            // OE has no associated task or its task is the current task
             LOGGER.fine("Proxy [" + this + "] asked to handle event [" + oe + "] for task [" + task + "], current task is [" + currentTask + "]");
         }
 
+        // Check if there is a Priority markup on this OE
+        Ranking priorityRanking = null;
+        for (Markup markup : oe.getMarkups()) {
+            if (markup instanceof Priority) {
+                priorityRanking = ((Priority) markup).ranking;
+            }
+        }
+
+        // OE has no associated task or its task is the current task
         int index;
         if (task != null && taskToLastOe.containsKey(task)) {
-            // This is an OE for the currently executing task; append after last event for this task
-            LOGGER.fine("\tAppending task event after last OE for the task");
-            index = sequentialOutputEvents.indexOf(taskToLastOe.get(task)) + 1;
-
-            // What if not in seq OE? Should be ok bec result is -1 + 1
-            taskToLastOe.put(task, oe);
+            if (priorityRanking == Ranking.HIGH || priorityRanking == Ranking.CRITICAL) {
+                // High priority command - insert OE so it is the first event for this task
+                LOGGER.fine("\tPrepending task event before first OE for the task");
+                //  This is for the currently executing task, so index is simply 0
+                index = 0;
+            } else {
+                // By default append OE after last event for the task
+                LOGGER.fine("\tAppending task event after last OE for the task");
+                index = sequentialOutputEvents.indexOf(taskToLastOe.get(task)) + 1;
+                if (index == 0) {
+                    // What if taskToLastOe result not in seq OE?
+                    // This is the current task, so put it at the front of the list
+                    LOGGER.severe("taskToLastOe result was not in sequentialOutputEvents, appending oe being processed to sequentialOutputEvents");
+                    index = 0;
+                }
+                taskToLastOe.put(task, oe);
+            }
         } else if (task != null) {
             // This is the first OE for the currently executing task; start it now
             LOGGER.fine("\tFirst OE for this task");
             index = 0;
             taskToLastOe.put(task, oe);
         } else {
-            // If there is no task associated with the OE, put it at the end of the list
-            LOGGER.fine("\tAppending no-task event to end of OE list");
-            index = sequentialOutputEvents.size();
+            // No task associated with the token that triggered this OE
+            if (priorityRanking == Ranking.HIGH || priorityRanking == Ranking.CRITICAL) {
+                // High priority command - insert OE so it is the first event without an associated task
+                LOGGER.fine("\tPrepending no-task event to beginning of no-task section of OE list");
+                if (firstNoTaskOe != null) {
+                    index = sequentialOutputEvents.indexOf(firstNoTaskOe);
+                    if (index == -1) {
+                        // What if not in seq OE?
+                        LOGGER.severe("firstNoTaskOe result was not in sequentialOutputEvents, appending oe being processed to sequentialOutputEvents");
+                        index = sequentialOutputEvents.size();
+                    }
+                } else {
+                    index = sequentialOutputEvents.size();
+                }
+                // Update firstNoTaskOe
+                firstNoTaskOe = oe;
+            } else {
+                // By default put OE at the end of the list
+                LOGGER.fine("\tAppending no-task event to end of OE list");
+                index = sequentialOutputEvents.size();
+                if (firstNoTaskOe == null) {
+                    firstNoTaskOe = oe;
+                }
+            }
         }
         oeToTask.put(oe, task);
 
@@ -442,6 +490,8 @@ public class BoatProxy extends Thread implements ProxyInt {
             LOGGER.severe("Handling ProxyEmergencyAbort! sequentialOutputEvents were: " + sequentialOutputEvents + ", sequentialInputEvents were: " + sequentialInputEvents);
             sequentialOutputEvents.clear();
             sequentialInputEvents.clear();
+            taskToLastOe.clear();
+            firstNoTaskOe = null;
             sendWps = true;
         } else if (oe instanceof ProxyResendWaypoints) {
             sendWps = true;
@@ -515,6 +565,7 @@ public class BoatProxy extends Thread implements ProxyInt {
         }
         for (OutputEvent outputEvent : outputEventsToRemove) {
             sequentialOutputEvents.remove(outputEvent);
+            updateOeTaskMapping();
         }
         for (InputEvent inputEvent : inputEventsToRemove) {
             sequentialInputEvents.remove(inputEvent);
@@ -555,6 +606,16 @@ public class BoatProxy extends Thread implements ProxyInt {
         return (ArrayList<Task>) taskList.clone();
     }
 
+    /**
+     * Takes in a new ordered list of tasks for the boat to execute Generates a
+     * TaskDelayed event if the current task is not the front task in the new
+     * list Generates TaskReleased events for tasks which are not in the new
+     * list Generates TaskStarted event if new list's head task is non-null and
+     * not the current task
+     *
+     * @param tasks
+     * @return
+     */
     @Override
     public ArrayList<InputEvent> setTasks(ArrayList<Task> tasks) {
         LOGGER.fine("Set tasks for proxy [" + this + "] from [" + taskList.toString() + "] to [" + tasks.toString() + "]");
@@ -584,7 +645,11 @@ public class BoatProxy extends Thread implements ProxyInt {
                 || (!tasks.isEmpty() && currentTask != tasks.get(0))) {
             LOGGER.fine("Proxy [" + this + "] changed first task");
             changedFirstTask = true;
-            currentTask = tasks.get(0);
+            if (tasks.isEmpty()) {
+                currentTask = null;
+            } else {
+                currentTask = tasks.get(0);
+            }
         }
         // Update waypoint list
         taskList.clear();
@@ -595,8 +660,10 @@ public class BoatProxy extends Thread implements ProxyInt {
             // Should stop the boat unless it has no tasks, but has no-task events
             updateWaypoints(true, true);
             sendCurrentWaypoints();
-            PlanManager pm = Engine.getInstance().getPlanManager(currentTask);
-            taskEvents.add(new TaskStarted(pm.missionId, currentTask));
+            if (currentTask != null) {
+                PlanManager pm = Engine.getInstance().getPlanManager(currentTask);
+                taskEvents.add(new TaskStarted(pm.missionId, currentTask));
+            }
         } else {
             updateWaypoints(false, true);
         }
@@ -655,6 +722,7 @@ public class BoatProxy extends Thread implements ProxyInt {
         }
         for (OutputEvent outputEvent : outputEventsToRemove) {
             sequentialOutputEvents.remove(outputEvent);
+            updateOeTaskMapping();
         }
         for (InputEvent inputEvent : inputEventsToRemove) {
             sequentialInputEvents.remove(inputEvent);
@@ -946,10 +1014,39 @@ public class BoatProxy extends Thread implements ProxyInt {
             return;
         }
         OutputEvent removedEvent = sequentialOutputEvents.remove(0);
+        updateOeTaskMapping();
         sequentialInputEvents.remove(0);
 
         updateWaypoints(true, true);
         sendCurrentWaypoints();
+    }
+
+    /**
+     * Repopulate taskToLastOe and firstNoTaskOe
+     */
+    private void updateOeTaskMapping() {
+        taskToLastOe.clear();
+        firstNoTaskOe = null;
+        Task task = null;
+//        for (OutputEvent oe : sequentialOutputEvents) {
+        for (int i = 0; i < sequentialOutputEvents.size(); i++) {
+            OutputEvent oe = sequentialOutputEvents.get(0);
+            if (oeToTask.get(oe) == null) {
+                firstNoTaskOe = oe;
+                // No task OEs are put at the end of sequentialOutputEvents, so we are done now
+                break;
+            } else if (task == null) {
+                // Just started
+                task = oeToTask.get(oe);
+            } else if (oeToTask.get(oe) != task) {
+                // At the divider between one task's OEs and the next's
+                taskToLastOe.put(task, sequentialOutputEvents.get(i - 1));
+                task = oeToTask.get(oe);
+            } else if (i == sequentialOutputEvents.size() - 1) {
+                // Final OE in sequentialOutputEvents is for final task
+                taskToLastOe.put(task, oe);
+            }
+        }
     }
 
     public void sendCurrentWaypoints() {
