@@ -66,9 +66,21 @@ public class GamsFormationTest extends JFrame {
         final JFrame mapFrame = new JFrame();
         mapFrame.getContentPane().setLayout(new BorderLayout());
 
+//        try {
+//            Thread.sleep(2500);
+//            LOGGER.info("base QOS");
+//        } catch (InterruptedException ex) {
+//            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+//        }
         QoSTransportSettings settings = new QoSTransportSettings();
         settings.setHosts(new String[]{"239.255.0.1:4150"});
         settings.setType(TransportType.MULTICAST_TRANSPORT);
+//        try {
+//            Thread.sleep(2500);
+//            LOGGER.info("CrwProxyServer KB");
+//        } catch (InterruptedException ex) {
+//            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+//        }
         ProxyServerInt proxyServer = Engine.getInstance().getProxyServer();
 
         if (proxyServer instanceof CrwProxyServer) {
@@ -118,6 +130,7 @@ public class GamsFormationTest extends JFrame {
 
         // Spawn team
         LOGGER.info("Spawn team");
+        ArrayList<BoatProxy> boatProxies = new ArrayList<BoatProxy>();
         String teamString = numRobots + "";
         for (int i = 0; i < numRobots; i++) {
             teamString += "," + i;
@@ -137,6 +150,7 @@ public class GamsFormationTest extends JFrame {
             BoatProxy boatProxy = null;
             if (proxy instanceof BoatProxy) {
                 boatProxy = (BoatProxy) proxy;
+                boatProxies.add(boatProxy);
                 // Set initial pose, offset each progressive proxy by 1.2m north east
                 UTMCoordinate utmc = new UTMCoordinate(25.3543021007, 51.5283080718);
                 UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting() + i, utmc.getNorthing() + i, 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH)));
@@ -146,6 +160,10 @@ public class GamsFormationTest extends JFrame {
                 new Thread(gamsServer).start();
             }
         }
+        for (BoatProxy boatProxy : boatProxies) {
+            boatProxy.startListeners();
+        }
+        LOGGER.info("Spawn team done");
 
         // Create a ~square region
         // Center of region
@@ -197,6 +215,12 @@ public class GamsFormationTest extends JFrame {
             Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
         }
         knowledge.sendModifieds();
+        try {
+            Thread.sleep(2500);
+            LOGGER.info("Set region done");
+        } catch (InterruptedException ex) {
+            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
         // Set formation commands
         LOGGER.info("Set formation commands");
@@ -218,6 +242,12 @@ public class GamsFormationTest extends JFrame {
                 knowledge.set("device.0.command.3", "default");           // formation modifier ("rotation" or "default")
                 knowledge.set("device.0.command.4", "urec");              // area coverage algorithm selection
                 knowledge.set("device.0.command.5", "region.0");          // area coverage parameters
+                try {
+                    Thread.sleep(2500);
+                    LOGGER.info("Set head formation done");
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+                }
             } else {
                 knowledge.set("device." + i + ".command", "formation coverage");  // command selection
                 knowledge.set("device." + i + ".command.size", 6);                // number of parameters
@@ -269,10 +299,22 @@ public class GamsFormationTest extends JFrame {
                 knowledge.set("device." + i + ".command.3", "default");           // formation modifier ("rotation" or "default")
                 knowledge.set("device." + i + ".command.4", "urec");              // area coverage algorithm selection
                 knowledge.set("device." + i + ".command.5", "region.0");          // area coverage parameters
+                try {
+                    Thread.sleep(2500);
+                    LOGGER.info("Set non-head formation done");
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
         }
 
         knowledge.sendModifieds();
+        try {
+            Thread.sleep(2500);
+            LOGGER.info("Set formation done");
+        } catch (InterruptedException ex) {
+            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
         try {
             Thread.sleep(5000);

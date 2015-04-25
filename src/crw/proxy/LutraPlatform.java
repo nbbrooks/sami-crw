@@ -12,7 +12,6 @@ import com.gams.platforms.BasePlatform;
 import com.gams.platforms.Status;
 import com.gams.utility.Position;
 import com.madara.KnowledgeBase;
-import com.madara.KnowledgeRecord;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.FunctionObserver;
 import edu.cmu.ri.crw.ImageListener;
@@ -75,6 +74,54 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         } catch (IOException ex) {
             Logger.getLogger(LutraPlatform.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+
+    public void init() {
+        self.init();
+        self.id.set(id);
+
+//        try {
+//            Thread.sleep(2500);
+//            LOGGER.info("init");
+//        } catch (InterruptedException ex) {
+//            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+        waypoints = new com.madara.containers.Vector();
+        waypoints.setName(knowledge, _ipAddress + ".waypoints");
+
+//        try {
+//            Thread.sleep(2500);
+//            LOGGER.info("init waypoints done");
+//        } catch (InterruptedException ex) {
+//            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+        wpEventId = new com.madara.containers.String();
+        wpEventId.setName(knowledge, _ipAddress + ".waypoints.eventId");
+
+        wpState = new com.madara.containers.String();
+        wpState.setName(knowledge, _ipAddress + ".waypoints.state");
+
+        wpController = new com.madara.containers.String();
+        wpController.setName(knowledge, _ipAddress + ".waypoints.controller");
+
+        waypointsReceivedAck = new com.madara.containers.Integer();
+        waypointsReceivedAck.setName(knowledge, _ipAddress + ".waypoints.received");
+
+        waypointsCompletedAck = new com.madara.containers.Integer();
+        waypointsCompletedAck.setName(knowledge, _ipAddress + ".waypoints.completed");
+
+        location = new com.madara.containers.NativeDoubleVector();
+        location.setName(knowledge, "device.{X}.location");
+        location.resize(3);
+
+        dest = new com.madara.containers.NativeDoubleVector();
+        dest.setName(knowledge, "device.{X}.dest");
+        dest.resize(3);
+
+        source = new com.madara.containers.NativeDoubleVector();
+        source.setName(knowledge, "device.{X}.source");
+        source.resize(3);
+        
 
         _server.addImageListener(this, new FunctionObserver<Void>() {
 
@@ -112,41 +159,6 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
                 LOGGER.severe("addSensorListener call failed");
             }
         });
-    }
-
-    public void init() {
-        self.init();
-        self.id.set(id);
-
-        waypoints = new com.madara.containers.Vector();
-        waypoints.setName(knowledge, _ipAddress + ".waypoints");
-
-        wpEventId = new com.madara.containers.String();
-        wpEventId.setName(knowledge, _ipAddress + ".waypoints.eventId");
-
-        wpState = new com.madara.containers.String();
-        wpState.setName(knowledge, _ipAddress + ".waypoints.state");
-
-        wpController = new com.madara.containers.String();
-        wpController.setName(knowledge, _ipAddress + ".waypoints.controller");
-
-        waypointsReceivedAck = new com.madara.containers.Integer();
-        waypointsReceivedAck.setName(knowledge, _ipAddress + ".waypoints.received");
-
-        waypointsCompletedAck = new com.madara.containers.Integer();
-        waypointsCompletedAck.setName(knowledge, _ipAddress + ".waypoints.completed");
-
-        location = new com.madara.containers.NativeDoubleVector();
-        location.setName(knowledge, "device.{X}.location");
-        location.resize(3);
-
-        dest = new com.madara.containers.NativeDoubleVector();
-        dest.setName(knowledge, "device.{X}.dest");
-        dest.resize(3);
-
-        source = new com.madara.containers.NativeDoubleVector();
-        source.setName(knowledge, "device.{X}.source");
-        source.resize(3);
     }
 
     /**
@@ -226,10 +238,6 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         wpState.set(VehicleServer.WaypointState.GOING.toString());
         waypointsReceivedAck.set(0);
         waypointsCompletedAck.set(0);
-
-        KnowledgeRecord value0 = location.toRecord(0);
-        KnowledgeRecord value1 = location.toRecord(1);
-        KnowledgeRecord value2 = location.toRecord(2);
 
         // Send single point as waypoint list to server
         UtmPose[] _wpList = new UtmPose[1];
@@ -385,6 +393,8 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
     public void setUtmPose(KnowledgeBase knowledge, String knowledgePath, UtmPose utmPose) {
         // @todo Redirect SAMI knowledge path to use device id instead of ip address
 
+//        System.out.println("setUtmPose " + utmPose.toString());
+        
         // Write pose to ip address path
         knowledge.set(knowledgePath + ".x", utmPose.pose.getX());
         knowledge.set(knowledgePath + ".y", utmPose.pose.getY());

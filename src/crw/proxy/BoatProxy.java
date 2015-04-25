@@ -1,6 +1,7 @@
 package crw.proxy;
 
 import com.madara.KnowledgeBase;
+import com.madara.KnowledgeRecord;
 import com.perc.mitpas.adi.mission.planning.task.Task;
 import crw.Conversion;
 import crw.event.input.proxy.ProxyPathCompleted;
@@ -184,10 +185,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
         _server = new UdpVehicleServer(addr);
         bp = this;
-
-        new Thread(new MadaraPoseListener(knowledge)).start();
-        new Thread(new MadaraWaypointListener(knowledge)).start();
-
+        
         LOGGER.info("New boat created, boat # " + _boatNo);
 
         for (int i = 0; i < NUM_SENSOR_PORTS; i++) {
@@ -195,6 +193,11 @@ public class BoatProxy extends Thread implements ProxyInt {
         }
 
         // startCamera();
+    }
+
+    public void startListeners() {
+        new Thread(new MadaraPoseListener(knowledge)).start();
+        new Thread(new MadaraWaypointListener(knowledge)).start();
     }
 
     public AsyncVehicleServer getServer() {
@@ -865,6 +868,7 @@ public class BoatProxy extends Thread implements ProxyInt {
     class MadaraPoseListener implements Runnable {
 
         protected KnowledgeBase knowledge;
+        protected KnowledgeRecord kr;
 
         public MadaraPoseListener(KnowledgeBase knowledge) {
             this.knowledge = knowledge;
@@ -880,15 +884,63 @@ public class BoatProxy extends Thread implements ProxyInt {
                 }
 
                 // Update pose from MADARA containers
-                double easting = knowledge.get(ipAddress + ".pose.x").toDouble();
-                double northing = knowledge.get(ipAddress + ".pose.y").toDouble();
-                double altitude = knowledge.get(ipAddress + ".pose.z").toDouble();
-                double roll = knowledge.get(ipAddress + ".pose.roll").toDouble();
-                double pitch = knowledge.get(ipAddress + ".pose.pitch").toDouble();
-                double yaw = knowledge.get(ipAddress + ".pose.yaw").toDouble();
-                int zone = Integer.valueOf(knowledge.get(ipAddress + ".pose.zone").toString());
-                String hemisphere = knowledge.get(ipAddress + ".pose.hemisphere").toString();
+                kr = knowledge.get(ipAddress + ".pose.x");
+                if (kr == null) {
+                    LOGGER.warning("KnowlegeRecord is NULL");
+                    continue;
+                }
+                double easting = kr.toDouble();
+                kr.free();
+                kr = knowledge.get(ipAddress + ".pose.y");
+                if (kr == null) {
+                    LOGGER.warning("KnowlegeRecord is NULL");
+                    continue;
+                }
+                double northing = kr.toDouble();
+                kr.free();
+                kr = knowledge.get(ipAddress + ".pose.z");
+                if (kr == null) {
+                    LOGGER.warning("KnowlegeRecord is NULL");
+                    continue;
+                }
+                double altitude = kr.toDouble();
+                kr.free();
+                kr = knowledge.get(ipAddress + ".pose.roll");
+                if (kr == null) {
+                    LOGGER.warning("KnowlegeRecord is NULL");
+                    continue;
+                }
+                double roll = kr.toDouble();
+                kr.free();
+                kr = knowledge.get(ipAddress + ".pose.pitch");
+                if (kr == null) {
+                    LOGGER.warning("KnowlegeRecord is NULL");
+                    continue;
+                }
+                double pitch = kr.toDouble();
+                kr.free();
+                kr = knowledge.get(ipAddress + ".pose.yaw");
+                if (kr == null) {
+                    LOGGER.warning("KnowlegeRecord is NULL");
+                    continue;
+                }
+                double yaw = kr.toDouble();
+                kr.free();
+                kr = knowledge.get(ipAddress + ".pose.zone");
+                if (kr == null) {
+                    LOGGER.warning("KnowlegeRecord is NULL");
+                    continue;
+                }
+                int zone = Integer.valueOf(kr.toString());
+                kr.free();
+                kr = knowledge.get(ipAddress + ".pose.hemisphere");
+                if (kr == null) {
+                    LOGGER.warning("KnowlegeRecord is NULL");
+                    continue;
+                }
+                String hemisphere = kr.toString();
                 String wwHemi = (hemisphere.startsWith("N") || hemisphere.startsWith("n")) ? AVKey.NORTH : AVKey.SOUTH;
+                kr.free();
 
                 try {
                     UTMCoord boatPos = UTMCoord.fromUTM(zone, wwHemi, easting, northing);

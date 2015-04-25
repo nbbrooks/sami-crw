@@ -15,6 +15,7 @@ import edu.cmu.ri.crw.WaypointListener;
 import edu.cmu.ri.crw.data.Utm;
 import edu.cmu.ri.crw.data.UtmPose;
 import java.util.StringTokenizer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import robotutils.Pose3D;
 
@@ -47,19 +48,6 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
     public LutraAlgorithm(AsyncVehicleServer _server, String ipAddress) {
         this._server = _server;
         this._ipAddress = ipAddress;
-
-        _server.addWaypointListener(this, new FunctionObserver<Void>() {
-
-            @Override
-            public void completed(Void v) {
-                LOGGER.fine("addWaypointListener call completed");
-            }
-
-            @Override
-            public void failed(FunctionObserver.FunctionError fe) {
-                LOGGER.severe("addWaypointListener call failed");
-            }
-        });
     }
 
     public void init() {
@@ -86,6 +74,19 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
 
         autonomyEnabledReceivedAck = new com.madara.containers.Integer();
         autonomyEnabledReceivedAck.setName(knowledge, _ipAddress + ".autonomy.received");
+
+        _server.addWaypointListener(this, new FunctionObserver<Void>() {
+
+            @Override
+            public void completed(Void v) {
+                LOGGER.fine("addWaypointListener call completed");
+            }
+
+            @Override
+            public void failed(FunctionObserver.FunctionError fe) {
+                LOGGER.severe("addWaypointListener call failed");
+            }
+        });
     }
 
     @Override
@@ -121,6 +122,7 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
             for (int i = 0; i < records.length; i++) {
                 UtmPose utmPose = getUtmPose(records[i].toString());
                 _wpList[i] = utmPose;
+                records[i].free();
             }
             _startNewWaypoints = true;
             waypointsReceivedAck.set(0);
