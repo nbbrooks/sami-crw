@@ -8,6 +8,7 @@
  */
 package crw.proxy;
 
+import com.gams.controllers.BaseController;
 import com.gams.platforms.BasePlatform;
 import com.gams.platforms.Status;
 import com.gams.utility.Position;
@@ -76,8 +77,9 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         }
     }
 
-    public void init() {
-        self.init();
+    @Override
+    public void init(BaseController controller) {
+        super.init(controller);
         self.id.set(id);
 
 //        try {
@@ -121,7 +123,6 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         source = new com.madara.containers.NativeDoubleVector();
         source.setName(knowledge, "device.{X}.source");
         source.resize(3);
-        
 
         _server.addImageListener(this, new FunctionObserver<Void>() {
 
@@ -394,7 +395,6 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         // @todo Redirect SAMI knowledge path to use device id instead of ip address
 
 //        System.out.println("setUtmPose " + utmPose.toString());
-        
         // Write pose to ip address path
         knowledge.set(knowledgePath + ".x", utmPose.pose.getX());
         knowledge.set(knowledgePath + ".y", utmPose.pose.getY());

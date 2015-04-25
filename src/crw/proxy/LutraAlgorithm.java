@@ -6,6 +6,7 @@
 package crw.proxy;
 
 import com.gams.algorithms.BaseAlgorithm;
+import com.gams.controllers.BaseController;
 import com.madara.KnowledgeRecord;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.FunctionObserver;
@@ -50,7 +51,11 @@ public class LutraAlgorithm extends BaseAlgorithm implements WaypointListener {
         this._ipAddress = ipAddress;
     }
 
-    public void init() {
+    @Override
+    public void init(BaseController controller) {
+        LOGGER.info("In LutraAlgorithm.init");
+        super.init(controller);
+
         waypoints = new com.madara.containers.Vector();
         waypoints.setName(knowledge, _ipAddress + ".waypoints");
 
