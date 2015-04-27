@@ -16,7 +16,6 @@ import edu.cmu.ri.crw.WaypointListener;
 import edu.cmu.ri.crw.data.Utm;
 import edu.cmu.ri.crw.data.UtmPose;
 import java.util.StringTokenizer;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import robotutils.Pose3D;
 

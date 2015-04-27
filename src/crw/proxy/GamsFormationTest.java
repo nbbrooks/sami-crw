@@ -1,10 +1,10 @@
 package crw.proxy;
 
 import com.madara.KnowledgeBase;
+import com.madara.MadaraLog;
 import com.madara.transport.QoSTransportSettings;
 import com.madara.transport.TransportType;
 import crw.general.FastSimpleBoatSimulator;
-import crw.ui.teleop.*;
 import crw.ui.component.WorldWindPanel;
 import crw.ui.widget.AnnotationWidget;
 import crw.ui.widget.RobotTrackWidget;
@@ -40,6 +40,11 @@ import sami.proxy.ProxyServerInt;
 public class GamsFormationTest extends JFrame {
 
     private static final Logger LOGGER = Logger.getLogger(GamsFormationTest.class.getName());
+
+    public static final boolean DETAILED_TRACE = false;
+    public static final boolean PRINT_LEADER_KB = false;
+    public static final int PRINT_LEADER_KB_RATE = 1000; // msec
+
     static KnowledgeBase knowledge = null;
     ArrayList<LutraGamsServer> gamsServers = new ArrayList<LutraGamsServer>();
 
@@ -88,6 +93,11 @@ public class GamsFormationTest extends JFrame {
         } else {
             LOGGER.severe("ProxyServer is not a CrwProxyServer");
             System.exit(-1);
+        }
+
+        if (DETAILED_TRACE) {
+            // Set Madara log level
+            com.madara.MadaraLog.setLogLevel(MadaraLog.MadaraLogLevel.MADARA_LOG_DETAILED_TRACE);
         }
 
         // Add map
@@ -215,12 +225,6 @@ public class GamsFormationTest extends JFrame {
             Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
         }
         knowledge.sendModifieds();
-        try {
-            Thread.sleep(2500);
-            LOGGER.info("Set region done");
-        } catch (InterruptedException ex) {
-            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
 
         // Set formation commands
         LOGGER.info("Set formation commands");
@@ -242,12 +246,6 @@ public class GamsFormationTest extends JFrame {
                 knowledge.set("device.0.command.3", "default");           // formation modifier ("rotation" or "default")
                 knowledge.set("device.0.command.4", "urec");              // area coverage algorithm selection
                 knowledge.set("device.0.command.5", "region.0");          // area coverage parameters
-                try {
-                    Thread.sleep(2500);
-                    LOGGER.info("Set head formation done");
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
-                }
             } else {
                 knowledge.set("device." + i + ".command", "formation coverage");  // command selection
                 knowledge.set("device." + i + ".command.size", 6);                // number of parameters
@@ -299,28 +297,11 @@ public class GamsFormationTest extends JFrame {
                 knowledge.set("device." + i + ".command.3", "default");           // formation modifier ("rotation" or "default")
                 knowledge.set("device." + i + ".command.4", "urec");              // area coverage algorithm selection
                 knowledge.set("device." + i + ".command.5", "region.0");          // area coverage parameters
-                try {
-                    Thread.sleep(2500);
-                    LOGGER.info("Set non-head formation done");
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
-                }
             }
         }
 
         knowledge.sendModifieds();
-        try {
-            Thread.sleep(2500);
-            LOGGER.info("Set formation done");
-        } catch (InterruptedException ex) {
-            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
 
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
 //        printAllKbs();
     }
 

@@ -931,13 +931,7 @@ public class BoatProxy extends Thread implements ProxyInt {
                     LOGGER.warning("KnowlegeRecord is NULL");
                     continue;
                 }
-                int zone = 0;
-                try {
-                 zone = Integer.valueOf(kr.toString());
-                } catch(NumberFormatException nfe) {
-                    kr.free();
-                    continue;
-                }
+                int zone = (int)kr.toLong();
                 kr.free();
                 kr = knowledge.get(ipAddress + ".pose.hemisphere");
                 if (kr == null) {

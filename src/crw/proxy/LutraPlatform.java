@@ -46,9 +46,6 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
     com.madara.containers.String wpController;
     com.madara.containers.Integer waypointsReceivedAck;
     com.madara.containers.Integer waypointsCompletedAck;
-    com.madara.containers.NativeDoubleVector location;
-    com.madara.containers.NativeDoubleVector dest;
-    com.madara.containers.NativeDoubleVector source;
 
     // Writer for recording waypoints commanded via move method
     FileWriter moveCmdWriter;
@@ -59,6 +56,8 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
     protected String _ipAddress;
     // Device id
     protected final int id;
+
+    long lastTime = 0, curTime;
 
     public LutraPlatform(AsyncVehicleServer _server, String ipAddress, int id) {
         this._server = _server;
@@ -112,18 +111,6 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         waypointsCompletedAck = new com.madara.containers.Integer();
         waypointsCompletedAck.setName(knowledge, _ipAddress + ".waypoints.completed");
 
-        location = new com.madara.containers.NativeDoubleVector();
-        location.setName(knowledge, "device.{X}.location");
-        location.resize(3);
-
-        dest = new com.madara.containers.NativeDoubleVector();
-        dest.setName(knowledge, "device.{X}.dest");
-        dest.resize(3);
-
-        source = new com.madara.containers.NativeDoubleVector();
-        source.setName(knowledge, "device.{X}.source");
-        source.resize(3);
-
         _server.addImageListener(this, new FunctionObserver<Void>() {
 
             @Override
@@ -169,7 +156,17 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
      *
      */
     public int analyze() {
+        if (GamsFormationTest.PRINT_LEADER_KB) {
+            if (self.id.toLong() == 0) {
+                curTime = System.currentTimeMillis();
+                if (curTime - lastTime > GamsFormationTest.PRINT_LEADER_KB_RATE) {
+                    lastTime = curTime;
+                    knowledge.print();
+                }
+            }
+        }
 //    System.out.println("Platform.analyze called");
+
         return Status.OK.value();
     }
 
@@ -195,7 +192,7 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
      */
     public Position getPosition() {
 //    System.out.println("  Platform.getPosition called");
-        Position position = new Position(location.get(0), location.get(1), location.get(2));
+        Position position = new Position(self.device.location.get(0), self.device.location.get(1), self.device.location.get(2));
         return position;
     }
 
@@ -267,12 +264,12 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         }
 
         // Write destination and source to device id path
-        dest.set(0, target.getX());
-        dest.set(1, target.getY());
-        dest.set(2, target.getZ());
-        source.set(0, location.get(0));
-        source.set(1, location.get(1));
-        source.set(2, location.get(2));
+        self.device.dest.set(0, target.getX());
+        self.device.dest.set(1, target.getY());
+        self.device.dest.set(2, target.getZ());
+        self.device.source.set(0, self.device.location.get(0));
+        self.device.source.set(1, self.device.location.get(1));
+        self.device.source.set(2, self.device.location.get(2));
 
         return Status.OK.value();
     }
@@ -408,9 +405,9 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         // Write pose to device location path
         String wwHemi = utmPose.origin.isNorth ? AVKey.NORTH : AVKey.SOUTH;
         UTMCoord utmCoord = UTMCoord.fromUTM(utmPose.origin.zone, wwHemi, utmPose.pose.getX(), utmPose.pose.getY());
-        location.set(0, utmCoord.getLatitude().degrees);
-        location.set(1, utmCoord.getLongitude().degrees);
-        location.set(2, utmPose.pose.getZ());
+        self.device.location.set(0, utmCoord.getLatitude().degrees);
+        self.device.location.set(1, utmCoord.getLongitude().degrees);
+        self.device.location.set(2, utmPose.pose.getZ());
     }
 
     @Override
