@@ -57,12 +57,6 @@ public class LutraGamsServer implements Runnable {
         controller.initPlatform(lutraPlatform);
         controller.initAlgorithm(lutraAlgorithm);
 
-        lutraPlatform.init(controller);
-        lutraAlgorithm.init(controller);
-    }
-
-    public void setDeviceId(int id) {
-//        lutraAlgorithm.self.id = new Integer(id);
     }
 
     @Override

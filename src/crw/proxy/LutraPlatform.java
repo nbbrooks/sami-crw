@@ -12,6 +12,7 @@ import com.gams.controllers.BaseController;
 import com.gams.platforms.BasePlatform;
 import com.gams.platforms.Status;
 import com.gams.utility.Position;
+import com.madara.EvalSettings;
 import com.madara.KnowledgeBase;
 import edu.cmu.ri.crw.AsyncVehicleServer;
 import edu.cmu.ri.crw.FunctionObserver;
@@ -40,12 +41,19 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
 
     private static final Logger LOGGER = Logger.getLogger(LutraPlatform.class.getName());
 
+    public static final boolean PRINT_DEVICE_KB = true;
+    public static final long PRINT_DEVICE_KB_ID = 1;
+    public static final int PRINT_LEADER_KB_RATE = 0; // msec
+
     com.madara.containers.Vector waypoints;
     com.madara.containers.String wpEventId;
     com.madara.containers.String wpState;
     com.madara.containers.String wpController;
     com.madara.containers.Integer waypointsReceivedAck;
     com.madara.containers.Integer waypointsCompletedAck;
+
+    // Delay for sending modified fields
+    EvalSettings evalSettings;
 
     // Writer for recording waypoints commanded via move method
     FileWriter moveCmdWriter;
@@ -63,6 +71,10 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
         this._server = _server;
         this._ipAddress = ipAddress;
         this.id = id;
+
+        evalSettings = new EvalSettings();
+        evalSettings.setDelaySendingModifieds(true);
+
         try {
             moveCmdWriter = new FileWriter(id + "-move-cmds.txt");
         } catch (IOException ex) {
@@ -156,12 +168,14 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
      *
      */
     public int analyze() {
-        if (GamsFormationTest.PRINT_LEADER_KB) {
-            if (self.id.toLong() == 0) {
+        if (PRINT_DEVICE_KB) {
+            if (self.id.toLong() == PRINT_DEVICE_KB_ID) {
                 curTime = System.currentTimeMillis();
-                if (curTime - lastTime > GamsFormationTest.PRINT_LEADER_KB_RATE) {
+                if (curTime - lastTime >= PRINT_LEADER_KB_RATE) {
                     lastTime = curTime;
+//            LOGGER.info("Print KB START for " + self.id);
                     knowledge.print();
+//            LOGGER.info("Printing KB DONE for " + self.id);
                 }
             }
         }
@@ -375,8 +389,10 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
 
     @Override
     public void receivedPose(UtmPose utmPose) {
+//        LOGGER.info("Pose update START for " + self.id + ", " + utmPose.toString());
         setUtmPose(knowledge, _ipAddress + ".pose", utmPose);
         knowledge.sendModifieds();
+//        LOGGER.info("Pose update DONE for " + self.id + ", " + utmPose.toString());
     }
 
     /**
@@ -393,14 +409,14 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
 
 //        System.out.println("setUtmPose " + utmPose.toString());
         // Write pose to ip address path
-        knowledge.set(knowledgePath + ".x", utmPose.pose.getX());
-        knowledge.set(knowledgePath + ".y", utmPose.pose.getY());
-        knowledge.set(knowledgePath + ".z", utmPose.pose.getZ());
-        knowledge.set(knowledgePath + ".roll", utmPose.pose.getRotation().toRoll());
-        knowledge.set(knowledgePath + ".pitch", utmPose.pose.getRotation().toPitch());
-        knowledge.set(knowledgePath + ".yaw", utmPose.pose.getRotation().toYaw());
-        knowledge.set(knowledgePath + ".zone", utmPose.origin.zone);
-        knowledge.set(knowledgePath + ".hemisphere", utmPose.origin.isNorth ? "North" : "South");
+        knowledge.set(knowledgePath + ".x", utmPose.pose.getX(), evalSettings);
+        knowledge.set(knowledgePath + ".y", utmPose.pose.getY(), evalSettings);
+        knowledge.set(knowledgePath + ".z", utmPose.pose.getZ(), evalSettings);
+        knowledge.set(knowledgePath + ".roll", utmPose.pose.getRotation().toRoll(), evalSettings);
+        knowledge.set(knowledgePath + ".pitch", utmPose.pose.getRotation().toPitch(), evalSettings);
+        knowledge.set(knowledgePath + ".yaw", utmPose.pose.getRotation().toYaw(), evalSettings);
+        knowledge.set(knowledgePath + ".zone", utmPose.origin.zone, evalSettings);
+        knowledge.set(knowledgePath + ".hemisphere", utmPose.origin.isNorth ? "North" : "South", evalSettings);
 
         // Write pose to device location path
         String wwHemi = utmPose.origin.isNorth ? AVKey.NORTH : AVKey.SOUTH;
@@ -412,7 +428,7 @@ public class LutraPlatform extends BasePlatform implements PoseListener, SensorL
 
     @Override
     public void receivedSensor(SensorData sensorData) {
-        knowledge.set(".sensor." + sensorData.channel, sensorData.data);
+        knowledge.set(".sensor." + sensorData.channel, sensorData.data, evalSettings);
     }
 
     @Override

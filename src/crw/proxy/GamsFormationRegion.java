@@ -5,17 +5,12 @@ import com.madara.KnowledgeBase;
 import com.madara.MadaraLog;
 import com.madara.transport.QoSTransportSettings;
 import com.madara.transport.TransportType;
-import crw.general.FastSimpleBoatSimulator;
 import crw.ui.component.WorldWindPanel;
 import crw.ui.widget.AnnotationWidget;
 import crw.ui.widget.RobotTrackWidget;
 import crw.ui.widget.RobotWidget;
 import crw.ui.widget.RobotWidget.ControlMode;
 import crw.ui.widget.SensorDataWidget;
-import edu.cmu.ri.crw.VehicleServer;
-import edu.cmu.ri.crw.data.Utm;
-import edu.cmu.ri.crw.data.UtmPose;
-import edu.cmu.ri.crw.udp.UdpVehicleService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.io.FileWriter;
@@ -26,11 +21,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
-import robotutils.Pose3D;
 import sami.CoreHelper;
 import sami.engine.Engine;
 import sami.engine.Mediator;
-import sami.path.UTMCoordinate;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyServerInt;
 
@@ -38,21 +31,21 @@ import sami.proxy.ProxyServerInt;
  *
  * @author nbb
  */
-public class GamsFormationTest extends JFrame {
+public class GamsFormationRegion extends JFrame {
 
-    private static final Logger LOGGER = Logger.getLogger(GamsFormationTest.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(GamsFormationRegion.class.getName());
 
     public static final boolean DETAILED_TRACE = true;
+    public static final int TEAM_SIZE = 3;
 
     static KnowledgeBase knowledge = null;
-    ArrayList<LutraGamsServer> gamsServers = new ArrayList<LutraGamsServer>();
+//    ArrayList<LutraGamsServer> gamsServers = new ArrayList<LutraGamsServer>();
 
-    final int numRobots;
     final double regionWidth;
     final double spacingMultiplier;
 
     public static void main(String[] args) {
-        new GamsFormationTest(3, 100, 10);
+        new GamsFormationRegion(100, 10);
     }
 
     /**
@@ -62,20 +55,13 @@ public class GamsFormationTest extends JFrame {
      * @param spacingMultiplier Minimum distance between robots in the
      * cylindrical coordinate formation configuration
      */
-    public GamsFormationTest(int numRobots, double regionWidth, double spacingMultiplier) {
-        this.numRobots = numRobots;
+    public GamsFormationRegion(double regionWidth, double spacingMultiplier) {
         this.regionWidth = regionWidth;
         this.spacingMultiplier = spacingMultiplier;
 
         final JFrame mapFrame = new JFrame();
         mapFrame.getContentPane().setLayout(new BorderLayout());
 
-//        try {
-//            Thread.sleep(2500);
-//            LOGGER.info("base QOS");
-//        } catch (InterruptedException ex) {
-//            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
-//        }
         QoSTransportSettings settings = new QoSTransportSettings();
         settings.setHosts(new String[]{"239.255.0.1:4150"});
         settings.setType(TransportType.MULTICAST_TRANSPORT);
@@ -83,12 +69,6 @@ public class GamsFormationTest extends JFrame {
         EvalSettings evalSettings = new EvalSettings();
         evalSettings.setDelaySendingModifieds(true);
 
-//        try {
-//            Thread.sleep(2500);
-//            LOGGER.info("CrwProxyServer KB");
-//        } catch (InterruptedException ex) {
-//            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
-//        }
         ProxyServerInt proxyServer = Engine.getInstance().getProxyServer();
 
         if (proxyServer instanceof CrwProxyServer) {
@@ -141,42 +121,30 @@ public class GamsFormationTest extends JFrame {
             proxyNames.add(proxy.getProxyName());
         }
 
-        // Spawn team
-        LOGGER.info("Spawn team");
+        // Create boat proxies
+        LOGGER.info("Create boat proxies");
         ArrayList<BoatProxy> boatProxies = new ArrayList<BoatProxy>();
-        String teamString = numRobots + "";
-        for (int i = 0; i < numRobots; i++) {
+        String teamString = TEAM_SIZE + "";
+        for (int i = 0; i < TEAM_SIZE; i++) {
             teamString += "," + i;
         }
-        for (int i = 0; i < numRobots; i++) {
-            // Create a simulated boat and run a ROS server around it
-            VehicleServer server = new FastSimpleBoatSimulator();
-            UdpVehicleService rosServer = new UdpVehicleService(11411 + portCounter, server);
-
+        for (int i = 0; i < TEAM_SIZE; i++) {
             name = CoreHelper.getUniqueName(name, proxyNames);
             proxyNames.add(name);
             InetSocketAddress socketAddress = new InetSocketAddress("localhost", 11411 + portCounter);
             ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(name, color, socketAddress);
             portCounter++;
-            String ipAddress = socketAddress.toString().substring(socketAddress.toString().indexOf("/") + 1);
 
             BoatProxy boatProxy = null;
             if (proxy instanceof BoatProxy) {
                 boatProxy = (BoatProxy) proxy;
                 boatProxies.add(boatProxy);
-                // Set initial pose, offset each progressive proxy by 1.2m north east
-                UTMCoordinate utmc = new UTMCoordinate(25.3543021007, 51.5283080718);
-                UtmPose p1 = new UtmPose(new Pose3D(utmc.getEasting() + i, utmc.getNorthing() + i, 0.0, 0.0, 0.0, 0.0), new Utm(utmc.getZoneNumber(), utmc.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH)));
-                boatProxy.getServer().setPose(p1, null);
-                LutraGamsServer gamsServer = new LutraGamsServer(((BoatProxy) proxy).getServer(), boatProxy.getIpAddress(), i, numRobots);
-                gamsServers.add(gamsServer);
-                new Thread(gamsServer).start();
             }
         }
         for (BoatProxy boatProxy : boatProxies) {
             boatProxy.startListeners();
         }
-        LOGGER.info("Spawn team done");
+        LOGGER.info("Create boat proxies done");
 
         // Create a ~square region
         // Center of region
@@ -225,7 +193,7 @@ public class GamsFormationTest extends JFrame {
                     + (latCenter - halfSquareWidth) + "," + (lonCenter + halfSquareWidth) + "\n");
             areaWriter.close();
         } catch (IOException ex) {
-            Logger.getLogger(GamsFormationTest.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(GamsFormationRegion.class.getName()).log(Level.SEVERE, null, ex);
         }
         knowledge.sendModifieds();
 
@@ -238,7 +206,7 @@ public class GamsFormationTest extends JFrame {
         int direction;
         // Meters to move in chosen compass direction
         int magnitude;
-        for (int i = 0; i < numRobots; i++) {
+        for (int i = 0; i < TEAM_SIZE; i++) {
             if (i == 0) {
                 // Leader robot is at center of formation 0,0,0
                 knowledge.set("device.0.command", "formation coverage", evalSettings);  // command selection
@@ -304,15 +272,5 @@ public class GamsFormationTest extends JFrame {
         }
 
         knowledge.sendModifieds();
-
-//        printAllKbs();
-    }
-
-    public void printAllKbs() {
-        knowledge.print();
-        for (int i = 0; i < gamsServers.size(); i++) {
-            gamsServers.get(i)._knowledge.print();
-        }
-
     }
 }
