@@ -31,9 +31,9 @@ public class SetGains extends OutputEvent {
         fieldNames.add("rudderI");
         fieldNames.add("rudderD");
 
-        fieldNameToDescription.put("thrustP", "Thurst P?");
-        fieldNameToDescription.put("thrustI", "Thurst I?");
-        fieldNameToDescription.put("thrustD", "Thurst D?");
+        fieldNameToDescription.put("thrustP", "Thrust P?");
+        fieldNameToDescription.put("thrustI", "Thrust I?");
+        fieldNameToDescription.put("thrustD", "Thrust D?");
         fieldNameToDescription.put("rudderP", "Rudder P?");
         fieldNameToDescription.put("rudderI", "Rudder I?");
         fieldNameToDescription.put("rudderD", "Rudder D?");

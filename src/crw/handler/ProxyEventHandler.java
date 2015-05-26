@@ -7,17 +7,24 @@ import crw.event.input.proxy.ProxyCreated;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPathFailed;
 import crw.event.input.proxy.ProxyPoseUpdated;
+import crw.event.input.proxy.SetGainsFailed;
+import crw.event.input.proxy.SetGainsSucceeded;
 import crw.event.input.service.AssembleLocationResponse;
 import crw.event.input.service.QuantityEqual;
 import crw.event.input.service.QuantityGreater;
 import crw.event.input.service.QuantityLess;
+import crw.event.output.connectivity.DisconnectServer;
+import crw.event.output.connectivity.ReconnectServer;
+import crw.event.output.proxy.BlockMovement;
 import crw.event.output.proxy.ConnectExistingProxy;
 import crw.event.output.proxy.CreateSimulatedProxy;
 import crw.event.output.service.AssembleLocationRequest;
 import crw.event.output.proxy.ProxyEmergencyAbort;
 import crw.event.output.proxy.ProxyExecutePath;
+import crw.event.output.proxy.ProxyExecutePathAndBlock;
 import crw.event.output.proxy.ProxyExploreArea;
 import crw.event.output.proxy.ProxyGotoPoint;
+import crw.event.output.proxy.ProxyGotoPointAndBlock;
 import crw.event.output.proxy.ProxyResendWaypoints;
 import crw.event.output.proxy.SetGains;
 import crw.event.output.service.ProxyCompareDistanceRequest;
@@ -117,6 +124,18 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has no tokens with proxies attached: " + oe);
             }
+        } else if (oe instanceof ProxyGotoPointAndBlock) {
+            int numProxies = 0;
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    // Send the path
+                    token.getProxy().handleEvent(oe, token.getTask());
+                    numProxies++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has no tokens with proxies attached: " + oe);
+            }
         } else if (oe instanceof ProxyExploreArea) {
             // Get the lawnmower path for the whole area
             ArrayList<Position> positions = new ArrayList<Position>();
@@ -142,7 +161,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 }
             }
             if (numProxies == 0) {
-                LOGGER.log(Level.WARNING, "ProxyExecutePath had no relevant proxies attached: " + oe);
+                LOGGER.log(Level.WARNING, "ProxyExploreArea had no relevant proxies attached: " + oe);
             }
             double lengthPerProxy = totalLength / numProxies, proxyLength, length;
             List<Location> lawnmowerLocations;
@@ -189,11 +208,20 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                         if (proxyLocations.isEmpty()) {
                             LOGGER.warning("ExploreArea path for proxy " + tokensWithProxy.get(proxyIndex).getProxy().getProxyName() + " is empty");
                         }
-                        PathUtm path = new PathUtm(proxyLocations);
-                        Hashtable<ProxyInt, Path> thisProxyPath = new Hashtable<ProxyInt, Path>();
-                        thisProxyPath.put(tokensWithProxy.get(proxyIndex).getProxy(), path);
-                        ProxyExecutePath proxyEvent = new ProxyExecutePath(oe.getId(), oe.getMissionId(), thisProxyPath);
-                        tokensWithProxy.get(proxyIndex).getProxy().handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask());
+                        // Create a separate ProxyGotoPoint OE for each waypoint so if execution is interrupted the entire path does not have to be repeated
+                        for (int pointCount = 0; pointCount < proxyLocations.size(); pointCount++) {
+                            Location location = proxyLocations.get(pointCount);
+                            Hashtable<ProxyInt, Location> thisProxyPoint = new Hashtable<ProxyInt, Location>();
+                            thisProxyPoint.put(tokensWithProxy.get(proxyIndex).getProxy(), location);
+                            ProxyGotoPoint proxyEvent = new ProxyGotoPoint(oe.getId(), oe.getMissionId(), thisProxyPoint);
+                            if (tokensWithProxy.get(proxyIndex).getProxy() instanceof BoatProxy) {
+                                BoatProxy bp = (BoatProxy) tokensWithProxy.get(proxyIndex).getProxy();
+                                // Use blank return event unless last point
+                                bp.handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask(), pointCount < proxyLocations.size() - 1);
+                            } else {
+                                LOGGER.severe("Not a boat proxy");
+                            }
+                        }
                     }
                 } else {
                     // We have finished assigning all the lawnmower path segments
@@ -231,7 +259,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             eventIdToAssembleCounter.put(request.getId(), assembleCounter);
 
             AssembleLocationResponse responseEvent = new AssembleLocationResponse(oe.getId(), oe.getMissionId(), proxyPoints, relevantProxies);
-            for (GeneratedEventListenerInt listener : listeners) {
+            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            for (GeneratedEventListenerInt listener : listenersCopy) {
                 LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
                 listener.eventGenerated(responseEvent);
             }
@@ -274,7 +303,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyCompareDistanceRequest has no tokens with proxies attached: " + oe + ", tokens [" + tokens + "]");
             }
 
-            for (GeneratedEventListenerInt listener : listeners) {
+            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            for (GeneratedEventListenerInt listener : listenersCopy) {
                 for (InputEvent response : responses) {
                     LOGGER.log(Level.FINE, "\tSending response: " + response + " to listener: " + listener);
                     listener.eventGenerated(response);
@@ -293,7 +323,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             ImagePanel.setImagesDirectory(connectEvent.imageStorageDirectory);
             if (proxy != null) {
                 ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), proxy);
-                for (GeneratedEventListenerInt listener : listeners) {
+                ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                for (GeneratedEventListenerInt listener : listenersCopy) {
                     listener.eventGenerated(proxyCreated);
                 }
             } else {
@@ -341,7 +372,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             // After sleep, generated ProxyCreated event
             if (!error) {
                 ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), relevantProxyList);
-                for (GeneratedEventListenerInt listener : listeners) {
+                ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                for (GeneratedEventListenerInt listener : listenersCopy) {
                     listener.eventGenerated(proxyCreated);
                 }
             }
@@ -350,7 +382,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             ArrayList<InputEvent> responses = new ArrayList<InputEvent>();
 
             int numBoatProxies = 0;
-            ArrayList<ProxyInt> relevantProxies;
+            // @todo Grouped or individual GainsSent result?
             for (Token token : tokens) {
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
                     numBoatProxies++;
@@ -384,15 +416,31 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with SetGains has no tokens with boat proxies attached: " + oe + ", tokens [" + tokens + "]");
             }
 
-            for (GeneratedEventListenerInt listener : listeners) {
+            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            for (GeneratedEventListenerInt listener : listenersCopy) {
                 for (InputEvent response : responses) {
                     LOGGER.log(Level.FINE, "\tSending response: " + response + " to listener: " + listener);
                     listener.eventGenerated(response);
                 }
             }
+        } else if (oe instanceof BlockMovement) {
+            int numProxies = 0;
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    // Send the path
+                    token.getProxy().handleEvent(oe, token.getTask());
+                    numProxies++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyBlockMovement has no tokens with proxies attached: " + oe);
+            }
         } else if (oe instanceof ProxyExecutePath
                 || oe instanceof ProxyEmergencyAbort
-                || oe instanceof ProxyResendWaypoints) {
+                || oe instanceof ProxyResendWaypoints
+                || oe instanceof ProxyExecutePathAndBlock
+                || oe instanceof DisconnectServer
+                || oe instanceof ReconnectServer) {
             int numProxies = 0;
             for (Token token : tokens) {
                 if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
@@ -403,6 +451,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "Place with ProxyEventHandler OE has no tokens with proxies attached: " + oe);
             }
+        } else {
+            LOGGER.warning("ProxyEventHandler has no handling for event " + oe);
         }
     }
 
@@ -417,7 +467,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 || sub.getSubscriptionClass() == QuantityLess.class
                 || sub.getSubscriptionClass() == QuantityEqual.class
                 || sub.getSubscriptionClass() == ProxyPoseUpdated.class
-                || sub.getSubscriptionClass() == SetGains.class) {
+                || sub.getSubscriptionClass() == SetGainsFailed.class
+                || sub.getSubscriptionClass() == SetGainsSucceeded.class) {
             LOGGER.log(Level.FINE, "\tProxyEventHandler taking subscription: " + sub);
             if (!listeners.contains(sub.getListener())) {
                 LOGGER.log(Level.FINE, "\t\tProxyEventHandler adding listener: " + sub.getListener());
@@ -443,7 +494,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 || sub.getSubscriptionClass() == QuantityLess.class
                 || sub.getSubscriptionClass() == QuantityEqual.class
                 || sub.getSubscriptionClass() == ProxyPoseUpdated.class
-                || sub.getSubscriptionClass() == SetGains.class)
+                || sub.getSubscriptionClass() == SetGainsFailed.class
+                || sub.getSubscriptionClass() == SetGainsSucceeded.class)
                 && listeners.contains(sub.getListener())) {
             LOGGER.log(Level.FINE, "\tProxyEventHandler canceling subscription: " + sub);
             if (listenerGCCount.get(sub.getListener()) == 1) {
@@ -464,7 +516,9 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     @Override
     public void eventOccurred(InputEvent proxyEventGenerated) {
         LOGGER.log(Level.FINE, "Event occurred: " + proxyEventGenerated + ", rp: " + proxyEventGenerated.getRelevantProxyList() + ", listeners: " + listeners);
-        for (GeneratedEventListenerInt listener : listeners) {
+        //Exception in thread "Thread-32" java.util.ConcurrentModificationException
+        ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+        for (GeneratedEventListenerInt listener : listenersCopy) {
             listener.eventGenerated(proxyEventGenerated);
         }
     }

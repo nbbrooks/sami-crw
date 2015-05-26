@@ -18,6 +18,7 @@ import sami.event.GeneratedEventListenerInt;
 import sami.event.GeneratedInputEventSubscription;
 import sami.event.InputEvent;
 import sami.event.OperatorInterruptReceived;
+import sami.logging.Recorder;
 import sami.mission.MissionPlanSpecification;
 import sami.mission.Place;
 import sami.mission.Transition;
@@ -53,6 +54,10 @@ public class InterruptPanel extends javax.swing.JPanel implements InformationSer
 
                             @Override
                             public void actionPerformed(ActionEvent e) {
+                                if (Recorder.ENABLED) {
+                                    // Take a screenshot
+                                    Recorder.getInstance().recordScreenshot();
+                                }
                                 OperatorInterruptReceived received = new OperatorInterruptReceived(oir.getId(), oir.getMissionId(), oir.getRelevantOutputEventId(), oir.getInterruptName());
                                 planManager.eventGenerated(received);
                             }

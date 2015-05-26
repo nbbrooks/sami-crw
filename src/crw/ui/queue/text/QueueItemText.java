@@ -27,6 +27,7 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import sami.engine.Engine;
 import sami.event.ReflectedEventSpecification;
+import sami.logging.Recorder;
 import sami.markup.Description;
 import sami.markup.Markup;
 import sami.uilanguage.MarkupComponent;
@@ -334,6 +335,10 @@ public class QueueItemText {
     }
 
     public void creationDone() {
+        if (Recorder.ENABLED) {
+            // Take a screenshot
+            Recorder.getInstance().recordScreenshot();
+        }
         if (!eventSpecToComponentTable.isEmpty()) {
             FromUiMessage fromUiMessage = CrwFromUiMessageGenerator.getInstance().getFromUiMessage((CreationMessage) decisionMessage, eventSpecToComponentTable);
             if (Engine.getInstance().getUiServer() != null) {
@@ -355,6 +360,10 @@ public class QueueItemText {
     }
 
     public void multipleSelectionDone() {
+        if (Recorder.ENABLED) {
+            // Take a screenshot
+            Recorder.getInstance().recordScreenshot();
+        }
         FromUiMessage fromUiMessage = CrwFromUiMessageGenerator.getInstance().getFromUiMessage((SelectionMessage) decisionMessage, optionList);
         if (Engine.getInstance().getUiServer() != null) {
             Engine.getInstance().getUiServer().UIMessage(fromUiMessage);
@@ -366,6 +375,10 @@ public class QueueItemText {
     }
 
     public void singleSelectionDone(Object option) {
+        if (Recorder.ENABLED) {
+            // Take a screenshot
+            Recorder.getInstance().recordScreenshot();
+        }
         FromUiMessage fromUiMessage = CrwFromUiMessageGenerator.getInstance().getFromUiMessage((SelectionMessage) decisionMessage, option);
         if (Engine.getInstance().getUiServer() != null) {
             Engine.getInstance().getUiServer().UIMessage(fromUiMessage);

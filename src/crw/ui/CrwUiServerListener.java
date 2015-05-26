@@ -55,7 +55,6 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
     }
 
     public void FromUiMessage(FromUiMessage m) {
-        LOGGER.info("@STAT CrwUiServerListener message received: " + m);
         InputEvent generatorEvent = null;
 
         if (m instanceof AllocationSelectedMessage) {
@@ -93,7 +92,8 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
             return;
         }
 
-        for (GeneratedEventListenerInt listener : listeners) {
+        ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+        for (GeneratedEventListenerInt listener : listenersCopy) {
             listener.eventGenerated(generatorEvent);
         }
     }

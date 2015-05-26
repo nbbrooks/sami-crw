@@ -56,6 +56,14 @@ import sami.engine.Engine;
 import sami.engine.PlanManager;
 import sami.event.InputEvent;
 import sami.event.OutputEvent;
+import crw.event.output.proxy.BlockMovement;
+import crw.event.input.proxy.BlockMovementDone;
+import crw.event.output.connectivity.DisconnectServer;
+import crw.event.output.connectivity.ReconnectServer;
+import crw.event.output.proxy.ProxyExecutePathAndBlock;
+import crw.event.output.proxy.ProxyGotoPointAndBlock;
+import crw.ui.CommPanel;
+import sami.event.BlankInputEvent;
 import sami.event.TaskComplete;
 import sami.event.TaskDelayed;
 import sami.event.TaskReleased;
@@ -63,10 +71,13 @@ import sami.event.TaskStarted;
 import sami.markup.Markup;
 import sami.markup.Priority;
 import sami.markup.Priority.Ranking;
+import sami.markup.ProxyStatus;
 import sami.path.Location;
 import sami.path.PathUtm;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyListenerInt;
+import sami.uilanguage.LocalUiClientServer;
+import sami.uilanguage.UiClientListenerInt;
 
 /**
  * @todo Need a flag for autonomous or under human control
@@ -97,6 +108,7 @@ public class BoatProxy extends Thread implements ProxyInt {
     int _boatNo;
     private final String name;
     private Color color = null;
+    InetSocketAddress addr;
     // SAMI variables
     // OutputEvents that must occur sequentially (require movement)
     protected OutputEvent curSequentialEvent = null;
@@ -209,6 +221,7 @@ public class BoatProxy extends Thread implements ProxyInt {
         //Initialize the boat by initalizing a proxy server for it
         // Connect to boat
         _boatNo = boatNo;
+        this.addr = addr;
 
         if (addr == null) {
             LOGGER.severe("INetAddress is null!");
@@ -403,6 +416,18 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     @Override
     public void handleEvent(OutputEvent oe, Task task) {
+        handleEvent(oe, task, false);
+    }
+
+    /**
+     *
+     * @param oe The output event to handle
+     * @param task The task (if any) associated with the OE
+     * @param useBlankInputEvent For movement related OEs, whether to pair the
+     * OE with a ProxyCompletedPath IE (last waypoint) or BlankInputEvent (not
+     * last waypoint)
+     */
+    public void handleEvent(OutputEvent oe, Task task, boolean useBlankInputEvent) {
         if (task != null && task != currentTask) {
             // OEs with a defined task should only be processed after that task becomes the current task and a corresponding TaskStarted is generated
             LOGGER.severe("Proxy [" + this + "] asked to handle event [" + oe + "] for a task [" + task + "] that is not the current task [" + currentTask + "] - ignoring");
@@ -480,11 +505,41 @@ public class BoatProxy extends Thread implements ProxyInt {
         //  Unless it is a ProxyResendWaypoints or ProxyEmergencyAbort event
         boolean sendWps = false;
         if (oe instanceof ProxyExecutePath) {
+            System.out.println("ProxyExecutePath at index " + index);
             sequentialOutputEvents.add(index, oe);
-            sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
+            if (!useBlankInputEvent) {
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
+            } else {
+                sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            }
+        } else if (oe instanceof ProxyExecutePathAndBlock) {
+            // Insert ProxyExecutePath followed by BlockMovement
+            sequentialOutputEvents.add(index, new BlockMovement(oe.getMissionId()));
+            sequentialOutputEvents.add(index, new ProxyExecutePath(oe.getId(), oe.getMissionId(), ((ProxyExecutePathAndBlock) oe).getProxyPaths()));
+            sequentialInputEvents.add(index, new BlockMovementDone(oe.getId(), oe.getMissionId(), this));
+            if (!useBlankInputEvent) {
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
+            } else {
+                sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            }
         } else if (oe instanceof ProxyGotoPoint) {
             sequentialOutputEvents.add(index, oe);
-            sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
+            if (!useBlankInputEvent) {
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
+            } else {
+                sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            }
+        } else if (oe instanceof ProxyGotoPointAndBlock) {
+            System.out.println("ProxyGotoPointAndBlock at index " + index);
+            // Insert ProxyGotoPoint followed by BlockMovement
+            sequentialOutputEvents.add(index, new BlockMovement(oe.getMissionId()));
+            sequentialOutputEvents.add(index, new ProxyGotoPoint(oe.getId(), oe.getMissionId(), ((ProxyGotoPointAndBlock) oe).getProxyPoints()));
+            sequentialInputEvents.add(index, new BlockMovementDone(oe.getId(), oe.getMissionId(), this));
+            if (!useBlankInputEvent) {
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
+            } else {
+                sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            }
         } else if (oe instanceof ProxyEmergencyAbort) {
             // Clear out all events and stop
             LOGGER.severe("Handling ProxyEmergencyAbort! sequentialOutputEvents were: " + sequentialOutputEvents + ", sequentialInputEvents were: " + sequentialInputEvents);
@@ -514,6 +569,33 @@ public class BoatProxy extends Thread implements ProxyInt {
             } else if (currentTask == taskList.get(0)) {
                 LOGGER.severe("Got TaskComplete event for task [" + task + "], but currentTask [" + currentTask + "] does not match first task [" + taskList.get(0) + "]");
             }
+        } else if (oe instanceof BlockMovement) {
+            sequentialOutputEvents.add(index, oe);
+            sequentialInputEvents.add(index, new BlockMovementDone(oe.getId(), oe.getMissionId(), this));
+        } else if (oe instanceof DisconnectServer) {
+            _server.shutdown();
+            if (Engine.getInstance().getUiServer() instanceof LocalUiClientServer) {
+                LocalUiClientServer clientServer = (LocalUiClientServer) Engine.getInstance().getUiServer();
+                for (UiClientListenerInt client : clientServer.getUiClients()) {
+                    if (client instanceof CommPanel) {
+                        CommPanel cp = (CommPanel) client;
+                        cp.manualSetProxyStatus(this, ProxyStatus.Status.SEVERE);
+                    }
+                }
+            }
+        } else if (oe instanceof ReconnectServer) {
+            _server = new UdpVehicleServer(addr);
+            if (Engine.getInstance().getUiServer() instanceof LocalUiClientServer) {
+                LocalUiClientServer clientServer = (LocalUiClientServer) Engine.getInstance().getUiServer();
+                for (UiClientListenerInt client : clientServer.getUiClients()) {
+                    if (client instanceof CommPanel) {
+                        CommPanel cp = (CommPanel) client;
+                        cp.manualSetProxyStatus(this, ProxyStatus.Status.NOMINAL);
+                    }
+                }
+            }
+        } else if (oe instanceof BlockMovement) {
+            // Do nothing
         } else {
             LOGGER.severe("Can't handle OutputEvent of class " + oe.getClass().getSimpleName());
         }
@@ -703,10 +785,29 @@ public class BoatProxy extends Thread implements ProxyInt {
     @Override
     public void abortMission(UUID missionId) {
         LOGGER.info("Abort Mission called with mission id [" + missionId + "] on proxy [" + toString() + "]");
+        removeMission(missionId);
+    }
+
+    @Override
+    public void completeMission(UUID missionId) {
+        LOGGER.info("Complete Mission called with mission id [" + missionId + "] on proxy [" + toString() + "]");
+        removeMission(missionId);
+    }
+
+    /**
+     * Remove all events associated with a mission and starts new events if
+     * necessary
+     *
+     * @param missionId
+     */
+    private void removeMission(UUID missionId) {
+
         int numRemoved = 0;
         ArrayList<OutputEvent> outputEventsToRemove = new ArrayList<OutputEvent>();
         ArrayList<InputEvent> inputEventsToRemove = new ArrayList<InputEvent>();
+        ArrayList<Task> tasksToRemove = new ArrayList<Task>();
         boolean removeFirst = false, removedEvent = false;
+        // Remove any OE assocaited with this mission and its corresponding IE and task
         for (int i = 0; i < sequentialOutputEvents.size(); i++) {
             if (sequentialOutputEvents.get(i).getMissionId() == null) {
                 LOGGER.warning("Output event [" + sequentialOutputEvents.get(i) + "] on proxy [" + toString() + "] has no mission id!");
@@ -716,6 +817,10 @@ public class BoatProxy extends Thread implements ProxyInt {
                 if (i == 0) {
                     // We need to remove the currently executing task
                     removeFirst = true;
+                }
+                Task oeTask = oeToTask.get(sequentialOutputEvents.get(i));
+                if (oeTask != null && !tasksToRemove.contains((oeTask))) {
+                    tasksToRemove.add(oeTask);
                 }
                 numRemoved++;
             }
@@ -727,7 +832,10 @@ public class BoatProxy extends Thread implements ProxyInt {
         for (InputEvent inputEvent : inputEventsToRemove) {
             sequentialInputEvents.remove(inputEvent);
         }
+        ArrayList<Task> newTaskList = (ArrayList<Task>) taskList.clone();
+        ArrayList<InputEvent> taskEvents = setTasks(newTaskList);
 
+        // @todo Consolidate updateWaypoints call - some cases will have a rendundant call in setTasks
         updateWaypoints(removeFirst, removedEvent);
         if (removeFirst) {
             // If we modified the first set of waypoints, start them
@@ -735,6 +843,16 @@ public class BoatProxy extends Thread implements ProxyInt {
             sendCurrentWaypoints();
         } else {
             LOGGER.info("Removed " + numRemoved + " events while aborting missionId [" + missionId + "] on proxy [" + toString() + "], but not the current event");
+        }
+
+        // Finally, generate any TaskStarted events resulting from the current task being associated with the removed mission
+        ArrayList<PlanManager> pmList = new ArrayList<PlanManager>();
+        for (InputEvent ie : taskEvents) {
+            // Don't bother generating TaskCompleted or TaskDelayed as that PM should be the one that we called remove on
+            if (ie instanceof TaskStarted) {
+                PlanManager pm = Engine.getInstance().getPlanManager(ie.getMissionId());
+                pm.eventGenerated(ie);
+            }
         }
     }
 
@@ -834,6 +952,26 @@ public class BoatProxy extends Thread implements ProxyInt {
      * after the current event's
      */
     public void updateWaypoints(boolean updateCurrent, boolean updateFuture) {
+        // While current event is a BlockMovement and next event belongs to the same plan, consume the BlockMovement
+        while (sequentialOutputEvents.size() > 1
+                && sequentialOutputEvents.get(0) instanceof BlockMovement
+                && sequentialOutputEvents.get(0).getMissionId() == sequentialOutputEvents.get(1).getMissionId()) {
+
+            System.out.println("Will remove BlockMovement as next event is in same plan, list is currently: " + sequentialOutputEvents.toString());
+
+            // Consume BlockMovement
+            OutputEvent oe = sequentialOutputEvents.remove(0);
+//            updateOeTaskMapping();
+            // Send out the InputEvent assocaited with this path
+            InputEvent ie = sequentialInputEvents.remove(0);
+
+            LOGGER.log(Level.FINE, "BoatProxy " + getName() + " completed sequential OE " + oe + ", sending out IE " + ie);
+            System.out.println("BoatProxy " + getName() + " completed sequential OE " + oe + ", sending out IE " + ie);
+            for (ProxyListenerInt boatProxyListener : listeners) {
+                boatProxyListener.eventOccurred(ie);
+            }
+        }
+
         // Current waypoint must be first in the list AND match the currentTask if there is one
         if (updateCurrent) {
             LOGGER.fine("Proxy [" + this + "]; updating current waypoint: oeToTask [" + oeToTask + "]");
@@ -899,6 +1037,9 @@ public class BoatProxy extends Thread implements ProxyInt {
                     } else {
                         LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + gotoPoint.getProxyPoints());
                     }
+                } else if (sequentialOutputEvents.get(0) instanceof BlockMovement) {
+                    // Do nothing (waypoints are already cleared, which will stop the boat's movement)
+//                    LOGGER.info("Current event is  BlockMovement, list is currently: " + sequentialOutputEvents.toString());
                 } else {
                     LOGGER.severe("Can't handle OutputEvent of class " + sequentialOutputEvents.get(0).getClass().getSimpleName());
                 }
@@ -944,6 +1085,8 @@ public class BoatProxy extends Thread implements ProxyInt {
                         } else {
                             LOGGER.severe("Proxy points [" + gotoPoint.getProxyPoints() + "] has no entry for proxy [" + toString() + "]!");
                         }
+                    } else if (sequentialOutputEvents.get(0) instanceof BlockMovement) {
+                        // Do nothing
                     } else {
                         LOGGER.severe("BoatProxy can't handle OutputEvent of class [" + sequentialOutputEvents.get(i).getClass().getSimpleName() + "]");
                     }

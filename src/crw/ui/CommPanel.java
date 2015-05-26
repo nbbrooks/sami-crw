@@ -1,13 +1,17 @@
 package crw.ui;
 
 import crw.proxy.BoatProxy;
+import crw.ui.widget.RobotWidget;
+import crw.ui.worldwind.WorldWindWidgetInt;
 import java.awt.Color;
 import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.UUID;
 import javax.swing.BorderFactory;
-import javax.swing.JLabel;
+import javax.swing.JButton;
 import javax.swing.JPanel;
 import sami.engine.Engine;
 import sami.markup.Markup;
@@ -16,6 +20,7 @@ import sami.markup.ProxyStatus.Status;
 import sami.markup.RelevantProxy;
 import sami.proxy.ProxyInt;
 import sami.proxy.ProxyServerListenerInt;
+import sami.uilanguage.LocalUiClientServer;
 import sami.uilanguage.UiClientInt;
 import sami.uilanguage.UiClientListenerInt;
 import sami.uilanguage.UiServerInt;
@@ -33,7 +38,7 @@ public class CommPanel extends JPanel implements UiClientListenerInt, ProxyServe
     UiClientInt uiClient;
     UiServerInt uiServer;
 
-    Hashtable<ProxyInt, JLabel> proxyToPanel = new Hashtable<ProxyInt, JLabel>();
+    Hashtable<ProxyInt, JButton> proxyToButton = new Hashtable<ProxyInt, JButton>();
 
     public CommPanel() {
         super();
@@ -46,12 +51,30 @@ public class CommPanel extends JPanel implements UiClientListenerInt, ProxyServe
 
     @Override
     public void proxyAdded(ProxyInt proxy) {
-        if (proxy instanceof BoatProxy && !proxyToPanel.containsKey(proxy)) {
+        if (proxy instanceof BoatProxy && !proxyToButton.containsKey(proxy)) {
             final BoatProxy boatProxy = (BoatProxy) proxy;
             // Create marker
-            JLabel proxyLabel = new JLabel(boatProxy.getProxyName());
+            JButton proxyLabel = new JButton(boatProxy.getProxyName());
             proxyLabel.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, nominalColor));
-            proxyToPanel.put(boatProxy, proxyLabel);
+            proxyLabel.addActionListener(new ActionListener() {
+
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    if (uiServer instanceof LocalUiClientServer) {
+                        LocalUiClientServer clientServer = (LocalUiClientServer) uiServer;
+                        for (UiClientListenerInt client : clientServer.getUiClients()) {
+                            if (client instanceof MapFrame) {
+                                MapFrame mf = (MapFrame)client;
+                                WorldWindWidgetInt widget =  mf.wwPanel.getWidget(RobotWidget.class);
+                                if(widget != null) {
+                                    ((RobotWidget)widget).manualSelectBoat(boatProxy);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            proxyToButton.put(boatProxy, proxyLabel);
             add(proxyLabel);
         }
         revalidate();
@@ -99,20 +122,20 @@ public class CommPanel extends JPanel implements UiClientListenerInt, ProxyServe
         }
 
         for (ProxyInt proxy : relevantProxies) {
-            if (proxyToPanel.containsKey(proxy)) {
-                JLabel proxyLabel = proxyToPanel.get(proxy);
+            if (proxyToButton.containsKey(proxy)) {
+                JButton proxyButton = proxyToButton.get(proxy);
                 switch (status) {
                     case NOMINAL:
-                        proxyLabel.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, nominalColor));
+                        proxyButton.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, nominalColor));
                         break;
                     case WARNING:
-                        proxyLabel.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, warningColor));
+                        proxyButton.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, warningColor));
                         break;
                     case SEVERE:
-                        proxyLabel.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, severeColor));
+                        proxyButton.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, severeColor));
                         break;
                 }
-                proxyLabel.repaint();
+                proxyButton.repaint();
             }
         }
         repaint();
@@ -142,5 +165,23 @@ public class CommPanel extends JPanel implements UiClientListenerInt, ProxyServe
     @Override
     public void setUiServer(UiServerInt uiServer) {
         this.uiServer = uiServer;
+    }
+
+    public void manualSetProxyStatus(ProxyInt proxy, Status status) {
+        if (proxyToButton.containsKey(proxy)) {
+            JButton proxyButton = proxyToButton.get(proxy);
+            switch (status) {
+                case NOMINAL:
+                    proxyButton.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, nominalColor));
+                    break;
+                case WARNING:
+                    proxyButton.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, warningColor));
+                    break;
+                case SEVERE:
+                    proxyButton.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, severeColor));
+                    break;
+            }
+            proxyButton.repaint();
+        }
     }
 }

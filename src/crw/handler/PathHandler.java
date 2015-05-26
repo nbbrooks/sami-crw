@@ -99,7 +99,8 @@ public class PathHandler implements EventHandlerInt, InformationServiceProviderI
                                 }
                                 relevantProxies.add(boatProxy);
                                 PathUtmResponse responseEvent = new PathUtmResponse(oe.getId(), oe.getMissionId(), proxyPathsChoices, relevantProxies);
-                                for (GeneratedEventListenerInt listener : listeners) {
+                                ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                                for (GeneratedEventListenerInt listener : listenersCopy) {
                                     LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
                                     listener.eventGenerated(responseEvent);
                                 }

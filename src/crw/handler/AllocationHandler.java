@@ -130,7 +130,8 @@ public class AllocationHandler implements EventHandlerInt, InformationServicePro
                                 }
                             }
                             AllocationResponse responseEvent = new AllocationResponse(oe.getId(), oe.getMissionId(), resourceAllocations);
-                            for (GeneratedEventListenerInt listener : listeners) {
+                            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                            for (GeneratedEventListenerInt listener : listenersCopy) {
                                 LOGGER.log(Level.FINE, "Sending responseEvent: " + responseEvent + " to listener: " + listener);
                                 listener.eventGenerated(responseEvent);
                             }

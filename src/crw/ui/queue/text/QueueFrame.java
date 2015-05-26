@@ -155,7 +155,6 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
     public void toUiMessageReceived(ToUiMessage toUiMsg) {
         if (toUiMsg instanceof SelectionMessage
                 || toUiMsg instanceof CreationMessage) {
-            LOGGER.info("@STAT QueueFrame ToUiMessage received: " + toUiMsg);
             MarkupManager manager = new MarkupManager(toUiMsg);
             manager.addComponent(this);
 

@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import sami.engine.Engine;
 import sami.event.InputEvent;
@@ -91,6 +92,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private final Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
     private final Hashtable<BoatProxy, UUID> proxyToWpEventId = new Hashtable<BoatProxy, UUID>();
     private JButton teleopButton, pointButton, pathButton, cancelButton, autoButton;
+    private JLabel proxyNameLabel;
     // controlModeP: Contains buttons for navigation control modes for selected proxy
     // expandedPanel: Contains components for teleoperation and setting gains of selected proxy
     //  expanded by selectin "Teleop" mode in controlModeP
@@ -368,6 +370,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         controlModeP = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         combinedPanel = new JPanel(new BorderLayout());
 
+        proxyNameLabel = new JLabel("");
+        controlModeP.add(proxyNameLabel);
+
         if (enabledModes.contains(ControlMode.TELEOP)) {
             teleopButton = new JButton("Teleop");
             teleopButton.setEnabled(false);
@@ -537,6 +542,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             _vehicle = boatProxy.getVehicleServer();
             velocityP.setVehicle(boatProxy.getVehicleServer());
             gainsP.setProxy(boatProxy);
+            proxyNameLabel.setText(boatProxy.getProxyName());
         } else {
             // Remove teleop panel's proxy and hide teleop panel
             _vehicle = null;
@@ -544,6 +550,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             gainsP.setProxy(null);
             setControlMode(ControlMode.NONE);
             hideExpandables();
+            proxyNameLabel.setText("");
         }
         selectedProxy = boatProxy;
         // Disable buttons if selected proxy is null
@@ -788,6 +795,12 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             telRudderFrac = 0.0;
             telThrustFrac = 0;
             updateVelocity();
+        }
+    }
+
+    public void manualSelectBoat(BoatProxy boatProxy) {
+        if (proxyToMarker.containsKey(boatProxy)) {
+            selectMarker(proxyToMarker.get(boatProxy));
         }
     }
 }
