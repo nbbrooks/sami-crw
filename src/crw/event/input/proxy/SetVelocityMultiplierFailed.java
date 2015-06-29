@@ -1,4 +1,3 @@
-
 package crw.event.input.proxy;
 
 import java.util.ArrayList;
@@ -11,7 +10,7 @@ import sami.proxy.ProxyInt;
  *
  * @author nbb
  */
-public class GainsSent extends InputEvent {
+public class SetVelocityMultiplierFailed extends InputEvent {
 
     // List of fields for which a definition should be provided
     public static final ArrayList<String> fieldNames = new ArrayList<String>();
@@ -22,10 +21,16 @@ public class GainsSent extends InputEvent {
     // Description for each variable
     public static final HashMap<String, String> variableNameToDescription = new HashMap<String, String>();
 
-    public GainsSent() {
+    static {
+        fieldNames.add("blocking");
+
+        fieldNameToDescription.put("blocking", "Wait for all proxies to finish events before moving any?");
     }
 
-    public GainsSent(UUID relevantOutputEventUuid, UUID missionUuid, ProxyInt proxy) {
+    public SetVelocityMultiplierFailed() {
+    }
+
+    public SetVelocityMultiplierFailed(UUID relevantOutputEventUuid, UUID missionUuid, ProxyInt proxy) {
         this.relevantOutputEventId = relevantOutputEventUuid;
         this.missionId = missionUuid;
         id = UUID.randomUUID();
@@ -33,7 +38,7 @@ public class GainsSent extends InputEvent {
         relevantProxyList.add(proxy);
     }
 
-    public GainsSent(UUID relevantOutputEventUuid, UUID missionUuid, ArrayList<ProxyInt> relevantProxyList) {
+    public SetVelocityMultiplierFailed(UUID relevantOutputEventUuid, UUID missionUuid, ArrayList<ProxyInt> relevantProxyList) {
         this.relevantOutputEventId = relevantOutputEventUuid;
         this.missionId = missionUuid;
         this.relevantProxyList = relevantProxyList;
@@ -42,6 +47,6 @@ public class GainsSent extends InputEvent {
 
     @Override
     public String toString() {
-        return "SetGainsSucceeded [" + (relevantProxyList != null ? relevantProxyList.toString() : "null") + "]";
+        return "SetVelocityMultiplierFailed [" + (relevantProxyList != null ? relevantProxyList.toString() : "null") + ", " + blocking + "]";
     }
 }

@@ -2,7 +2,6 @@ package crw.handler;
 
 import crw.Conversion;
 import crw.CrwHelper;
-import crw.event.input.proxy.GainsSent;
 import crw.event.input.proxy.ProxyCreated;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPathFailed;
@@ -27,6 +26,7 @@ import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyGotoPointAndBlock;
 import crw.event.output.proxy.ProxyResendWaypoints;
 import crw.event.output.proxy.SetGains;
+import crw.event.output.proxy.SetVelocityMultiplier;
 import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
@@ -407,9 +407,9 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                         }
                     });
 
-                    //@todo add in recognition of success or failure
-                    GainsSent gainsSent = new GainsSent(oe.getId(), oe.getMissionId(), boatProxy);
-                    responses.add(gainsSent);
+                    //@todo add in recognition of async success or failure
+                    // SetGainsSucceeded
+                    // SetGainsFailed
                 }
             }
             if (numBoatProxies == 0) {
@@ -434,6 +434,43 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "Place with ProxyBlockMovement has no tokens with proxies attached: " + oe);
+            }
+        } else if (oe instanceof SetVelocityMultiplier) {
+            final SetVelocityMultiplier setVelocityMultiplier = (SetVelocityMultiplier) oe;
+            ArrayList<InputEvent> responses = new ArrayList<InputEvent>();
+
+            int numBoatProxies = 0;
+            // @todo Grouped or individual GainsSent result?
+            for (Token token : tokens) {
+                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                    numBoatProxies++;
+
+                    BoatProxy boatProxy = (BoatProxy) token.getProxy();
+                    boatProxy.getVehicleServer().setVelocityMultiplier(setVelocityMultiplier.velocityMultiplier, new FunctionObserver<Void>() {
+                        public void completed(Void v) {
+                            LOGGER.fine("Set velocity multipliersucceeded: Multiplier [" + setVelocityMultiplier.velocityMultiplier + "]");
+                        }
+
+                        public void failed(FunctionObserver.FunctionError fe) {
+                            LOGGER.severe("Set thrust gains failed: Multiplier [" + setVelocityMultiplier.velocityMultiplier + "]");
+                        }
+                    });
+
+                    //@todo add in recognition of async success or failure
+                    // SetGainsSucceeded
+                    // SetGainsFailed
+                }
+            }
+            if (numBoatProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with SetVelocityMultiplier has no tokens with boat proxies attached: " + oe + ", tokens [" + tokens + "]");
+            }
+
+            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            for (GeneratedEventListenerInt listener : listenersCopy) {
+                for (InputEvent response : responses) {
+                    LOGGER.log(Level.FINE, "\tSending response: " + response + " to listener: " + listener);
+                    listener.eventGenerated(response);
+                }
             }
         } else if (oe instanceof ProxyExecutePath
                 || oe instanceof ProxyEmergencyAbort
