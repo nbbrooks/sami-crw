@@ -119,6 +119,10 @@ public class InterruptPanel extends javax.swing.JPanel implements InformationSer
     }
 
     @Override
+    public void sharedSubPlanAtReturn(PlanManager planManager) {
+    }
+
+    @Override
     public boolean offer(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "InterruptFrame offered subscription: " + sub);
         if (sub.getSubscriptionClass() == OperatorInterruptReceived.class) {

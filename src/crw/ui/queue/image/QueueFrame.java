@@ -246,4 +246,8 @@ public class QueueFrame extends UiFrame implements UiClientListenerInt, PlanMana
             LOGGER.fine("Removed " + numRemoved + " items from " + queuePanel + " due to plan " + planManager.getPlanName() + " aborting");
         }
     }
+
+    @Override
+    public void sharedSubPlanAtReturn(PlanManager planManager) {
+    }
 }

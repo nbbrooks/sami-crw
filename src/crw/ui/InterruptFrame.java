@@ -117,6 +117,10 @@ public class InterruptFrame extends UiFrame implements PlanManagerListenerInt, U
         removePanel(planManager);
     }
 
+    @Override
+    public void sharedSubPlanAtReturn(PlanManager planManager) {
+    }
+
     public static void main(String[] args) {
         InterruptFrame interruptF = new InterruptFrame();
     }

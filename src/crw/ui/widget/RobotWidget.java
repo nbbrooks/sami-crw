@@ -445,7 +445,7 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         velocityP.setVisible(false);
         gainsP = new GainsPanel();
         gainsP.setVisible(false);
-        expandedP.add(videoP);
+//        expandedP.add(videoP);
         expandedP.add(velocityP);
         expandedP.add(gainsP);
         wwPanel.buttonPanels.revalidate();
