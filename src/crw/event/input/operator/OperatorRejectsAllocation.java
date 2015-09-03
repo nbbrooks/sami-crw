@@ -30,4 +30,9 @@ public class OperatorRejectsAllocation extends InputEvent {
         this.missionId = missionUuid;
         id = UUID.randomUUID();
     }
+
+    @Override
+    public String toString() {
+        return "OperatorRejectsAllocation";
+    }
 }

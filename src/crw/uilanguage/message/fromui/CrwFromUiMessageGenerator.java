@@ -49,7 +49,12 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
         return CrwFromUiMessageGenerator.FromUiMessageGeneratorHolder.INSTANCE;
     }
 
+    @Override
     public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>> eventSpecToComponentTable) {
+        if(eventSpecToComponentTable == null) {
+            LOGGER.severe("Tried to create FromUIMessage from NULL eventSpecToComponentTable");
+            return null;
+        }
         CreationDoneMessage doneMessage = null;
         if (creationMessage instanceof GetParamsMessage) {
             LOGGER.fine("eventSpecToComponentTable: " + eventSpecToComponentTable);
@@ -73,9 +78,37 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
         }
         return doneMessage;
     }
+    
 
-    public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>> eventSpecToComponentTable, Hashtable<String, MarkupComponent> variableNameToComponentTable) {
-        // eventSpecToFieldDescriptions is intended to be null, but is kept in argments to prevent compilation errors with type erasure
+    @Override
+    public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<Field, MarkupComponent> fieldToComponentTable, int erasureThrowaway) {
+        if(fieldToComponentTable == null) {
+            LOGGER.severe("Tried to create FromUIMessage from NULL fieldToComponentTable");
+            return null;
+        }
+        CreationDoneMessage doneMessage = null;
+        LOGGER.fine("fieldToComponentTable: " + fieldToComponentTable);
+        Hashtable<Field, Object> fieldToValue = new Hashtable<Field, Object>();
+        for (Field field : fieldToComponentTable.keySet()) {
+            if (field != null) {
+                Object value = CrwUiComponentGenerator.getInstance().getComponentValue(fieldToComponentTable.get(field), field.getType());
+                if (value == null) {
+                    LOGGER.severe("Got null value for field: " + field);
+                } else {
+                    fieldToValue.put(field, value);
+                }
+            }
+            doneMessage = new CreationDoneMessage(creationMessage.getMessageId(), creationMessage.getRelevantOutputEventId(), creationMessage.getMissionId(), fieldToValue, 0);
+        }
+        return doneMessage;
+    }
+
+    @Override
+    public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<String, MarkupComponent> variableNameToComponentTable, int erasureThrowaway1, int erasureThrowaway2) {
+        if(variableNameToComponentTable == null) {
+            LOGGER.severe("Tried to create FromUIMessage from NULL variableNameToComponentTable");
+            return null;
+        }
         CreationDoneMessage doneMessage = null;
         if (creationMessage instanceof GetVariablesMessage) {
             LOGGER.fine("variableNameToComponentTable: " + variableNameToComponentTable);
@@ -95,6 +128,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
         return doneMessage;
     }
 
+    @Override
     public FromUiMessage getFromUiMessage(SelectionMessage selectionMessage, Object option) {
         FromUiMessage fromUiMessage = null;
         if (selectionMessage instanceof AllocationOptionsMessage) {
@@ -149,6 +183,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
         return fromUiMessage;
     }
 
+    @Override
     public FromUiMessage getFromUiMessage(SelectionMessage selectionMessage, int optionIndex) {
         if (selectionMessage.getOptionsList().size() > optionIndex) {
             return getFromUiMessage(selectionMessage, selectionMessage.getOptionsList().get(optionIndex));

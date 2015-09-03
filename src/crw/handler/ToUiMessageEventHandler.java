@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 import sami.engine.Engine;
 import sami.event.MissingParamsRequest;
 import sami.event.OperatorApprove;
+import sami.event.OperatorCreateOutputEvent;
 import sami.event.OutputEvent;
 import sami.event.RedefineVariablesRequest;
 import sami.handler.EventHandlerInt;
@@ -23,6 +24,7 @@ import sami.markup.RelevantArea;
 import sami.markup.RelevantProxy;
 import sami.mission.Token;
 import sami.proxy.ProxyInt;
+import sami.uilanguage.toui.CreationMessage;
 import sami.uilanguage.toui.GetParamsMessage;
 import sami.uilanguage.toui.GetVariablesMessage;
 import sami.uilanguage.toui.InformationMessage;
@@ -101,6 +103,8 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
         } else if (oe instanceof OperatorApprove) {
             OperatorApprove oa = (OperatorApprove) oe;
             message = new YesNoOptionsMessage(oe.getId(), oe.getMissionId(), priority);
+        } else if (oe instanceof OperatorCreateOutputEvent) {
+            message = new CreationMessage(oe.getId(), oe.getMissionId(), priority, (OperatorCreateOutputEvent) oe);
         } else {
             LOGGER.log(Level.SEVERE, "Unhandled message type: " + oe, this);
         }

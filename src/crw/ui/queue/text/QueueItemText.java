@@ -53,8 +53,8 @@ public class QueueItemText {
     protected final AtomicBoolean viewed = new AtomicBoolean(false);
     List<Object> optionList = new ArrayList<Object>();
     Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>> eventSpecToComponentTable = new Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>>();
+    Hashtable<Field, MarkupComponent> fieldToComponentTable = new Hashtable<Field, MarkupComponent>();
     Hashtable<String, MarkupComponent> variableNameToComponentTable = new Hashtable<String, MarkupComponent>();
-//    protected QueueThumbnailText thumbnail = null;
     protected QueueThumbnail thumbnail = null;
     protected QueueContent content = null;
     protected MarkupManager markupManager = null;
@@ -105,6 +105,13 @@ public class QueueItemText {
 
             if (decisionMessage instanceof CreationMessage) {
                 CreationMessage creationMessage = (CreationMessage) decisionMessage;
+                // There are 3 different constructors for CreationMessage, each of which define only 1 of the following:
+                //  Hashtable<ReflectedEventSpecification, Hashtable<Field, String>> eventSpecToFieldDescriptions
+                //      Used by MissingParamsRequest/GetParamsMessage to get missing field definitions for several event specs
+                //  Hashtable<Field, String> fieldToDescriptions
+                //      Used by generic (non-extended) CreationMessages
+                //  Hashtable<VariableName, String> variableNameToDescription
+                //      Used by RedefineVariablesRequest/VariablesDefinedMessage to redefine values for variables (as opposed to fields)
 
                 if (creationMessage.getEventSpecToFieldDescriptions() != null) {
                     for (ReflectedEventSpecification eventSpec : creationMessage.getEventSpecToFieldDescriptions().keySet()) {
@@ -148,6 +155,33 @@ public class QueueItemText {
                             maxColWidth = Math.max(maxColWidth, (int) visualization.getPreferredSize().getWidth());
                             cumulComponentHeight += (int) visualization.getPreferredSize().getHeight();
                         }
+                    }
+                }
+                if (creationMessage.getFieldToDescriptions() != null) {
+                    for (Field field : creationMessage.getFieldToDescriptions().keySet()) {
+                        // Add in description of item to be created
+                        String description = creationMessage.getFieldToDescriptions().get(field);
+                        JLabel descriptionLabel = new JLabel(field.getName() + " (" + field.getType().getSimpleName() + "): " + description);
+                        content.add(descriptionLabel, constraints);
+                        constraints.gridy = constraints.gridy + 1;
+                        maxColWidth = Math.max(maxColWidth, (int) descriptionLabel.getPreferredSize().getWidth());
+                        cumulComponentHeight += (int) descriptionLabel.getPreferredSize().getHeight();
+
+                        // Add in component for creating the item
+                        MarkupComponent markupComponent = null;
+                        JComponent visualization = null;
+                        markupComponent = CrwUiComponentGenerator.getInstance().getCreationComponent(field.getType(), field, creationMessage.getMarkups(), null, Engine.getInstance().getPlanManager(creationMessage.getMissionId()));
+                        if (markupComponent == null) {
+                            LOGGER.severe("Got null creation component for field: " + field);
+                            visualization = new JLabel("");
+                        } else {
+                            fieldToComponentTable.put(field, markupComponent);
+                            visualization = markupComponent.getComponent();
+                        }
+                        content.add(visualization, constraints);
+                        constraints.gridy = constraints.gridy + 1;
+                        maxColWidth = Math.max(maxColWidth, (int) visualization.getPreferredSize().getWidth());
+                        cumulComponentHeight += (int) visualization.getPreferredSize().getHeight();
                     }
                 }
                 if (creationMessage.getVariableNameToDescription() != null) {
@@ -348,8 +382,17 @@ public class QueueItemText {
             }
             viewed.set(true);
         }
+        if (!fieldToComponentTable.isEmpty()) {
+            FromUiMessage fromUiMessage = CrwFromUiMessageGenerator.getInstance().getFromUiMessage((CreationMessage) decisionMessage, fieldToComponentTable, 0);
+            if (Engine.getInstance().getUiServer() != null) {
+                Engine.getInstance().getUiServer().UIMessage(fromUiMessage);
+            } else {
+                LOGGER.warning("NULL UiServer!");
+            }
+            viewed.set(true);
+        }
         if (!variableNameToComponentTable.isEmpty()) {
-            FromUiMessage fromUiMessage = CrwFromUiMessageGenerator.getInstance().getFromUiMessage((CreationMessage) decisionMessage, null, variableNameToComponentTable);
+            FromUiMessage fromUiMessage = CrwFromUiMessageGenerator.getInstance().getFromUiMessage((CreationMessage) decisionMessage, variableNameToComponentTable, 0, 0);
             if (Engine.getInstance().getUiServer() != null) {
                 Engine.getInstance().getUiServer().UIMessage(fromUiMessage);
             } else {

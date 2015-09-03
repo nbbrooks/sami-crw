@@ -2,17 +2,15 @@ package crw.event.input.operator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.UUID;
+import sami.area.Area2D;
 import sami.event.InputEvent;
-import sami.path.Path;
-import sami.proxy.ProxyInt;
 
 /**
  *
  * @author nbb
  */
-public class OperatorAcceptsPath extends InputEvent {
+public class OperatorCreatedArea extends InputEvent {
 
     // List of fields for which a definition should be provided
     public static final ArrayList<String> fieldNames = new ArrayList<String>();
@@ -23,31 +21,27 @@ public class OperatorAcceptsPath extends InputEvent {
     // Description for each variable
     public static final HashMap<String, String> variableNameToDescription = new HashMap<String, String>();
     // Variables
-    public Hashtable<ProxyInt, Path> acceptedProxyPaths;
+    public Area2D area;
 
     static {
-        variableNames.add("acceptedProxyPaths");
+        variableNames.add("area");
 
-        variableNameToDescription.put("acceptedProxyPaths", "Accepted set of paths.");
+        variableNameToDescription.put("area", "Drawn area.");
     }
 
-    public OperatorAcceptsPath() {
+    public OperatorCreatedArea() {
         id = UUID.randomUUID();
     }
 
-    public OperatorAcceptsPath(UUID relevantOutputEventUuid, UUID missionUuid, Hashtable<ProxyInt, Path> acceptedProxyPaths) {
+    public OperatorCreatedArea(UUID relevantOutputEventUuid, UUID missionUuid, Area2D area) {
         this.relevantOutputEventId = relevantOutputEventUuid;
         this.missionId = missionUuid;
-        this.acceptedProxyPaths = acceptedProxyPaths;
-        relevantProxyList = new ArrayList<ProxyInt>();
-        for (ProxyInt proxy : acceptedProxyPaths.keySet()) {
-            relevantProxyList.add(proxy);
-        }
         id = UUID.randomUUID();
+        this.area = area;
     }
 
     @Override
     public String toString() {
-        return "OperatorAcceptsPath [" + acceptedProxyPaths + "]";
+        return "OperatorCreatedArea [" + area + "]";
     }
 }

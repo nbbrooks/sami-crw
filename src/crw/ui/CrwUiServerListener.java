@@ -2,12 +2,14 @@ package crw.ui;
 
 import crw.event.input.operator.OperatorAcceptsAllocation;
 import crw.event.input.operator.OperatorAcceptsPath;
+import crw.event.input.operator.OperatorCreatedArea;
 import crw.event.input.operator.OperatorRejectsAllocation;
 import crw.event.input.operator.OperatorRejectsPath;
 import crw.event.input.operator.OperatorSelectsBoat;
 import crw.event.input.operator.OperatorSelectsBoatList;
 import crw.uilanguage.message.fromui.BoatProxyListSelectedMessage;
 import crw.uilanguage.message.fromui.BoatProxySelectedMessage;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -20,6 +22,8 @@ import sami.event.GeneratedInputEventSubscription;
 import sami.event.InputEvent;
 import sami.event.MissingParamsReceived;
 import sami.event.NoOption;
+import sami.event.OperatorCreateOutputEvent;
+import sami.event.OutputEvent;
 import sami.event.RedefinedVariablesReceived;
 import sami.event.YesOption;
 import sami.path.Path;
@@ -30,6 +34,7 @@ import sami.uilanguage.UiClientInt;
 import sami.uilanguage.UiServerInt;
 import sami.uilanguage.UiServerListenerInt;
 import sami.uilanguage.fromui.AllocationSelectedMessage;
+import sami.uilanguage.fromui.CreationDoneMessage;
 import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.fromui.ParamsSelectedMessage;
 import sami.uilanguage.fromui.PathSelectedMessage;
@@ -87,6 +92,34 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
         } else if (m instanceof VariablesDefinedMessage) {
             VariablesDefinedMessage vdm = (VariablesDefinedMessage) m;
             generatorEvent = new RedefinedVariablesReceived(vdm.getRelevantOutputEventId(), vdm.getMissionId(), vdm.getVariableToValue());
+        } else if (m instanceof CreationDoneMessage) {
+            //@todo should we make a class that simply extends (no changes) CreationDoneMessage?
+            // Would be created by ToUiMessageHandler for any OperatorCreateOutputEvent events
+            CreationDoneMessage cdm = (CreationDoneMessage) m;
+            OutputEvent oe = Engine.getInstance().getPlanManager(cdm.getMissionId()).getOutputEvent(cdm.getRelevantOutputEventId());
+
+            // Any generic CreationDoneMessage should be linked to a OperatorOutputEvent
+            if (oe instanceof OperatorCreateOutputEvent) {
+                // Grab the IE linked to the OperatorOutputEvent and make an instance
+                OperatorCreateOutputEvent ocoe = (OperatorCreateOutputEvent) oe;
+                try {
+                    Class inputEventClass = ocoe.getInputEventClass();
+                    generatorEvent = (InputEvent) inputEventClass.newInstance();
+                    generatorEvent.setMissionId(oe.getMissionId());
+                    generatorEvent.setRelevantOutputEventId(oe.getId());
+
+                    for (Field field : cdm.getFieldToValues().keySet()) {
+                        field.set(generatorEvent, cdm.getFieldToValues().get(field));
+                    }
+                } catch (InstantiationException ex) {
+                    Logger.getLogger(CrwUiServerListener.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (IllegalAccessException ex) {
+                    Logger.getLogger(CrwUiServerListener.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            } else {
+                LOGGER.severe("Received a CreationDoneMessage with corresponding output event " + oe + ", which is not an OperatorOutputEvent");
+                return;
+            }
         } else {
             LOGGER.log(Level.SEVERE, "Unhandled incoming UI event type: " + m.getClass() + ", " + m);
             return;
@@ -136,7 +169,8 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
                 || sub.getSubscriptionClass().equals(MissingParamsReceived.class)
                 || sub.getSubscriptionClass().equals(YesOption.class)
                 || sub.getSubscriptionClass().equals(NoOption.class)
-                || sub.getSubscriptionClass().equals(RedefinedVariablesReceived.class)) {
+                || sub.getSubscriptionClass().equals(RedefinedVariablesReceived.class)
+                || sub.getSubscriptionClass().equals(OperatorCreatedArea.class)) {
             LOGGER.log(Level.FINE, "\tCrwUiServerListener taking subscription: " + sub);
             if (!listeners.contains(sub.getListener())) {
                 LOGGER.log(Level.FINE, "\t\tCrwUiServerListener adding listener: " + sub.getListener());
@@ -163,7 +197,8 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
                 || sub.getSubscriptionClass().equals(MissingParamsReceived.class)
                 || sub.getSubscriptionClass().equals(YesOption.class)
                 || sub.getSubscriptionClass().equals(NoOption.class)
-                || sub.getSubscriptionClass().equals(RedefinedVariablesReceived.class))
+                || sub.getSubscriptionClass().equals(RedefinedVariablesReceived.class)
+                || sub.getSubscriptionClass().equals(OperatorCreatedArea.class))
                 && listeners.contains(sub.getListener())) {
             LOGGER.log(Level.FINE, "\tCrwUiServerListener canceling subscription: " + sub);
             if (listenerGCCount.get(sub.getListener()) == 1) {

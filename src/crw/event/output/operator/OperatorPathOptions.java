@@ -36,16 +36,8 @@ public class OperatorPathOptions extends OutputEvent {
         this.options = options;
     }
 
-    public boolean getFillAtPlace() {
-        // Whether missing parameters for this event should be filled when the plan reaches the Place the event is on (true), or when the plan is loaded (false)
-        return true;
-    }
-
+    @Override
     public String toString() {
         return "OperatorPathOptions [" + options + "]";
-    }
-
-    public static void main(String[] args) {
-
     }
 }
