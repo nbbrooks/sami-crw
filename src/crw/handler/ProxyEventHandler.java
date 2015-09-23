@@ -30,6 +30,7 @@ import crw.event.output.proxy.SetVelocityMultiplier;
 import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
+import crw.proxy.clickthrough.ClickthroughProxy;
 import crw.ui.ImagePanel;
 import static crw.ui.teleop.GainsPanel.RUDDER_GAINS_AXIS;
 import static crw.ui.teleop.GainsPanel.THRUST_GAINS_AXIS;
@@ -115,7 +116,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         if (oe instanceof ProxyGotoPoint) {
             int numProxies = 0;
             for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy || token.getProxy() instanceof ClickthroughProxy)) {
                     // Send the path
                     token.getProxy().handleEvent(oe, token.getTask());
                     numProxies++;
@@ -127,7 +128,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         } else if (oe instanceof ProxyGotoPointAndBlock) {
             int numProxies = 0;
             for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy || token.getProxy() instanceof ClickthroughProxy)) {
                     // Send the path
                     token.getProxy().handleEvent(oe, token.getTask());
                     numProxies++;
@@ -155,7 +156,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             int numProxies = 0;
             ArrayList<Token> tokensWithProxy = new ArrayList<Token>();
             for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy || token.getProxy() instanceof ClickthroughProxy)) {
                     tokensWithProxy.add(token);
                     numProxies++;
                 }
@@ -218,6 +219,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                                 BoatProxy bp = (BoatProxy) tokensWithProxy.get(proxyIndex).getProxy();
                                 // Use blank return event unless last point
                                 bp.handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask(), pointCount < proxyLocations.size() - 1);
+                            } else if (tokensWithProxy.get(proxyIndex).getProxy() instanceof ClickthroughProxy) {
+                                ClickthroughProxy cp = (ClickthroughProxy) tokensWithProxy.get(proxyIndex).getProxy();
+                                // Use blank return event unless last point
+                                cp.handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask(), pointCount < proxyLocations.size() - 1);
                             } else {
                                 LOGGER.severe("Not a boat proxy");
                             }
@@ -244,7 +249,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             Hashtable<ProxyInt, Location> proxyPoints = new Hashtable<ProxyInt, Location>();
             ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
             for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy || token.getProxy() instanceof ClickthroughProxy)) {
                     Location assembleLocation = getSpacedLocation(request.getLocation(), assembleCounter, request.getSpacing());
                     proxyPoints.put(token.getProxy(), assembleLocation);
                     relevantProxies.add(token.getProxy());
@@ -271,22 +276,31 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             int numProxies = 0;
             ArrayList<ProxyInt> relevantProxies;
             for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    BoatProxy boatProxy = (BoatProxy) token.getProxy();
-                    if (!request.getProxyCompareLocation().containsKey(boatProxy)) {
-                        LOGGER.severe("Passed in proxy token for " + boatProxy + " to place with ProxyCompareDistanceRequest, but there is no compare location entry for the proxy!");
+//                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+//                    BoatProxy boatProxy = (BoatProxy) token.getProxy();
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy || token.getProxy() instanceof ClickthroughProxy)) {
+
+                    ProxyInt proxy = token.getProxy();
+                    Position proxyPosition = null;
+                    if (proxy instanceof BoatProxy) {
+                        proxyPosition = ((BoatProxy) proxy).getPosition();
+                    } else if (proxy instanceof ClickthroughProxy) {
+                        proxyPosition = ((ClickthroughProxy) proxy).getPosition();
+                    }
+
+                    if (!request.getProxyCompareLocation().containsKey(proxy)) {
+                        LOGGER.severe("Passed in proxy token for " + proxy + " to place with ProxyCompareDistanceRequest, but there is no compare location entry for the proxy!");
                     } else {
-                        Position stationKeepPosition = Conversion.locationToPosition(request.getProxyCompareLocation().get(boatProxy));
+                        Position stationKeepPosition = Conversion.locationToPosition(request.getProxyCompareLocation().get(proxy));
                         UTMCoord stationKeepUtm = UTMCoord.fromLatLon(stationKeepPosition.latitude, stationKeepPosition.longitude);
                         UtmPose stationKeepPose = new UtmPose(new Pose3D(stationKeepUtm.getEasting(), stationKeepUtm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(stationKeepUtm.getZone(), stationKeepUtm.getHemisphere().contains("North")));
-                        Position boatPosition = boatProxy.getPosition();
-                        UTMCoord boatUtm = UTMCoord.fromLatLon(boatPosition.latitude, boatPosition.longitude);
+                        UTMCoord boatUtm = UTMCoord.fromLatLon(proxyPosition.latitude, proxyPosition.longitude);
                         UtmPose boatPose = new UtmPose(new Pose3D(boatUtm.getEasting(), boatUtm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(boatUtm.getZone(), boatUtm.getHemisphere().contains("North")));
                         double distance = boatPose.pose.getEuclideanDistance(stationKeepPose.pose);
 
                         InputEvent response;
                         relevantProxies = new ArrayList<ProxyInt>();
-                        relevantProxies.add(boatProxy);
+                        relevantProxies.add(proxy);
                         if (distance > request.compareDistance) {
                             response = new QuantityGreater(request.getId(), request.getMissionId(), relevantProxies);
                         } else if (distance < request.compareDistance) {
@@ -426,7 +440,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         } else if (oe instanceof BlockMovement) {
             int numProxies = 0;
             for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy || token.getProxy() instanceof ClickthroughProxy)) {
                     // Send the path
                     token.getProxy().handleEvent(oe, token.getTask());
                     numProxies++;
@@ -480,7 +494,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 || oe instanceof ReconnectServer) {
             int numProxies = 0;
             for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy || token.getProxy() instanceof ClickthroughProxy)) {
                     token.getProxy().handleEvent(oe, token.getTask());
                     numProxies++;
                 }

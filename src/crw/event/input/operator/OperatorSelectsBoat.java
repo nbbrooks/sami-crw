@@ -26,7 +26,7 @@ public class OperatorSelectsBoat extends InputEvent {
         id = UUID.randomUUID();
     }
 
-    public OperatorSelectsBoat(UUID relevantOutputEventUuid, UUID missionUuid, BoatProxy boatProxy) {
+    public OperatorSelectsBoat(UUID relevantOutputEventUuid, UUID missionUuid, ProxyInt boatProxy) {
         this.relevantOutputEventId = relevantOutputEventUuid;
         this.missionId = missionUuid;
         id = UUID.randomUUID();

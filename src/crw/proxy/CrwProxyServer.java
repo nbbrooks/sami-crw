@@ -84,6 +84,30 @@ public class CrwProxyServer implements ProxyServerInt {
             return null;
         }
     }
+    
+    public ProxyInt addProxy(ProxyInt proxy, VehicleAsset v) {
+        try {
+            proxyCounter++;
+            proxies.add(proxy);
+
+            assets.add(v);
+            proxyToAssetMap.put(proxy, v);
+            assetToProxyMap.put(v, proxy);
+
+            proxy.start();
+            for (ProxyServerListenerInt l : listeners) {
+                l.proxyAdded(proxy);
+            }
+            return proxy;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    public int getProxyCounter() {
+        return proxyCounter;
+    }
 
     @Override
     public ProxyInt getProxy(AbstractAsset asset) {

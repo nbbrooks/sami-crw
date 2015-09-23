@@ -1,6 +1,7 @@
 package crw.uilanguage.message.fromui;
 
 import crw.proxy.BoatProxy;
+import crw.proxy.clickthrough.ClickthroughProxy;
 import crw.ui.CrwUiComponentGenerator;
 import crw.uilanguage.message.toui.AllocationOptionsMessage;
 import crw.uilanguage.message.toui.PathOptionsMessage;
@@ -152,12 +153,12 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                     fromUiMessage = new BoatProxyListSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
                 } else {
                     ArrayList<?> list = (ArrayList<?>) option;
-                    ArrayList<BoatProxy> selectedProxies = new ArrayList<BoatProxy>();
+                    ArrayList<ProxyInt> selectedProxies = new ArrayList<ProxyInt>();
                     for (Object object : list) {
-                        if (object instanceof BoatProxy) {
-                            selectedProxies.add((BoatProxy) object);
+                        if (object instanceof BoatProxy || object instanceof ClickthroughProxy) {
+                            selectedProxies.add((ProxyInt)object);
                         } else {
-                            LOGGER.warning("List contained something other than BoatProxy!");
+                            LOGGER.warning("List contained something other than BoatProxy and ClickthroughProxy!");
                         }
                     }
                     fromUiMessage = new BoatProxyListSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), selectedProxies);

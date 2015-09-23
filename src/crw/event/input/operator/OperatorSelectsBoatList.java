@@ -26,13 +26,13 @@ public class OperatorSelectsBoatList extends InputEvent {
         id = UUID.randomUUID();
     }
 
-    public OperatorSelectsBoatList(UUID relevantOutputEventUuid, UUID missionUuid, ArrayList<BoatProxy> boatProxyList) {
+    public OperatorSelectsBoatList(UUID relevantOutputEventUuid, UUID missionUuid, ArrayList<ProxyInt> boatProxyList) {
         this.relevantOutputEventId = relevantOutputEventUuid;
         this.missionId = missionUuid;
         id = UUID.randomUUID();
         if (boatProxyList != null) {
             relevantProxyList = new ArrayList<ProxyInt>();
-            for (BoatProxy boatProxy : boatProxyList) {
+            for (ProxyInt boatProxy : boatProxyList) {
                 relevantProxyList.add(boatProxy);
             }
         } else {

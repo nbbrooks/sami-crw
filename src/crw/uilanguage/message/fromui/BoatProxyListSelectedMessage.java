@@ -1,8 +1,8 @@
 package crw.uilanguage.message.fromui;
 
-import crw.proxy.BoatProxy;
 import java.util.ArrayList;
 import java.util.UUID;
+import sami.proxy.ProxyInt;
 import sami.uilanguage.fromui.FromUiMessage;
 
 /**
@@ -11,14 +11,14 @@ import sami.uilanguage.fromui.FromUiMessage;
  */
 public class BoatProxyListSelectedMessage extends FromUiMessage {
 
-    protected ArrayList<BoatProxy> boatProxyList;
+    protected ArrayList<ProxyInt> boatProxyList;
 
-    public BoatProxyListSelectedMessage(UUID relevantToUiMessageId, UUID relevantOutputEventId, UUID missionId, ArrayList<BoatProxy> boatProxyList) {
+    public BoatProxyListSelectedMessage(UUID relevantToUiMessageId, UUID relevantOutputEventId, UUID missionId, ArrayList<ProxyInt> boatProxyList) {
         super(relevantToUiMessageId, relevantOutputEventId, missionId);
         this.boatProxyList = boatProxyList;
     }
 
-    public ArrayList<BoatProxy> getBoatProxyList() {
+    public ArrayList<ProxyInt> getBoatProxyList() {
         return boatProxyList;
     }
 
