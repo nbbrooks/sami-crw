@@ -46,7 +46,7 @@ public class InterruptFrame extends UiFrame implements PlanManagerListenerInt, U
     public void generatePanel(final PlanManager planManager, MissionPlanSpecification mSpec) {
         boolean oirExists = false;
 
-        for (Vertex v : mSpec.getGraph().getVertices()) {
+        for (Vertex v : mSpec.getTransientGraph().getVertices()) {
             if (v instanceof Transition) {
                 Transition transition = (Transition) v;
                 for (InputEvent ie : transition.getInputEvents()) {

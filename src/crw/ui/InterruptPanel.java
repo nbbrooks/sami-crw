@@ -43,7 +43,7 @@ public class InterruptPanel extends javax.swing.JPanel implements InformationSer
     public void generateButtons(final PlanManager planManager, MissionPlanSpecification mSpec) {
         ArrayList<JButton> buttons = new ArrayList<JButton>();
 
-        for (Vertex v : mSpec.getGraph().getVertices()) {
+        for (Vertex v : mSpec.getTransientGraph().getVertices()) {
             if (v instanceof Transition) {
                 Transition transition = (Transition) v;
                 for (InputEvent ie : transition.getInputEvents()) {
