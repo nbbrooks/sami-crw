@@ -51,14 +51,14 @@ public class InterruptPanel extends javax.swing.JPanel implements InformationSer
                         final OperatorInterruptReceived oir = (OperatorInterruptReceived) ie;
                         JButton interruptButton = new JButton(oir.getInterruptName());
                         interruptButton.addActionListener(new ActionListener() {
-
+                                
                             @Override
                             public void actionPerformed(ActionEvent e) {
                                 if (Recorder.ENABLED) {
                                     // Take a screenshot
                                     Recorder.getInstance().recordScreenshot();
                                 }
-                                OperatorInterruptReceived received = new OperatorInterruptReceived(oir.getId(), oir.getMissionId(), oir.getRelevantOutputEventId(), oir.getInterruptName());
+                                OperatorInterruptReceived received = new OperatorInterruptReceived(oir.getRelevantOutputEventId(), oir.getMissionId(), oir.getId(), oir.getInterruptName());
                                 planManager.eventGenerated(received);
                             }
                         });

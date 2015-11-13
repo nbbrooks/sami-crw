@@ -156,7 +156,7 @@ public class CrwEventWizard implements EventWizardInt {
             // Don't act on places which already have event specs
             return false;
         }
-        Point graphPoint = new Point((int) layout.getX(p1), (int) layout.getY(p1));
+        Point pPoint = new Point((int) layout.getX(p1), (int) layout.getY(p1));
         ReflectedEventSpecification eventSpec;
         if (eventClassname.equalsIgnoreCase(ProxyExecutePath.class.getName())) {
             // Create vertices
@@ -170,11 +170,11 @@ public class CrwEventWizard implements EventWizardInt {
             eventSpec = new ReflectedEventSpecification(ProxyPathCompleted.class.getName());
             t1_2a.addEventSpec(eventSpec, true);
             mSpec.updateEventSpecList(t1_2a, eventSpec);
-            Point upperPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{1});
+            Point upperPoint = DreaamHelper.getVertexFreePoint(vv, pPoint.getX(), pPoint.getY(), new int[]{1});
             mSpec.addTransition(t1_2a, upperPoint);
             // T1_2b
             Transition t1_2b = new Transition("", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
-            Point lowerPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{3});
+            Point lowerPoint = DreaamHelper.getVertexFreePoint(vv, pPoint.getX(), pPoint.getY(), new int[]{3});
             mSpec.addTransition(t1_2b, lowerPoint);
             // P2a: Proxy collector
             Place p2a = new Place("Proxy collector", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
@@ -186,12 +186,12 @@ public class CrwEventWizard implements EventWizardInt {
             mSpec.addPlace(p2b, lowerPoint);
             // T2_3
             Transition t2_3 = new Transition("", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
-            graphPoint = DreaamHelper.getVertexFreePoint(vv, upperPoint.getX(), upperPoint.getY(), new int[]{3});
-            mSpec.addTransition(t2_3, graphPoint);
+            pPoint = DreaamHelper.getVertexFreePoint(vv, upperPoint.getX(), upperPoint.getY(), new int[]{3});
+            mSpec.addTransition(t2_3, pPoint);
             // P3: All proxies now done
             Place p3 = new Place("All proxies", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
-            graphPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{2});
-            mSpec.addPlace(p3, graphPoint);
+            pPoint = DreaamHelper.getVertexFreePoint(vv, pPoint.getX(), pPoint.getY(), new int[]{2});
+            mSpec.addPlace(p3, pPoint);
 
             // Create Edges
             // IE-P1-T1_2a: has RT
@@ -238,12 +238,12 @@ public class CrwEventWizard implements EventWizardInt {
             eventSpec = new ReflectedEventSpecification(TaskStarted.class.getName());
             t1_2.addEventSpec(eventSpec);
             mSpec.updateEventSpecList(t1_2, eventSpec);
-            Point upperPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{1});
-            mSpec.addTransition(t1_2, upperPoint);
+            pPoint = DreaamHelper.getVertexFreePoint(vv, pPoint.getX(), pPoint.getY(), new int[]{1});
+            mSpec.addTransition(t1_2, pPoint);
             // P2
             Place p2 = new Place("Collect", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
-            graphPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{3});
-            mSpec.addPlace(p2, graphPoint);
+            pPoint = DreaamHelper.getVertexFreePoint(vv, pPoint.getX(), pPoint.getY(), new int[]{3});
+            mSpec.addPlace(p2, pPoint);
             // Create Edges
             // IE-P1-T1_2: has RT
             InEdge ie_P1_T1_2 = new InEdge(p1, t1_2, FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
@@ -260,12 +260,12 @@ public class CrwEventWizard implements EventWizardInt {
                 // T2_3n: Started
                 Transition t2_3n = new Transition("Started", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
                 mSpec.updateEventSpecList(t2_3n, eventSpec);
-                Point point = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{1});
+                Point point = DreaamHelper.getVertexFreePoint(vv, pPoint.getX(), pPoint.getY(), new int[]{1});
                 mSpec.addTransition(t2_3n, point);
                 // P3n
                 Place p3n = new Place("Begin task", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
-                graphPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{3});
-                mSpec.addPlace(p3n, graphPoint);
+                point = DreaamHelper.getVertexFreePoint(vv, point.getX(), point.getY(), new int[]{2});
+                mSpec.addPlace(p3n, pPoint);
                 // Create Edges
                 // IE-P1-T1_2: has RT
                 InEdge ie_P2_T2_3n = new InEdge(p2, t2_3n, FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
@@ -286,8 +286,6 @@ public class CrwEventWizard implements EventWizardInt {
             eventSpec = new ReflectedEventSpecification(eventClassname);
             p1.addEventSpec(eventSpec);
             mSpec.updateEventSpecList(p1, eventSpec);
-            graphPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{2});
-            mSpec.addPlace(p1, graphPoint);
 
             // Create a transition and for each IE and places for its OEs
             for (String ieClass : oeToParallelIe.get(eventClassname)) {
@@ -297,7 +295,7 @@ public class CrwEventWizard implements EventWizardInt {
                 eventSpec = new ReflectedEventSpecification(ieClass);
                 t1_2n.addEventSpec(eventSpec);
                 mSpec.updateEventSpecList(t1_2n, eventSpec);
-                Point point = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{1});
+                Point point = DreaamHelper.getVertexFreePoint(vv, pPoint.getX(), pPoint.getY(), new int[]{1});
                 mSpec.addTransition(t1_2n, point);
                 // Create Edges
                 // IE-P1-T1_2n: has RT
@@ -307,24 +305,23 @@ public class CrwEventWizard implements EventWizardInt {
                 // Create a place and for each IE's OEs
                 if (ieToParallelOe.containsKey(ieClass) && ieToParallelOe.get(ieClass).length > 0) {
                     for (String oeClass : ieToParallelOe.get(ieClass)) {
-                        // P2n
+                        // Create P2n and recurse
                         Place p2n = new Place("", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
-                        eventSpec = new ReflectedEventSpecification(oeClass);
-                        p2n.addEventSpec(eventSpec);
-                        mSpec.updateEventSpecList(p2n, eventSpec);
-                        graphPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{3});
-                        mSpec.addPlace(p2n, graphPoint);
-                        // OE-T2_3n-P3n: take RT
+                        point = DreaamHelper.getVertexFreePoint(vv, point.getX(), point.getY(), new int[]{3});
+                        mSpec.addPlace(p2n, point);
+                        // OE-T1_2n-P2n
                         OutEdge oe_T1_2n_P2n = new OutEdge(t1_2n, p2n, FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
                         mSpec.addEdge(oe_T1_2n_P2n, t1_2n, p2n);
+                        // Recurse
+                        runWizard(oeClass, mSpec, p2n, dsgGraph, layout, vv);
                     }
                 } else {
                     // If none, create an empty place
                     // P2n
                     Place p2n = new Place("", Vertex.FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
-                    graphPoint = DreaamHelper.getVertexFreePoint(vv, graphPoint.getX(), graphPoint.getY(), new int[]{3});
-                    mSpec.addPlace(p2n, graphPoint);
-                    // OE-T2_3n-P3n: take RT
+                    point = DreaamHelper.getVertexFreePoint(vv, point.getX(), point.getY(), new int[]{3});
+                    mSpec.addPlace(p2n, point);
+                    // OE-T1_2n-P2n
                     OutEdge oe_T1_2n_P2n = new OutEdge(t1_2n, p2n, FunctionMode.Nominal, Mediator.getInstance().getProject().getAndIncLastElementId());
                     mSpec.addEdge(oe_T1_2n_P2n, t1_2n, p2n);
                 }
