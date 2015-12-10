@@ -15,6 +15,13 @@ import sami.CoreHelper;
  * @author nbb
  */
 public class CrwHelper {
+    // For most of the interesting part of the planet, 1 degree latitude is something like 110,000m
+    // Longtitude varies a bit more, but 90,000m is a decent number for the purpose of this calculation
+    // See http://www.csgnetwork.com/degreelenllavcalc.html
+    public static final double LON_D_PER_M = 1.0 / 90000.0;
+    public static final double LAT_D_PER_M = 1.0 / 110000.0;
+    // Sending a waypoints list of size > 68 causes failure due to data size
+    public static final int MAX_SEGMENTS_PER_PROXY = 68;
 
     private static final Logger LOGGER = Logger.getLogger(CrwHelper.class.getName());
 

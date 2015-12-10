@@ -13,10 +13,11 @@ import java.util.logging.Logger;
  * @author nbb
  */
 public class Conversion {
+
     private final static Logger LOGGER = Logger.getLogger(Conversion.class.getName());
 
     public static Location latLonToLocation(LatLon latLon) {
-        if(latLon == null) {
+        if (latLon == null) {
             LOGGER.warning("NULL LatLon in Conversion.latLonToLocation");
             return null;
         }
@@ -24,7 +25,7 @@ public class Conversion {
     }
 
     public static Location positionToLocation(Position position) {
-        if(position == null) {
+        if (position == null) {
             LOGGER.warning("NULL Position in Conversion.latLonToLocation");
             return null;
         }
@@ -33,7 +34,7 @@ public class Conversion {
 
     public static Position locationToPosition(Location location) {
         UTMCoordinate utmCoordinate = location.getCoordinate();
-        if(utmCoordinate == null) {
+        if (utmCoordinate == null) {
             LOGGER.warning("NULL UTMCoordinate in Conversion.locationToPosition");
             return null;
         }
@@ -48,7 +49,7 @@ public class Conversion {
     }
 
     public static Position utmToPosition(UTMCoordinate utmCoordinate, double altitude) {
-        if(utmCoordinate == null) {
+        if (utmCoordinate == null) {
             LOGGER.warning("NULL UTMCoordinate in Conversion.utmToPosition");
             return null;
         }
@@ -60,6 +61,14 @@ public class Conversion {
                         utmCoordinate.getNorthing(),
                         null),
                 altitude);
+    }
+
+    public static UTMCoord utmCoordinateToUtmCoord(UTMCoordinate utmCoordinate) {
+        return UTMCoord.fromUTM(
+                Integer.parseInt(utmCoordinate.getZone().substring(0, utmCoordinate.getZone().length() - 1)),
+                (utmCoordinate.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH) ? AVKey.NORTH : AVKey.SOUTH),
+                utmCoordinate.getEasting(),
+                utmCoordinate.getNorthing());
     }
 
     // Linearly scale a value from one value range to another

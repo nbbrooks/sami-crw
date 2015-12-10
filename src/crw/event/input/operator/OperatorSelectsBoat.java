@@ -1,6 +1,5 @@
 package crw.event.input.operator;
 
-import crw.proxy.BoatProxy;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;

@@ -2,6 +2,9 @@ package crw.handler;
 
 import crw.Conversion;
 import crw.CrwHelper;
+import static crw.CrwHelper.LAT_D_PER_M;
+import static crw.CrwHelper.LON_D_PER_M;
+import static crw.CrwHelper.MAX_SEGMENTS_PER_PROXY;
 import crw.event.input.proxy.ProxyCreated;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.input.proxy.ProxyPathFailed;
@@ -83,13 +86,6 @@ import sami.service.information.InformationServiceProviderInt;
 public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, InformationServiceProviderInt, ProxyServerListenerInt {
 
     private static final Logger LOGGER = Logger.getLogger(ProxyEventHandler.class.getName());
-    // For most of the interesting part of the planet, 1 degree latitude is something like 110,000m
-    // Longtitude varies a bit more, but 90,000m is a decent number for the purpose of this calculation
-    // See http://www.csgnetwork.com/degreelenllavcalc.html
-    final double LON_D_PER_M = 1.0 / 90000.0;
-    final double LAT_D_PER_M = 1.0 / 110000.0;
-    // Sending a waypoints list of size > 68 causes failure due to data size
-    final int MAX_SEGMENTS_PER_PROXY = 68;
     ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
     int portCounter = 0;
@@ -717,7 +713,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             int direction = (assembleCounter - 1) % 8;
             int magnitude = (assembleCounter - 1) / 8 + 1;
             UTMCoordinate centerCoord = centerLocation.getCoordinate();
-            UTMCoordinate proxyCoord = new UTMCoordinate(centerCoord.getNorthing(), centerCoord.getEasting(), centerCoord.getZone());
+            UTMCoordinate proxyCoord = new UTMCoordinate(centerCoord.getEasting(), centerCoord.getNorthing(), centerCoord.getZone());
             switch (direction) {
                 case 0:
                     //  0: N
