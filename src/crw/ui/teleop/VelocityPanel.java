@@ -269,6 +269,7 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
             }
         } else if (!teleopEnabled) {
             // Stop listening to input devices
+            activeTeleopSource = null;
             for (TeleopSourceInt source : teleopSources) {
                 source.enable(false);
             }
