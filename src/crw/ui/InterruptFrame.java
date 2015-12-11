@@ -65,7 +65,8 @@ public class InterruptFrame extends UiFrame implements PlanManagerListenerInt, U
             InterruptPanel ir = new InterruptPanel(planManager, mSpec);
             pmToPanel.put(planManager, ir);
             getContentPane().add(ir, BorderLayout.CENTER);
-            this.revalidate();
+            revalidate();
+            repaint();
         }
     }
 
@@ -73,7 +74,8 @@ public class InterruptFrame extends UiFrame implements PlanManagerListenerInt, U
         if (pmToPanel.containsKey(planManager)) {
             getContentPane().remove(pmToPanel.get(planManager));
             pmToPanel.remove(planManager);
-            this.revalidate();
+            revalidate();
+            repaint();
         }
     }
 
