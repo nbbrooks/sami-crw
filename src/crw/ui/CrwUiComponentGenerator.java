@@ -1,5 +1,6 @@
 package crw.ui;
 
+import crw.event.output.proxy.BoatProxyId;
 import crw.ui.component.TextPanel;
 import crw.ui.component.WorldWindPanel;
 import java.awt.Component;
@@ -111,7 +112,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             }
         } else {
-            LOGGER.severe("Could not find creation component for object of type: " + type + " with markups: " + markups.toString());
+            LOGGER.info("Could not find creation component for object of type: " + type + " with markups: " + markups.toString());
         }
         return component;
     }
@@ -151,7 +152,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
                 Logger.getLogger(CrwUiComponentGenerator.class.getName()).log(Level.SEVERE, null, ex);
             }
         } else {
-            LOGGER.severe("Could not find selection component for object class: " + value.getClass().getSimpleName() + " with markups: " + markups.toString());
+            LOGGER.info("Could not find selection component for object class: " + value.getClass().getSimpleName() + " with markups: " + markups.toString());
         }
         return component;
     }
@@ -169,6 +170,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
     @Override
     public ArrayList<Class> getCreationClasses() {
         ArrayList<Class> creationClasses = new ArrayList<Class>();
+        creationClasses.add(BoatProxyId.class);
         for (Class compClass : componentClasses) {
             try {
                 MarkupComponent temp = (MarkupComponent) compClass.newInstance();

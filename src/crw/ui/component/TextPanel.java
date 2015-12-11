@@ -2,6 +2,7 @@ package crw.ui.component;
 
 import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
+import crw.event.output.proxy.BoatProxyId;
 import crw.proxy.BoatProxy;
 import crw.ui.ColorSlider;
 import dreaam.developer.UiComponentGenerator;
@@ -35,6 +36,7 @@ import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.MarkupComponentHelper;
 import sami.uilanguage.MarkupComponentWidget;
 import sami.uilanguage.MarkupManager;
+import sami.variable.VariableClass;
 import sami.variable.VariableName;
 
 /**
@@ -75,6 +77,7 @@ public class TextPanel implements MarkupComponent {
         supportedCreationClasses.add(Color.class);
         supportedCreationClasses.add(MissionPlanSpecification.class);
         supportedCreationClasses.add(VariableName.class);
+        supportedCreationClasses.add(VariableClass.class);
         // Visualization
         supportedSelectionClasses.add(String.class);
         supportedSelectionClasses.add(Double.class);
@@ -91,8 +94,10 @@ public class TextPanel implements MarkupComponent {
         supportedSelectionClasses.add(Color.class);
         supportedSelectionClasses.add(ResourceAllocation.class);
         supportedSelectionClasses.add(BoatProxy.class);
+        supportedSelectionClasses.add(BoatProxyId.class);
         supportedSelectionClasses.add(MissionPlanSpecification.class);
         supportedSelectionClasses.add(VariableName.class);
+        supportedSelectionClasses.add(VariableClass.class);
         // Markups
         supportedMarkups.add(Description.ShowPlanNameEnum.NO);
         supportedMarkups.add(Description.ShowPlanNameEnum.YES);
@@ -154,6 +159,13 @@ public class TextPanel implements MarkupComponent {
                     vector.add(o);
                 }
                 component = new JComboBox(vector);
+            } else if (objectClass.equals(VariableClass.class)) {
+                ArrayList<Class> creationClasses = UiComponentGenerator.getInstance().getCreationClasses();
+                ArrayList<VariableClass> variableClasses = new ArrayList<VariableClass>();
+                for (Class creationClass : creationClasses) {
+                    variableClasses.add(new VariableClass(creationClass));
+                }
+                component = new JComboBox(variableClasses.toArray());
             } else if (objectClass.equals(VariableName.class)) {
                 ArrayList<String> inScopeVariables;
                 if (pmScope != null) {
@@ -241,6 +253,13 @@ public class TextPanel implements MarkupComponent {
             component.setBorder(BorderFactory.createLineBorder(boatProxy.getColor(), 6));
             component.setForeground(boatProxy.getColor());
             component.setOpaque(true);
+        } else if (object instanceof BoatProxyId) {
+            BoatProxyId boatProxyId = (BoatProxyId) object;
+            component = new JLabel(boatProxyId.name);
+            component.setFont(new java.awt.Font("Lucida Grande", 1, 13));
+            component.setBorder(BorderFactory.createLineBorder(boatProxyId.color, 6));
+            component.setForeground(boatProxyId.color);
+            component.setOpaque(true);
         } else if (object instanceof Color) {
             component = new JPanel();
             component.setBackground((Color) object);
@@ -255,6 +274,8 @@ public class TextPanel implements MarkupComponent {
             component = new JLabel(((MissionPlanSpecification) object).getName());
         } else if (object instanceof VariableName) {
             component = new JLabel(((VariableName) object).variableName);
+        } else if (object instanceof VariableClass) {
+            component = new JLabel(((VariableClass) object).variableClass.getSimpleName());
         } else {
             component = new JLabel("No component found");
             LOGGER.severe("Could not selection component for object class: " + object.getClass().getSimpleName());
@@ -329,8 +350,12 @@ public class TextPanel implements MarkupComponent {
 
     @Override
     public boolean setComponentValue(Object value) {
+        if (value == null) {
+            LOGGER.warning("Tried to set component value to NULL");
+            return true;
+        }
         LOGGER.fine("setComponentValue: " + value + ", component: " + component);
-        boolean success = false;
+        boolean success = true;
         if (component instanceof JTextField) {
             ((JTextField) component).setText(value.toString());
         } else if (component instanceof JComboBox) {
@@ -341,6 +366,7 @@ public class TextPanel implements MarkupComponent {
             }
         } else {
             LOGGER.severe("Could not set component value for component: " + component + " and value class: " + value.getClass().getSimpleName());
+            success = false;
         }
         return success;
     }

@@ -19,6 +19,7 @@ import crw.event.output.connectivity.DisconnectServer;
 import crw.event.output.connectivity.ReconnectServer;
 import crw.event.output.proxy.BlockMovement;
 import crw.event.output.proxy.ConnectExistingProxy;
+import crw.event.output.proxy.ConnectExistingProxyId;
 import crw.event.output.proxy.CreateSimulatedProxy;
 import crw.event.output.service.AssembleLocationRequest;
 import crw.event.output.proxy.ProxyEmergencyAbort;
@@ -331,6 +332,20 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             ConnectExistingProxy connectEvent = (ConnectExistingProxy) oe;
             ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(connectEvent.name, connectEvent.color, CrwNetworkUtils.toInetSocketAddress(connectEvent.server));
             ImagePanel.setImagesDirectory(connectEvent.imageStorageDirectory);
+            if (proxy != null) {
+                ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), proxy);
+                ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                for (GeneratedEventListenerInt listener : listenersCopy) {
+                    listener.eventGenerated(proxyCreated);
+                }
+            } else {
+                LOGGER.severe("Failed to connect proxy");
+            }
+        } else if (oe instanceof ConnectExistingProxyId) {
+            // Connect to a non-simulated proxy
+            ConnectExistingProxyId connectEvent = (ConnectExistingProxyId) oe;
+            ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(connectEvent.boatProxyId.name, connectEvent.boatProxyId.color, CrwNetworkUtils.toInetSocketAddress(connectEvent.boatProxyId.server));
+            ImagePanel.setImagesDirectory(connectEvent.boatProxyId.imageStorageDirectory);
             if (proxy != null) {
                 ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), proxy);
                 ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();

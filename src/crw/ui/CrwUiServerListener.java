@@ -6,7 +6,9 @@ import crw.event.input.operator.OperatorCreatedArea;
 import crw.event.input.operator.OperatorRejectsAllocation;
 import crw.event.input.operator.OperatorRejectsPath;
 import crw.event.input.operator.OperatorSelectsBoat;
+import crw.event.input.operator.OperatorSelectsBoatId;
 import crw.event.input.operator.OperatorSelectsBoatList;
+import crw.uilanguage.message.fromui.BoatIdSelectedMessage;
 import crw.uilanguage.message.fromui.BoatProxyListSelectedMessage;
 import crw.uilanguage.message.fromui.BoatProxySelectedMessage;
 import java.lang.reflect.Field;
@@ -80,6 +82,8 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
             generatorEvent = new OperatorSelectsBoat(m.getRelevantOutputEventId(), m.getMissionId(), ((BoatProxySelectedMessage) m).getBoatProxy());
         } else if (m instanceof BoatProxyListSelectedMessage) {
             generatorEvent = new OperatorSelectsBoatList(m.getRelevantOutputEventId(), m.getMissionId(), ((BoatProxyListSelectedMessage) m).getBoatProxyList());
+        } else if (m instanceof BoatIdSelectedMessage) {
+            generatorEvent = new OperatorSelectsBoatId(m.getRelevantOutputEventId(), m.getMissionId(), ((BoatIdSelectedMessage) m).getBoatId());
         } else if (m instanceof ParamsSelectedMessage) {
             ParamsSelectedMessage psm = (ParamsSelectedMessage) m;
             generatorEvent = new MissingParamsReceived(psm.getRelevantOutputEventId(), psm.getMissionId(), psm.getEventSpecToFieldValues());
@@ -165,6 +169,7 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
                 || sub.getSubscriptionClass().equals(OperatorAcceptsPath.class)
                 || sub.getSubscriptionClass().equals(OperatorRejectsPath.class)
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoat.class)
+                || sub.getSubscriptionClass().equals(OperatorSelectsBoatId.class)
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoatList.class)
                 || sub.getSubscriptionClass().equals(MissingParamsReceived.class)
                 || sub.getSubscriptionClass().equals(YesOption.class)
@@ -193,6 +198,7 @@ public class CrwUiServerListener implements UiServerListenerInt, InformationServ
                 || sub.getSubscriptionClass().equals(OperatorAcceptsPath.class)
                 || sub.getSubscriptionClass().equals(OperatorRejectsPath.class)
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoat.class)
+                || sub.getSubscriptionClass().equals(OperatorSelectsBoatId.class)
                 || sub.getSubscriptionClass().equals(OperatorSelectsBoatList.class)
                 || sub.getSubscriptionClass().equals(MissingParamsReceived.class)
                 || sub.getSubscriptionClass().equals(YesOption.class)

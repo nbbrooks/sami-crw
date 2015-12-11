@@ -1,9 +1,11 @@
 package crw.uilanguage.message.fromui;
 
+import crw.event.output.proxy.BoatProxyId;
 import crw.proxy.BoatProxy;
 import crw.proxy.clickthrough.ClickthroughProxy;
 import crw.ui.CrwUiComponentGenerator;
 import crw.uilanguage.message.toui.AllocationOptionsMessage;
+import crw.uilanguage.message.toui.BoatIdOptionsMessage;
 import crw.uilanguage.message.toui.PathOptionsMessage;
 import crw.uilanguage.message.toui.ProxyOptionsMessage;
 import java.lang.reflect.Field;
@@ -26,7 +28,8 @@ import sami.uilanguage.fromui.VariablesDefinedMessage;
 import sami.uilanguage.fromui.YesNoSelectedMessage;
 import sami.uilanguage.toui.CreationMessage;
 import sami.uilanguage.toui.GetParamsMessage;
-import sami.uilanguage.toui.GetVariablesMessage;
+import sami.uilanguage.toui.RedefineVariablesMessage;
+import sami.uilanguage.toui.SelectVariableMessage;
 import sami.uilanguage.toui.SelectionMessage;
 import sami.uilanguage.toui.YesNoOptionsMessage;
 
@@ -52,7 +55,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
 
     @Override
     public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<ReflectedEventSpecification, Hashtable<Field, MarkupComponent>> eventSpecToComponentTable) {
-        if(eventSpecToComponentTable == null) {
+        if (eventSpecToComponentTable == null) {
             LOGGER.severe("Tried to create FromUIMessage from NULL eventSpecToComponentTable");
             return null;
         }
@@ -79,11 +82,10 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
         }
         return doneMessage;
     }
-    
 
     @Override
     public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<Field, MarkupComponent> fieldToComponentTable, int erasureThrowaway) {
-        if(fieldToComponentTable == null) {
+        if (fieldToComponentTable == null) {
             LOGGER.severe("Tried to create FromUIMessage from NULL fieldToComponentTable");
             return null;
         }
@@ -106,12 +108,12 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
 
     @Override
     public FromUiMessage getFromUiMessage(CreationMessage creationMessage, Hashtable<String, MarkupComponent> variableNameToComponentTable, int erasureThrowaway1, int erasureThrowaway2) {
-        if(variableNameToComponentTable == null) {
+        if (variableNameToComponentTable == null) {
             LOGGER.severe("Tried to create FromUIMessage from NULL variableNameToComponentTable");
             return null;
         }
         CreationDoneMessage doneMessage = null;
-        if (creationMessage instanceof GetVariablesMessage) {
+        if (creationMessage instanceof RedefineVariablesMessage) {
             LOGGER.fine("variableNameToComponentTable: " + variableNameToComponentTable);
             Hashtable<String, Object> variableToValue = new Hashtable<String, Object>();
             for (String variableName : variableNameToComponentTable.keySet()) {
@@ -156,7 +158,7 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                     ArrayList<ProxyInt> selectedProxies = new ArrayList<ProxyInt>();
                     for (Object object : list) {
                         if (object instanceof BoatProxy || object instanceof ClickthroughProxy) {
-                            selectedProxies.add((ProxyInt)object);
+                            selectedProxies.add((ProxyInt) object);
                         } else {
                             LOGGER.warning("List contained something other than BoatProxy and ClickthroughProxy!");
                         }
@@ -171,11 +173,26 @@ public class CrwFromUiMessageGenerator implements FromUiMessageGeneratorInt {
                     fromUiMessage = new BoatProxySelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (BoatProxy) option);
                 }
             }
+        } else if (selectionMessage instanceof BoatIdOptionsMessage) {
+            if (!selectionMessage.getAllowMultiple() && (option instanceof BoatProxyId || option == null)) {
+                // Single boat selection
+                if (option == null) {
+                    fromUiMessage = new BoatIdSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
+                } else {
+                    fromUiMessage = new BoatIdSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (BoatProxyId) option);
+                }
+            }
         } else if (selectionMessage instanceof YesNoOptionsMessage) {
             if (selectionMessage.getOptionsList().get(0) == option) {
                 fromUiMessage = new YesNoSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), true);
             } else {
                 fromUiMessage = new YesNoSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), false);
+            }
+        } else if (selectionMessage instanceof SelectVariableMessage) {
+            if (option == null) {
+                fromUiMessage = new VariableSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), null);
+            } else {
+                fromUiMessage = new VariableSelectedMessage(selectionMessage.getMessageId(), selectionMessage.getRelevantOutputEventId(), selectionMessage.getMissionId(), (String) option);
             }
         }
         if (fromUiMessage == null) {
