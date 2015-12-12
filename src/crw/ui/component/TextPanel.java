@@ -2,6 +2,7 @@ package crw.ui.component;
 
 import com.perc.mitpas.adi.common.datamodels.AbstractAsset;
 import com.perc.mitpas.adi.mission.planning.task.ITask;
+import crw.CrwHelper;
 import crw.event.output.proxy.BoatProxyId;
 import crw.proxy.BoatProxy;
 import crw.ui.ColorSlider;
@@ -252,6 +253,7 @@ public class TextPanel implements MarkupComponent {
             component.setFont(new java.awt.Font("Lucida Grande", 1, 13));
             component.setBorder(BorderFactory.createLineBorder(boatProxy.getColor(), 6));
             component.setForeground(boatProxy.getColor());
+            component.setBackground(CrwHelper.getContrastColor(boatProxy.getColor()));
             component.setOpaque(true);
         } else if (object instanceof BoatProxyId) {
             BoatProxyId boatProxyId = (BoatProxyId) object;

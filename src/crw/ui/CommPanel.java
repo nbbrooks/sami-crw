@@ -1,5 +1,6 @@
 package crw.ui;
 
+import crw.CrwHelper;
 import crw.proxy.BoatProxy;
 import crw.ui.widget.RobotWidget;
 import crw.ui.worldwind.WorldWindWidgetInt;
@@ -54,9 +55,13 @@ public class CommPanel extends JPanel implements UiClientListenerInt, ProxyServe
         if (proxy instanceof BoatProxy && !proxyToButton.containsKey(proxy)) {
             final BoatProxy boatProxy = (BoatProxy) proxy;
             // Create marker
-            JButton proxyLabel = new JButton(boatProxy.getProxyName());
-            proxyLabel.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, nominalColor));
-            proxyLabel.addActionListener(new ActionListener() {
+            JButton proxyB = new JButton(" " + boatProxy.getProxyName() + " ");
+            proxyB.setFont(new java.awt.Font("Lucida Grande", 1, 13));
+            proxyB.setForeground(boatProxy.getColor());
+            proxyB.setBackground(CrwHelper.getContrastColor(boatProxy.getColor()));
+            proxyB.setOpaque(true);
+            proxyB.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, nominalColor));
+            proxyB.addActionListener(new ActionListener() {
 
                 @Override
                 public void actionPerformed(ActionEvent e) {
@@ -64,18 +69,18 @@ public class CommPanel extends JPanel implements UiClientListenerInt, ProxyServe
                         LocalUiClientServer clientServer = (LocalUiClientServer) uiServer;
                         for (UiClientListenerInt client : clientServer.getUiClients()) {
                             if (client instanceof MapFrame) {
-                                MapFrame mf = (MapFrame)client;
-                                WorldWindWidgetInt widget =  mf.wwPanel.getWidget(RobotWidget.class);
-                                if(widget != null) {
-                                    ((RobotWidget)widget).manualSelectBoat(boatProxy);
+                                MapFrame mf = (MapFrame) client;
+                                WorldWindWidgetInt widget = mf.wwPanel.getWidget(RobotWidget.class);
+                                if (widget != null) {
+                                    ((RobotWidget) widget).manualSelectBoat(boatProxy);
                                 }
                             }
                         }
                     }
                 }
             });
-            proxyToButton.put(boatProxy, proxyLabel);
-            add(proxyLabel);
+            proxyToButton.put(boatProxy, proxyB);
+            add(proxyB);
         }
         revalidate();
     }

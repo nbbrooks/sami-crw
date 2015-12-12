@@ -15,6 +15,7 @@ import sami.CoreHelper;
  * @author nbb
  */
 public class CrwHelper {
+
     // For most of the interesting part of the planet, 1 degree latitude is something like 110,000m
     // Longtitude varies a bit more, but 90,000m is a decent number for the purpose of this calculation
     // See http://www.csgnetwork.com/degreelenllavcalc.html
@@ -96,12 +97,30 @@ public class CrwHelper {
         return false;
     }
 
+    /**
+     * Get a random color
+     *
+     * @return
+     */
     public static Color randomColor() {
         float r = CoreHelper.RANDOM.nextFloat();
         float g = CoreHelper.RANDOM.nextFloat();
         float b = CoreHelper.RANDOM.nextFloat();
 
         return new Color(r, g, b);
+    }
+
+    /**
+     * Provide a contrasting color for readable foreground/background
+     *
+     * @param color
+     * @return Contrast color
+     */
+    public static Color getContrastColor(Color color) {
+        // Based on formula at http://stackoverflow.com/questions/946544/good-text-foreground-color-for-a-given-background-color
+        int gray = (int) (color.getRed() * 0.299 + color.getGreen() * 0.587 + color.getBlue() * 0.114);
+        gray = gray > 200 ? 180 : 255;
+        return new Color(gray, gray, gray);
     }
 
     public static String colorToHtmlColor(Color color) {
