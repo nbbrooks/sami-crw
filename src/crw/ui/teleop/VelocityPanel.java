@@ -34,11 +34,14 @@ import javax.swing.JPanel;
 public class VelocityPanel extends JPanel implements VelocityListener, FocusListener, MouseMotionListener, ComponentListener {
 
     private static final Logger LOGGER = Logger.getLogger(VelocityPanel.class.getName());
+    // Fraction of vertical axis used for driving ESCs in reverse
+    private final double REVERSE_FRACTION = 0.2;
     // Last velocity received from the boat
     double recRudderFrac, recThrustFrac, vizRecRudderFrac, vizRecThrustFrac;
     Point origin = new Point();
     Point btmLeft = new Point();
-    double xAxisHalfWidth = -1, xAxisWidth = -1, yAxisHeight = -1;
+//    yAxisZeroHeight = -1, 
+    double xAxisHalfWidth = -1, xAxisWidth = -1, yAxisHeight = -1, yAxisForwardHeight, yAxisReverseHeight;
     boolean teleLock = false;
     String message = null;
     Hashtable map = new Hashtable();
@@ -49,14 +52,14 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
     public static final int DEFAULT_UPDATE_MS = 750;
     public static final int DEFAULT_COMMAND_MS = 200;
     // Ranges for thrust and rudder signals to send to vehicle server
-    public static final double VEH_THRUST_MIN = 0.0;
+    public static final double VEH_THRUST_MIN = -1.0;
     public static final double VEH_THRUST_MAX = 1.0;
     public static final double VEH_THRUST_ZERO = 0.0;
     public static final double VEH_RUDDER_MIN = 1.0; // Reversed to match +Z rotation.
     public static final double VEH_RUDDER_MAX = -1.0;
     public static final double VEH_RUDDER_CENTER = 0.0;
     // Ranges for thrust and rudder signals used for visualization
-    public static final double VIZ_THRUST_MIN = 0.0;
+    public static final double VIZ_THRUST_MIN = -1.0;
     public static final double VIZ_THRUST_MAX = 1.0;
     public static final double VIZ_RUDDER_MIN = 0.0;
     public static final double VIZ_RUDDER_MAX = 1.0;
@@ -119,26 +122,32 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
 
         int border = 30;
         origin.x = Math.max(d.width / 2, 0);
-        origin.y = Math.max(d.height - border / 2, 0);
+        origin.y = Math.max((int) (d.height * (1 - REVERSE_FRACTION) - border / 2), 0);
         btmLeft.x = Math.max(border / 2, 0);
         btmLeft.y = Math.max(d.height - border / 2, 0);
-        xAxisHalfWidth = Math.max((d.width - border) / 2, 2);
+        xAxisHalfWidth = Math.max((d.width - border) / 2, 1);
         xAxisWidth = Math.max(d.width - border, 2);
         yAxisHeight = Math.max(d.height - border, 2);
+        yAxisReverseHeight = Math.max((d.height - border) * REVERSE_FRACTION, 1);
+        yAxisForwardHeight = Math.max(yAxisHeight - yAxisReverseHeight, 1);
         updateDims = false;
     }
 
     private void paintBackground(Graphics2D g) {
         g.setPaint(Color.RED);
         g.setStroke(new BasicStroke(.3f));
+        // Horizontal zero forward/backward thrust line
         g.drawLine(btmLeft.x, origin.y,
                 btmLeft.x + (int) (xAxisWidth), origin.y);
-        g.drawLine(origin.x - (int) (xAxisHalfWidth), origin.y,
-                origin.x - (int) (xAxisHalfWidth), origin.y - (int) yAxisHeight);
-        g.drawLine(origin.x + (int) (xAxisHalfWidth), origin.y,
-                origin.x + (int) (xAxisHalfWidth), origin.y - (int) yAxisHeight);
-        g.drawLine(origin.x, origin.y,
-                origin.x, origin.y - (int) yAxisHeight);
+        // Vertical left border line
+        g.drawLine(origin.x - (int) (xAxisHalfWidth), btmLeft.y,
+                origin.x - (int) (xAxisHalfWidth), btmLeft.y - (int) yAxisHeight);
+        // Vertical right border line
+        g.drawLine(origin.x + (int) (xAxisHalfWidth), btmLeft.y,
+                origin.x + (int) (xAxisHalfWidth), btmLeft.y - (int) yAxisHeight);
+        // Vertical zero left/right rudder line
+        g.drawLine(origin.x, btmLeft.y,
+                origin.x, btmLeft.y - (int) yAxisHeight);
     }
 
     private void paintForce(Graphics2D g) {
@@ -151,8 +160,9 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
         double vizSendThrustFrac = Conversion.convertRange(robotWidget.telThrustFrac, VEH_THRUST_MIN, VEH_THRUST_MAX, VIZ_THRUST_MIN, VIZ_THRUST_MAX);
         double vizSendRudderFrac = Conversion.convertRange(robotWidget.telRudderFrac, VEH_RUDDER_MIN, VEH_RUDDER_MAX, VIZ_RUDDER_MIN, VIZ_RUDDER_MAX);
         g.setStroke(new BasicStroke(6.0f));
-        g.drawLine(btmLeft.x + (int) (vizSendRudderFrac * xAxisWidth), btmLeft.y,
-                btmLeft.x + (int) (vizSendRudderFrac * xAxisWidth), btmLeft.y - (int) (vizSendThrustFrac * yAxisHeight));
+        double vizSendThrustHeight = vizSendThrustFrac < 0 ? vizSendThrustFrac * yAxisReverseHeight : vizSendThrustFrac * yAxisForwardHeight;
+        g.drawLine(btmLeft.x + (int) (vizSendRudderFrac * xAxisWidth), origin.y,
+                btmLeft.x + (int) (vizSendRudderFrac * xAxisWidth), origin.y - (int) (vizSendThrustHeight));
         if (!teleLock) {
             g.setPaint(Color.RED);
         } else {
@@ -160,15 +170,16 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
         }
         g.setStroke(new BasicStroke(2.4f));
         g.drawOval(btmLeft.x + (int) (vizSendRudderFrac * xAxisWidth) - 6,
-                btmLeft.y - (int) (vizSendThrustFrac * yAxisHeight) - 6,
+                origin.y - (int) (vizSendThrustHeight) - 6,
                 12, 12);
         // Received value
         g.setPaint(Color.BLACK);
         g.setStroke(new BasicStroke(1.2f));
-        g.drawLine(btmLeft.x + (int) (vizRecRudderFrac * xAxisWidth), btmLeft.y,
-                btmLeft.x + (int) (vizRecRudderFrac * xAxisWidth), btmLeft.y - (int) (vizRecThrustFrac * yAxisHeight));
+        double vizRecThrustHeight = vizRecThrustFrac < 0 ? vizRecThrustFrac * yAxisReverseHeight : vizRecThrustFrac * yAxisForwardHeight;
+        g.drawLine(btmLeft.x + (int) (vizRecRudderFrac * xAxisWidth), origin.y,
+                btmLeft.x + (int) (vizRecRudderFrac * xAxisWidth), origin.y - (int) (vizRecThrustHeight));
         g.drawOval(btmLeft.x + (int) (vizRecRudderFrac * xAxisWidth) - 3,
-                btmLeft.y - (int) (vizRecThrustFrac * yAxisHeight) - 3,
+                origin.y - (int) (vizRecThrustHeight) - 3,
                 6, 6);
     }
 

@@ -27,9 +27,9 @@ public class KeyboardController implements KeyListener, TeleopSourceInt {
     // How much to adjust rudder and thrust values for timer input when no user input was received
     private static final double PASSIVE_AMOUNT = 0.02;
     // Ranges for this controller for thrust and rudder signals
-    private static final double CTLR_THRUST_MIN = 0.0;
+    private static final double CTLR_THRUST_MIN = -1.0;
     private static final double CTLR_THRUST_MAX = 1.0;
-    private static final double CTLR_THRUST_ZERO = 0.5;
+    private static final double CTLR_THRUST_ZERO = 0.0;
     private static final double CTLR_RUDDER_MIN = 0.0;
     private static final double CTLR_RUDDER_MAX = 1.0;
     private static final double CTLR_RUDDER_CENTER = 0.5;
@@ -120,8 +120,12 @@ public class KeyboardController implements KeyListener, TeleopSourceInt {
             // Down: Decrease velocity
             telThrustFrac = Math.max(telThrustFrac - ACTIVE_AMOUNT, CTLR_THRUST_MIN);
         } else if (!keyArray[0] && !keyArray[1]) {
-            // Neither up nor down: slowly decrease velocity
-            telThrustFrac = Math.max(telThrustFrac - PASSIVE_AMOUNT, CTLR_THRUST_MIN);
+            // Neither up nor down: slow down
+            if (telThrustFrac < CTLR_THRUST_ZERO) {
+                telThrustFrac = Math.min(telThrustFrac + PASSIVE_AMOUNT, CTLR_THRUST_ZERO);
+            } else if (telThrustFrac > CTLR_THRUST_ZERO) {
+                telThrustFrac = Math.max(telThrustFrac - PASSIVE_AMOUNT, CTLR_THRUST_ZERO);
+            }
         }
         // Update rudder
         if (keyArray[2] && !keyArray[3]) {

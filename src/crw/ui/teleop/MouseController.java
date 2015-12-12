@@ -8,18 +8,18 @@ import javax.swing.SwingUtilities;
 
 /**
  * Mouse teleoperation control by dragging mouse on VelocityPanel visualization
- * 
- * mouse drag: steer rudder and adjust throttle
- * CMD + mouse click: lock rudder and thrust value with clicked value
- * 
+ *
+ * mouse drag: steer rudder and adjust throttle CMD + mouse click: lock rudder
+ * and thrust value with clicked value
+ *
  * @author nbb
  */
 public class MouseController implements MouseListener, MouseMotionListener, TeleopSourceInt {
 
     // Ranges for this controller for thrust and rudder signals
-    private static final double CTLR_THRUST_MIN = 0.0;
+    private static final double CTLR_THRUST_MIN = -1.0;
     private static final double CTLR_THRUST_MAX = 1.0;
-    private static final double CTLR_THRUST_ZERO = 0.5;
+    private static final double CTLR_THRUST_ZERO = 0.0;
     private static final double CTLR_RUDDER_MIN = 0.0;
     private static final double CTLR_RUDDER_MAX = 1.0;
     private static final double CTLR_RUDDER_CENTER = 0.5;
@@ -64,7 +64,7 @@ public class MouseController implements MouseListener, MouseMotionListener, Tele
             velocityPanel.setVelocityFractions(telRudderFrac, telThrustFrac, true, this);
         } else {
             telRudderFrac = CTLR_RUDDER_CENTER;
-            telThrustFrac = CTLR_THRUST_MIN;
+            telThrustFrac = CTLR_THRUST_ZERO;
             double adjTelRudderFrac = Conversion.convertRange(telRudderFrac, CTLR_RUDDER_MIN, CTLR_RUDDER_MAX, VelocityPanel.VEH_RUDDER_MIN, VelocityPanel.VEH_RUDDER_MAX);
             double adjTelThrustFrac = Conversion.convertRange(telThrustFrac, CTLR_THRUST_MIN, CTLR_THRUST_MAX, VelocityPanel.VEH_THRUST_MIN, VelocityPanel.VEH_THRUST_MAX);
             velocityPanel.setVelocityFractions(adjTelRudderFrac, adjTelThrustFrac, this);
@@ -77,7 +77,13 @@ public class MouseController implements MouseListener, MouseMotionListener, Tele
             return;
         }
         telRudderFrac = Math.max(Math.min((e.getX() - velocityPanel.btmLeft.x) / velocityPanel.xAxisWidth, CTLR_RUDDER_MAX), CTLR_RUDDER_MIN);
-        telThrustFrac = Math.max(Math.min((velocityPanel.btmLeft.y - e.getY()) / velocityPanel.yAxisHeight, CTLR_THRUST_MAX), CTLR_THRUST_MIN);
+        if (e.getY() > velocityPanel.origin.y) {
+            // Mouse point is below zero thrust line -> reverse
+            telThrustFrac = Math.max(Math.min((velocityPanel.origin.y - e.getY()) / velocityPanel.yAxisReverseHeight, CTLR_THRUST_MAX), CTLR_THRUST_MIN);
+        } else {
+            // Mouse point is at/above zero thrust line -> forward
+            telThrustFrac = Math.max(Math.min((velocityPanel.origin.y - e.getY()) / velocityPanel.yAxisForwardHeight, CTLR_THRUST_MAX), CTLR_THRUST_MIN);
+        }
         double adjTelRudderFrac = Conversion.convertRange(telRudderFrac, CTLR_RUDDER_MIN, CTLR_RUDDER_MAX, VelocityPanel.VEH_RUDDER_MIN, VelocityPanel.VEH_RUDDER_MAX);
         double adjTelThrustFrac = Conversion.convertRange(telThrustFrac, CTLR_THRUST_MIN, CTLR_THRUST_MAX, VelocityPanel.VEH_THRUST_MIN, VelocityPanel.VEH_THRUST_MAX);
         velocityPanel.setVelocityFractions(adjTelRudderFrac, adjTelThrustFrac, this);
