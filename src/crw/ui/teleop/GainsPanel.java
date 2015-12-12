@@ -1,8 +1,8 @@
 package crw.ui.teleop;
 
+import com.platypus.crw.AsyncVehicleServer;
+import com.platypus.crw.FunctionObserver;
 import crw.proxy.BoatProxy;
-import edu.cmu.ri.crw.AsyncVehicleServer;
-import edu.cmu.ri.crw.FunctionObserver;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;

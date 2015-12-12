@@ -1,7 +1,7 @@
 package crw.general;
 
+import com.platypus.crw.data.UtmPose;
 import crw.ui.ImagePanel;
-import edu.cmu.ri.crw.data.UtmPose;
 import java.awt.image.BufferedImage;
 
 /**

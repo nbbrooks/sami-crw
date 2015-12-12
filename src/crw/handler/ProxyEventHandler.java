@@ -1,5 +1,11 @@
 package crw.handler;
 
+import com.platypus.crw.CrwNetworkUtils;
+import com.platypus.crw.FunctionObserver;
+import com.platypus.crw.VehicleServer;
+import com.platypus.crw.data.Utm;
+import com.platypus.crw.data.UtmPose;
+import com.platypus.crw.udp.UdpVehicleService;
 import crw.Conversion;
 import crw.CrwHelper;
 import static crw.CrwHelper.LAT_D_PER_M;
@@ -30,7 +36,6 @@ import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyGotoPointAndBlock;
 import crw.event.output.proxy.ProxyResendWaypoints;
 import crw.event.output.proxy.SetGains;
-import crw.event.output.proxy.SetVelocityMultiplier;
 import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
@@ -38,12 +43,6 @@ import crw.proxy.clickthrough.ClickthroughProxy;
 import crw.ui.ImagePanel;
 import static crw.ui.teleop.GainsPanel.RUDDER_GAINS_AXIS;
 import static crw.ui.teleop.GainsPanel.THRUST_GAINS_AXIS;
-import edu.cmu.ri.crw.CrwNetworkUtils;
-import edu.cmu.ri.crw.FunctionObserver;
-import edu.cmu.ri.crw.VehicleServer;
-import edu.cmu.ri.crw.data.Utm;
-import edu.cmu.ri.crw.data.UtmPose;
-import edu.cmu.ri.crw.udp.UdpVehicleService;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
@@ -459,43 +458,6 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "Place with ProxyBlockMovement has no tokens with proxies attached: " + oe);
-            }
-        } else if (oe instanceof SetVelocityMultiplier) {
-            final SetVelocityMultiplier setVelocityMultiplier = (SetVelocityMultiplier) oe;
-            ArrayList<InputEvent> responses = new ArrayList<InputEvent>();
-
-            int numBoatProxies = 0;
-            // @todo Grouped or individual GainsSent result?
-            for (Token token : tokens) {
-                if (token.getProxy() != null && token.getProxy() instanceof BoatProxy) {
-                    numBoatProxies++;
-
-                    BoatProxy boatProxy = (BoatProxy) token.getProxy();
-                    boatProxy.getVehicleServer().setVelocityMultiplier(setVelocityMultiplier.velocityMultiplier, new FunctionObserver<Void>() {
-                        public void completed(Void v) {
-                            LOGGER.fine("Set velocity multipliersucceeded: Multiplier [" + setVelocityMultiplier.velocityMultiplier + "]");
-                        }
-
-                        public void failed(FunctionObserver.FunctionError fe) {
-                            LOGGER.severe("Set thrust gains failed: Multiplier [" + setVelocityMultiplier.velocityMultiplier + "]");
-                        }
-                    });
-
-                    //@todo add in recognition of async success or failure
-                    // SetGainsSucceeded
-                    // SetGainsFailed
-                }
-            }
-            if (numBoatProxies == 0) {
-                LOGGER.log(Level.WARNING, "Place with SetVelocityMultiplier has no tokens with boat proxies attached: " + oe + ", tokens [" + tokens + "]");
-            }
-
-            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
-            for (GeneratedEventListenerInt listener : listenersCopy) {
-                for (InputEvent response : responses) {
-                    LOGGER.log(Level.FINE, "\tSending response: " + response + " to listener: " + listener);
-                    listener.eventGenerated(response);
-                }
             }
         } else if (oe instanceof ProxyExecutePath
                 || oe instanceof ProxyEmergencyAbort

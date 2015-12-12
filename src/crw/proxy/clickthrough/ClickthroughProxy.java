@@ -1,20 +1,19 @@
 package crw.proxy.clickthrough;
 
 import com.perc.mitpas.adi.mission.planning.task.Task;
+import com.platypus.crw.data.Utm;
+import com.platypus.crw.data.UtmPose;
 import crw.Conversion;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.output.proxy.ProxyEmergencyAbort;
 import crw.event.output.proxy.ProxyExecutePath;
 import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyResendWaypoints;
-import edu.cmu.ri.crw.data.Utm;
-import edu.cmu.ri.crw.data.UtmPose;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;

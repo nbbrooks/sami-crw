@@ -1,12 +1,12 @@
 package crw.ui;
 
+import com.platypus.crw.CrwNetworkUtils;
+import com.platypus.crw.VehicleServer;
+import com.platypus.crw.data.Utm;
+import com.platypus.crw.data.UtmPose;
+import com.platypus.crw.udp.UdpVehicleService;
 import crw.CrwHelper;
 import crw.general.FastSimpleBoatSimulator;
-import edu.cmu.ri.crw.CrwNetworkUtils;
-import edu.cmu.ri.crw.VehicleServer;
-import edu.cmu.ri.crw.data.Utm;
-import edu.cmu.ri.crw.data.UtmPose;
-import edu.cmu.ri.crw.udp.UdpVehicleService;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
 import java.awt.Color;
@@ -15,8 +15,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.net.InetSocketAddress;
 import java.security.AccessControlException;
-import java.util.Random;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import javax.swing.JColorChooser;

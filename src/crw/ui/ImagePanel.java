@@ -5,10 +5,10 @@
  */
 package crw.ui;
 
+import com.platypus.crw.data.UtmPose;
 import crw.proxy.CrwProxyServer;
 import sami.engine.Engine;
 import crw.general.BufferedImageWithPose;
-import edu.cmu.ri.crw.data.UtmPose;
 import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
 import java.io.File;

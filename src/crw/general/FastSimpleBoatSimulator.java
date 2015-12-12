@@ -1,12 +1,14 @@
 package crw.general;
 
-import edu.cmu.ri.crw.SensorListener;
-import edu.cmu.ri.crw.SimpleBoatController;
-import edu.cmu.ri.crw.SimpleBoatSimulator;
-import edu.cmu.ri.crw.VehicleController;
-import edu.cmu.ri.crw.VehicleServer;
-import edu.cmu.ri.crw.data.Twist;
-import edu.cmu.ri.crw.data.UtmPose;
+import com.platypus.crw.SensorListener;
+import com.platypus.crw.SimpleBoatController;
+import com.platypus.crw.SimpleBoatSimulator;
+import static com.platypus.crw.SimpleBoatSimulator.UPDATE_INTERVAL_MS;
+import com.platypus.crw.VehicleController;
+import com.platypus.crw.VehicleServer;
+import com.platypus.crw.VehicleServer.WaypointState;
+import com.platypus.crw.data.Twist;
+import com.platypus.crw.data.UtmPose;
 import java.util.Arrays;
 import java.util.TimerTask;
 import java.util.logging.Logger;

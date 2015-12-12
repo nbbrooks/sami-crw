@@ -999,12 +999,14 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                     Position pos = Conversion.locationToPosition(l);
                     writer.write("P\n");
                     writer.write(pos.latitude.toDecimalDegreesString(10).replace("°", "") + "," + pos.longitude.toDecimalDegreesString(10).replace("°", "") + "\n");
+                    //writer.write(l.getCoordinate().getEasting() + ", " + l.getCoordinate().getNorthing() + "\n");
                 }
                 for (ArrayList<Location> line : linePoints) {
                     writer.write("L\n");
                     for (Location l : line) {
                         Position pos = Conversion.locationToPosition(l);
                         writer.write(pos.latitude.toDecimalDegreesString(10).replace("°", "") + "," + pos.longitude.toDecimalDegreesString(10).replace("°", "") + "\n");
+                        //writer.write(l.getCoordinate().getEasting() + ", " + l.getCoordinate().getNorthing() + "\n");
                     }
                 }
                 for (ArrayList<Location> area : areaPoints) {
@@ -1012,6 +1014,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                     for (Location l : area) {
                         Position pos = Conversion.locationToPosition(l);
                         writer.write(pos.latitude.toDecimalDegreesString(10).replace("°", "") + "," + pos.longitude.toDecimalDegreesString(10).replace("°", "") + "\n");
+                        //writer.write(l.getCoordinate().getEasting() + ", " + l.getCoordinate().getNorthing() + "\n");
                     }
                 }
                 writer.close();
@@ -1062,13 +1065,13 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                             // Immediately read in a point
                             String latLon = br.readLine();
                             if (latLon == null) {
-                                LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
+                                LOGGER.severe("Failed to process line from environment properties geometry import: \"" + latLon + "\"");
                                 line = br.readLine();
                                 continue;
                             }
                             int split = latLon.indexOf(",");
                             if (split == -1) {
-                                LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
+                                LOGGER.severe("Failed to process line from environment properties geometry import: \"" + latLon + "\"");
                                 line = br.readLine();
                                 continue;
                             }
@@ -1081,7 +1084,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                                 AnnotatedMarker circle = new AnnotatedMarker(position, UNSEL_MARKER_ATTR);
                                 markers.add(circle);
                             } catch (NumberFormatException ex) {
-                                LOGGER.severe("Failed to process line from environment properties geometry import: " + latLon);
+                                LOGGER.severe("Failed to process line from environment properties geometry import: \"" + latLon + "\"");
                             }
                             selectedPositions = new ArrayList<Position>();
                             polyline = null;
@@ -1101,7 +1104,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                         } else {
                             int split = line.indexOf(',');
                             if (split == -1) {
-                                LOGGER.severe("Failed to process line from environment properties geometry import: " + line);
+                                LOGGER.severe("Failed to process line from environment properties geometry import: \"" + line + "\"");
                                 line = br.readLine();
                                 continue;
                             }
@@ -1140,7 +1143,7 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                                         break;
                                 }
                             } catch (NumberFormatException ex) {
-                                LOGGER.severe("Failed to process line from environment properties geometry import: " + line);
+                                LOGGER.severe("Failed to process line from environment properties geometry import: \"" + line + "\"");
                             }
                         }
                         line = br.readLine();

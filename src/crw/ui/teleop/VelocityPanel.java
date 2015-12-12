@@ -1,11 +1,11 @@
 package crw.ui.teleop;
 
+import com.platypus.crw.AsyncVehicleServer;
+import com.platypus.crw.FunctionObserver;
+import com.platypus.crw.VelocityListener;
+import com.platypus.crw.data.Twist;
 import crw.Conversion;
 import crw.ui.widget.RobotWidget;
-import edu.cmu.ri.crw.AsyncVehicleServer;
-import edu.cmu.ri.crw.FunctionObserver;
-import edu.cmu.ri.crw.VelocityListener;
-import edu.cmu.ri.crw.data.Twist;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;

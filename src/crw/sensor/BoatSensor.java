@@ -1,14 +1,14 @@
 package crw.sensor;
 
+import com.platypus.crw.SensorListener;
+import com.platypus.crw.VehicleServer;
+import com.platypus.crw.data.SensorData;
 import crw.proxy.BoatProxy;
 import sami.event.OutputEvent;
 import sami.path.Location;
 import sami.sensor.Observation;
 import sami.sensor.ObservationListenerInt;
 import sami.sensor.ObserverInt;
-import edu.cmu.ri.crw.SensorListener;
-import edu.cmu.ri.crw.VehicleServer;
-import edu.cmu.ri.crw.data.SensorData;
 import gov.nasa.worldwind.geom.Position;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -71,7 +71,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
 
                             // @todo Observation
                             if (CoreHelper.RANDOM.nextBoolean()) {
-                                sd.type = VehicleServer.SensorType.TE;
+                                sd.type = VehicleServer.SensorType.HDS_TEMP;
                             } else {
                                 sd.type = VehicleServer.SensorType.UNKNOWN;
                             }

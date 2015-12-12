@@ -1,5 +1,7 @@
 package crw.ui.widget;
 
+import com.platypus.crw.AsyncVehicleServer;
+import com.platypus.crw.data.Twist;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.event.output.proxy.ProxyExecutePath;
@@ -8,8 +10,6 @@ import crw.ui.worldwind.BoatMarker;
 import crw.ui.VideoFeedPanel;
 import crw.ui.teleop.GainsPanel;
 import crw.ui.teleop.VelocityPanel;
-import edu.cmu.ri.crw.AsyncVehicleServer;
-import edu.cmu.ri.crw.data.Twist;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.event.SelectEvent;
 import gov.nasa.worldwind.event.SelectListener;
