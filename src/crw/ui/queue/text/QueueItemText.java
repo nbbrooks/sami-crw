@@ -14,6 +14,8 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,8 +30,11 @@ import javax.swing.border.EmptyBorder;
 import sami.engine.Engine;
 import sami.event.ReflectedEventSpecification;
 import sami.logging.Recorder;
+import sami.markup.DefaultSelection;
 import sami.markup.Description;
+import sami.markup.FilterOptions;
 import sami.markup.Markup;
+import sami.markup.SortOptions;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.fromui.FromUiMessage;
 import sami.uilanguage.toui.CreationMessage;
@@ -59,6 +64,16 @@ public class QueueItemText {
     protected QueueContent content = null;
     protected MarkupManager markupManager = null;
     final JButton doneButton = new JButton();
+
+    private static Comparator<Object> ALPHABETICAL_ORDER = new Comparator<Object>() {
+        public int compare(Object obj1, Object obj2) {
+            int res = String.CASE_INSENSITIVE_ORDER.compare(obj1.toString(), obj2.toString());
+            if (res == 0) {
+                res = obj1.toString().compareTo(obj2.toString());
+            }
+            return res;
+        }
+    };
 
     public QueueItemText(ToUiMessage decisionMessage, ActionListener listener) {
         this.decisionMessage = decisionMessage;
@@ -243,9 +258,31 @@ public class QueueItemText {
                 content.revalidate();
             } else if (decisionMessage instanceof SelectionMessage) {
                 SelectionMessage selectionMessage = (SelectionMessage) decisionMessage;
+                boolean defaultSelectAll = false;
+                String filterText = null;
+                boolean includeMatches = false;
+                boolean alphabetize = false;
+
+                for (Markup markup : decisionMessage.getMarkups()) {
+                    if (markup instanceof DefaultSelection && ((DefaultSelection) markup).selection == DefaultSelection.Selection.ALL) {
+                        defaultSelectAll = true;
+                    } else if (markup instanceof SortOptions && ((SortOptions) markup).sortOrderEnum == SortOptions.SortMethodEnum.ALPHABETICAL) {
+                        alphabetize = true;
+                        Collections.sort(selectionMessage.getOptionsList(), ALPHABETICAL_ORDER);
+                    } else if (markup instanceof FilterOptions && ((FilterOptions) markup).filterMethodEnum == FilterOptions.FilterMethodEnum.TEXT) {
+                        filterText = ((FilterOptions) markup).textOption.text;
+                        includeMatches = ((FilterOptions) markup).includeMatchEnum == FilterOptions.IncludeMatchEnum.INCLUDE;
+                    }
+                }
 
                 int row = 0;
                 for (final Object option : selectionMessage.getOptionsList()) {
+                    if (filterText != null) {
+                        boolean filterMatch = option.toString().contains(filterText);
+                        if ((includeMatches && !filterMatch) || (!includeMatches && filterMatch)) {
+                            continue;
+                        }
+                    }
                     MarkupComponent markupComponent = CrwUiComponentGenerator.getInstance().getSelectionComponent(option.getClass(), option, selectionMessage.getMarkups(), null, Engine.getInstance().getPlanManager(selectionMessage.getMissionId()));
                     JComponent visualization;
                     if (markupComponent != null) {
@@ -258,6 +295,10 @@ public class QueueItemText {
                     JComponent button;
                     if (selectionMessage.getAllowMultiple()) {
                         button = new JCheckBox("Use " + row, false);
+                        if (defaultSelectAll) {
+                            ((JCheckBox) button).setSelected(true);
+                            optionList.add(option);
+                        }
                         button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
                         ((JCheckBox) button).addItemListener(new ItemListener() {
                             @Override
