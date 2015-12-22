@@ -27,6 +27,9 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import sami.markup.Priority;
+import static sami.markup.Priority.Ranking.CRITICAL;
+import static sami.markup.Priority.Ranking.LOW;
 import sami.uilanguage.MarkupManager;
 import sami.uilanguage.toui.ToUiMessage;
 
@@ -215,6 +218,7 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
      * @param val the number of items to move by
      */
     private void updateIndex(int val) {
+//        System.out.println("### updateIndex " + val);
         synchronized (loadedMessages) {
             index += val;
             if (index < 0) {
@@ -230,6 +234,12 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
             }
             // If we don't have at least ITEMS_PER_FETCH left after the current index, get some more items
 //            LOGGER.info("UpdateIndex: Image index=" + index);
+
+            // Create queue items for each fetched message
+            // Keep track of relative imporance of items as we may change the currently viewed item
+            int criticalIndex = -1;
+            int highestIndex = -1;
+            int highestPriority = -1;
             int imagesLeft = loadedMessages.size() - index;
             if (imagesLeft < ITEMS_PER_FETCH) {
                 int fetched = queueDatabase.getHighPriorityInteractions(loadedMessages, ITEMS_PER_FETCH);
@@ -237,12 +247,37 @@ public class DecisionQueuePanel extends JPanel implements QueuePanelInt, MouseWh
                 // Create the components for the newly loaded messages
                 for (int i = 1; i <= fetched; i++) {
                     ToUiMessage message = loadedMessages.get(loadedMessages.size() - i);
+                    if (loadedMessages.get(loadedMessages.size() - i).getPriority() == Priority.priorityToInt.get(CRITICAL)) {
+                        // This message is of critical importance
+                        criticalIndex = loadedMessages.size() - i;
+                        highestIndex = loadedMessages.size() - i;
+                        highestPriority = Priority.priorityToInt.get(CRITICAL);
+                    } else if (loadedMessages.get(loadedMessages.size() - i).getPriority() > highestPriority) {
+                        highestIndex = loadedMessages.size() - i;
+                        highestPriority = loadedMessages.get(loadedMessages.size() - i).getPriority();
+                    }
                     MarkupManager manager = queueDatabase.getParent(message);
                     messageToItem.put(message, new QueueItemText(message, componentListener, manager));
                 }
             }
+            if (currentMessage != null && currentMessage.getPriority() != Priority.priorityToInt.get(CRITICAL) && criticalIndex != -1) {
+                // The currently viewed message is not critical and we have received a critical message
+                //  Switch the viewed message to the critical one as if we had clicked on its thumbnail
+                index = criticalIndex;
+                setCurrentComponent(criticalIndex);
+                createImageIcon();
+                repaint();
+            } else if (currentMessage != null && currentMessage.getPriority() == Priority.priorityToInt.get(LOW) && highestIndex != -1) {
+                // The currently viewed message is of low importance and we have received message of greater than low importance
+                //  Switch the viewed message to the non-low one as if we had clicked on its thumbnail
+                index = highestIndex;
+                setCurrentComponent(highestIndex);
+                createImageIcon();
+                repaint();
+            }
         }
     }
+
     ActionListener thumbnailListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {

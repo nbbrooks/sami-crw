@@ -241,7 +241,6 @@ public class RobotTrackWidget implements MarkupComponentWidget, WorldWindWidgetI
         //
         // Markups
         supportedMarkups.add(RelevantProxy.ShowPaths.YES);
-        supportedMarkups.add(RelevantProxy.ShowPaths.NO);
     }
 
     @Override

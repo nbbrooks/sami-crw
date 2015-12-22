@@ -216,6 +216,10 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
      * @param w the widget to be added.
      */
     public void addWidget(WorldWindWidgetInt w) {
+        if (w == null) {
+            LOGGER.severe("Tried to add NULL WorlWindWidgetInt");
+            return;
+        }
         widgetList.add(w);
     }
 
@@ -253,7 +257,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         widgetClasses.add(RobotWidget.class);
         widgetClasses.add(SelectGeometryWidget.class);
         widgetClasses.add(SensorDataWidget.class);
-        widgetClasses.add(SensorDataWidget.class);
+//        widgetClasses.add(SensorDataQuadtreeWidget.class);
         // Creation
         supportedCreationClasses.add(ViewArea.class);
         supportedCreationClasses.add(ViewPoint.class);
@@ -339,45 +343,60 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     public Object getComponentValue(Class componentClass) {
         Object value = null;
         if (componentClass.equals(Location.class)) {
-            MarkerLayer layer = (MarkerLayer) wwCanvas.getModel().getLayers().getLayerByName("Marker Layer");
-            Marker position = null;
-            for (Marker marker : layer.getMarkers()) {
-                if (marker instanceof Marker) {
-                    position = (Marker) marker;
+            for (int i = 0; i < wwCanvas.getModel().getLayers().size(); i++) {
+                Layer tempLayer = wwCanvas.getModel().getLayers().get(i);
+                if (tempLayer instanceof MarkerLayer) {
+                    MarkerLayer layer = (MarkerLayer) tempLayer;
+                    Marker position = null;
+                    for (Marker marker : layer.getMarkers()) {
+                        if (marker instanceof Marker) {
+                            position = (Marker) marker;
+                        }
+                    }
+                    if (position != null) {
+                        value = Conversion.positionToLocation(position.getPosition());
+                    }
                 }
-            }
-            if (position != null) {
-                value = Conversion.positionToLocation(position.getPosition());
             }
         } else if (componentClass.equals(PathUtm.class)) {
-            RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
-            Path path = null;
-            for (Renderable renderable : layer.getRenderables()) {
-                if (renderable instanceof Path) {
-                    path = (Path) renderable;
+            for (int i = 0; i < wwCanvas.getModel().getLayers().size(); i++) {
+                Layer tempLayer = wwCanvas.getModel().getLayers().get(i);
+                if (tempLayer instanceof RenderableLayer) {
+                    RenderableLayer layer = (RenderableLayer) tempLayer;
+                    Path path = null;
+                    for (Renderable renderable : layer.getRenderables()) {
+                        if (renderable instanceof Path) {
+                            path = (Path) renderable;
+                        }
+                    }
+                    if (path != null) {
+                        ArrayList<Location> locationList = new ArrayList<Location>();
+                        for (Position position : path.getPositions()) {
+                            locationList.add(Conversion.positionToLocation(position));
+                        }
+                        value = new PathUtm(locationList);
+                    }
                 }
-            }
-            if (path != null) {
-                ArrayList<Location> locationList = new ArrayList<Location>();
-                for (Position position : path.getPositions()) {
-                    locationList.add(Conversion.positionToLocation(position));
-                }
-                value = new PathUtm(locationList);
             }
         } else if (componentClass.equals(Area2D.class)) {
-            RenderableLayer layer = (RenderableLayer) wwCanvas.getModel().getLayers().getLayerByName("Renderable");
-            SurfacePolygon area = null;
-            for (Renderable renderable : layer.getRenderables()) {
-                if (renderable instanceof SurfacePolygon) {
-                    area = (SurfacePolygon) renderable;
+            for (int i = 0; i < wwCanvas.getModel().getLayers().size(); i++) {
+                Layer tempLayer = wwCanvas.getModel().getLayers().get(i);
+                if (tempLayer instanceof RenderableLayer) {
+                    RenderableLayer layer = (RenderableLayer) tempLayer;
+                    SurfacePolygon area = null;
+                    for (Renderable renderable : layer.getRenderables()) {
+                        if (renderable instanceof SurfacePolygon) {
+                            area = (SurfacePolygon) renderable;
+                        }
+                    }
+                    if (area != null) {
+                        ArrayList<Location> locationList = new ArrayList<Location>();
+                        for (LatLon latLon : area.getLocations()) {
+                            locationList.add(Conversion.latLonToLocation(latLon));
+                        }
+                        value = new Area2D(locationList);
+                    }
                 }
-            }
-            if (area != null) {
-                ArrayList<Location> locationList = new ArrayList<Location>();
-                for (LatLon latLon : area.getLocations()) {
-                    locationList.add(Conversion.latLonToLocation(latLon));
-                }
-                value = new Area2D(locationList);
             }
         } else if (componentClass.equals(ViewArea.class)) {
             Sector sector = getCurrentSector();

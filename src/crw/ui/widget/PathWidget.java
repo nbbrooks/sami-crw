@@ -130,7 +130,7 @@ public class PathWidget implements MarkupComponentWidget, WorldWindWidgetInt {
         if (wwPanel == null) {
             return;
         }
-
+        
         markerLayer = new MarkerLayer();
         markerLayer.setOverrideMarkerElevation(true);
 //        markerLayer.setElevation(10d);
