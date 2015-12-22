@@ -4,7 +4,11 @@ import com.platypus.crw.VehicleServer;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.Conversion;
+import crw.quadtree.NodeComparator;
+import crw.quadtree.RenderableNode;
 import crw.quadtree.RenderableQuadTree;
+import static crw.ui.tests.SensorTest.TEST_MODE;
+import crw.ui.tests.SensorTest.TestMode;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
@@ -23,6 +27,7 @@ import java.awt.event.MouseWheelEvent;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Random;
@@ -83,6 +88,10 @@ public class SensorDataQuadtreeWidget implements MarkupComponentWidget, WorldWin
     private boolean visible = true;
     private WorldWindPanel wwPanel;
 
+    private ArrayList<RenderableNode> highValueNodes = new ArrayList<RenderableNode>();
+    private final int HIGH_VALUE_SIZE = 10;
+    private NodeComparator nodeComparator = new NodeComparator();
+
     // Lookup for the last location an observation for a particular observor source and sensor was recorded to its corresponding quadtree
     //  no need to record every single value to the quadtree - make the source move a certain distance between recordings
     final private Hashtable<String, UTMCoord> sourceToLastUtm = new Hashtable<String, UTMCoord>();
@@ -98,13 +107,15 @@ public class SensorDataQuadtreeWidget implements MarkupComponentWidget, WorldWin
         Engine.getInstance().getObserverServer().addListener(this);
 
         JFrame f = new JFrame();
-        JButton b = new JButton("GENERATE");
+        final JButton b = new JButton("GENERATE");
         f.add(b);
         f.setSize(new Dimension(200, 100));
         f.setPreferredSize(new Dimension(200, 100));
+        f.setBounds(800, 0, 200, 100);
         b.addActionListener(new ActionListener() {
             Random r = new Random(0L);
             int count = 1;
+            UTMCoordinate coord = null;
 
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -114,12 +125,19 @@ public class SensorDataQuadtreeWidget implements MarkupComponentWidget, WorldWin
 //553500.0
 //2804500.0
 //                UTMCoordinate coord = new UTMCoordinate(553000 + r.nextDouble() * 500, 2804000 + r.nextDouble() * 500, "39R");
-                UTMCoordinate coord = new UTMCoordinate(553000 + count * 50 - 1, 2804000 + count * 50 - 1, "39R");
-                count++;
-                
+                if (coord == null) {
+                    coord = new UTMCoordinate(553375, 2804375, "39R");
+//                    coord = new UTMCoordinate(553000 + count * 50 - 1, 2804000 + count * 50 - 1, "39R");
+//                    count++;
+                }
+
                 double dist = Math.pow(coord.getEasting() - 553375, 2) + Math.pow(coord.getNorthing() - 2804375, 2);
+
                 double value = Math.min(Math.max(100.0 * (1 - (dist / (Math.pow(375, 2) * 2))), 0), 100);
 
+//                // Pollutant point
+//                double polEasting = 553000 + 375;
+//                double polNorthing = 2804000 + 375;
 //                System.out.println("### CREATING OBS AT " + (coord.getEasting()) + ", " + (coord.getNorthing()));
 //                System.out.println("###\t " + (coord.getEasting() - 553000.0) + ", " + (coord.getNorthing() - 2804000.0));
                 System.out.println("");
@@ -143,22 +161,89 @@ public class SensorDataQuadtreeWidget implements MarkupComponentWidget, WorldWin
 //                        renderableLayer.clearRenderables();
                     renderableLayer.setRenderables(activeQuadTreeRenderables);
                     wwPanel.wwCanvas.redrawNow();
+//
+//                    if (tasks.length > 0) {
+//                        RenderableNode task = sensorNameToQuadTree.get(activeSensor).pollLeafEmptyNode();
+//                        coord = Conversion.utmCoordToUtmCoordinate(task.getUtmCoord());
+//                        coord.setEasting(coord.getEasting() + 0.1);
+//                        coord.setNorthing(coord.getNorthing() + 0.1);
+//                    } else {
+//                        coord = null;
+//                    }
+                    while (highValueNodes.size() < HIGH_VALUE_SIZE && !sensorNameToQuadTree.get(activeSensor).noEmptyLeafNodes()) {
+                        RenderableNode task = sensorNameToQuadTree.get(activeSensor).pollLeafEmptyNode();
+                        highValueNodes.add(task);
+                    }
+                    Collections.sort(highValueNodes, nodeComparator);
+                    
+
+                    if (TEST_MODE == TestMode.MANUAL) {
+                        System.out.println("### Have " + highValueNodes.size() + " high value tasks");
+                        System.out.println("### avg \t var");
+                        System.out.println("### " + String.format("%3.1f \t %2.2f",
+                                sensorNameToQuadTree.get(activeSensor).getAverage(), sensorNameToQuadTree.get(activeSensor).getVariance()));
+                        for (RenderableNode node : highValueNodes) {
+                            System.out.println("###\t " + String.format("%2d \t %3.1f \t %3.1f \t %3.3f \t %3.1f \t %3.1f \t %3.0f \t %3.0f",
+                                    node.getDepth(),
+                                    node.getParent().getValue(),
+                                    (Math.pow(node.getParent().getValue() - sensorNameToQuadTree.get(activeSensor).getAverage(), 2) / sensorNameToQuadTree.get(activeSensor).getVariance()),
+                                    node.getScore(),
+                                    node.getUtmCoord().getEasting() - 553000,
+                                    node.getUtmCoord().getNorthing() - 2804000,
+                                    node.getW(),
+                                    node.getH()));
+                        }
+
+                        RenderableNode[] tasks = sensorNameToQuadTree.get(activeSensor).getLeafEmptyNodesCopy();
+                        System.out.println("### Have " + tasks.length + " tasks");
+                        System.out.println("###\t depth \t val \t dev \t score");
+//                        System.out.println("###\t depth \t val \t avg \t var \t\t dev \t score");
+                        for (RenderableNode node : tasks) {
+                            System.out.println("###\t " + String.format("%2d \t %3.1f \t %3.1f \t %3.3f \t %3.1f \t %3.1f \t %3.0f \t %3.0f",
+                                    node.getDepth(),
+                                    node.getParent().getValue(),
+                                    (Math.pow(node.getParent().getValue() - sensorNameToQuadTree.get(activeSensor).getAverage(), 2) / sensorNameToQuadTree.get(activeSensor).getVariance()),
+                                    node.getScore(),
+                                    node.getUtmCoord().getEasting() - 553000,
+                                    node.getUtmCoord().getNorthing() - 2804000,
+                                    node.getW(),
+                                    node.getH()));
+//                        System.out.println("###\t " + String.format("%2d \t %3.1f \t %3.1f \t %2.2f \t %3.1f \t %3.3f", 
+//                                node.getDepth(), node.getParent().getValue(), sensorNameToQuadTree.get(activeSensor).getAverage(), sensorNameToQuadTree.get(activeSensor).getVariance(), 
+//                                (Math.pow(node.getParent().getValue() - sensorNameToQuadTree.get(activeSensor).getAverage(), 2) / sensorNameToQuadTree.get(activeSensor).getVariance()),
+//                                node.getScore()));
+                        }
+
+                        RenderableNode[] values = sensorNameToQuadTree.get(activeSensor).getLeafValueNodesCopy();
+                        System.out.println("### Have " + values.length + " values");
+                    }
+
+                    if (!highValueNodes.isEmpty()) {
+                        RenderableNode task = highValueNodes.remove(0);
+                        coord = Conversion.utmCoordToUtmCoordinate(task.getUtmCoord());
+                        coord.setEasting(coord.getEasting() + 0.1);
+                        coord.setNorthing(coord.getNorthing() + 0.1);
+                    } else {
+                        coord = null;
+                    }
                 }
             }
         });
         f.pack();
         f.setVisible(true);
 
-//        (new Thread() {
-//            public void run() {
-//                Random r = new Random(0L);
-//                while (true) {
-//                    try {
-//                        Thread.sleep(2000);
-//                    } catch (InterruptedException ex) {
-//                        Logger.getLogger(SensorDataQuadtreeWidget.class.getName()).log(Level.SEVERE, null, ex);
-//                    }
-//                    
+        if (TEST_MODE == TestMode.TIMED) {
+            (new Thread() {
+                public void run() {
+                    Random r = new Random(0L);
+                    while (true) {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ex) {
+                            Logger.getLogger(SensorDataQuadtreeWidget.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                        b.doClick();
+
 //                    UTMCoordinate coord = new UTMCoordinate(2804466 + r.nextDouble() * 100, 553327 + r.nextDouble() * 100, "39R");
 //                    Location l = new Location(coord, 0);
 //                    Observation o = new Observation("NONE", r.nextDouble() * 100, "P1", l, System.currentTimeMillis());
@@ -174,9 +259,10 @@ public class SensorDataQuadtreeWidget implements MarkupComponentWidget, WorldWin
 //                        renderableLayer.setRenderables(activeQuadTreeRenderables);
 ////                        wwPanel.wwCanvas.redrawNow();
 //                    }
-//                }
-//            }
-//        }).start();
+                    }
+                }
+            }).start();
+        }
     }
 
     @Override

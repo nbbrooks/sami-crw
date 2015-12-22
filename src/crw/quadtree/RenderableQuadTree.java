@@ -1,27 +1,24 @@
 package crw.quadtree;
 
-import crw.ui.queue.QueueDatabase;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
 import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.render.SurfaceQuad;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
-import sami.uilanguage.toui.ToUiMessage;
 
 /**
  * Adapted from https://github.com/varunpant/Quadtree/
- * 
+ *
  * Datastructure: A point Quad Tree for representing 2D data. Each region has
  * the same ratio as the bounds for the tree.
  * <p/>
  * The implementation currently requires pre-determined bounds for data as it
  * can not rebalance itself to that degree.
- * 
+ *
  * @author varunpant (https://github.com/varunpant/Quadtree/), nbb
  */
 public class RenderableQuadTree {
@@ -70,7 +67,8 @@ public class RenderableQuadTree {
     final double SMALLEST_DIM = 1.0; // m
     // What percent difference in data range to trigger a recalculation of heatmap colors for data values
     static final double HEATMAP_THRESH = 10.0;
-    private PriorityQueue<RenderableNode> leafEmptyNodes = new PriorityQueue<RenderableNode>(11, new NodeComparator(this));
+    private final PriorityQueue<RenderableNode> leafEmptyNodes = new PriorityQueue<RenderableNode>(11, new NodeComparator());
+//    private final PriorityQueue<RenderableNode> leafEmptyNodes = new PriorityQueue<RenderableNode>(11, new NodeComparator(this));
 
     /**
      * Constructs a new quad tree.
@@ -84,6 +82,9 @@ public class RenderableQuadTree {
     public RenderableQuadTree(UTMCoord minUtm, UTMCoord maxUtm) {
         //@todo check utm have same zones, etc
         this.root_ = new RenderableNode(minUtm, maxUtm.getEasting() - minUtm.getEasting(), maxUtm.getNorthing() - minUtm.getNorthing(), null, 1);
+        
+        split(root_);
+                
 //        leafEmptyNodes.add(root_);
 //        emptyNodes.add(root_);
         lastRenderableUpdate = System.currentTimeMillis();
@@ -151,9 +152,9 @@ public class RenderableQuadTree {
     }
 
     private void updateScores() {
-        for (RenderableNode leafNode : leafEmptyNodes) {
-            leafNode.updateStatistics(averageValue, variance);
-        }
+//        for (RenderableNode leafNode : leafEmptyNodes) {
+//            leafNode.updateStatistics(averageValue, variance);
+//        }
     }
 
     String prefix = "";
@@ -207,6 +208,11 @@ public class RenderableQuadTree {
             node.setNodeType(NodeType.EMPTY);
             this.balance(node);
             this.count_--;
+
+            // Statistics update
+            synchronized (leafValueNodes) {
+                leafValueNodes.remove(node);
+            }
             return value;
         } else {
             return null;
@@ -249,8 +255,14 @@ public class RenderableQuadTree {
         this.root_.setNodeType(NodeType.EMPTY);
         this.root_.setPoint(null, minValue, maxValue);
         this.count_ = 0;
-//        leafNodes.clear();
-//        fullPointerNodes.clear();
+
+        // Statistics update
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.clear();
+        }
+        synchronized (leafValueNodes) {
+            leafValueNodes.clear();
+        }
     }
 
     /**
@@ -463,30 +475,29 @@ public class RenderableQuadTree {
         Boolean result = false;
         switch (parent.getNodeType()) {
             case EMPTY:
-                System.out.println("###\t" + prefix + " INSERT on EMPTY node");
-                this.setPointForNode(parent, point);
-                leafValueNodes.add(parent);
-//                System.out.println("### leafValueNodes.size() = " + leafValueNodes.size());
-                leafEmptyNodes.remove(parent);
+                // Leaf node with no value
+//                System.out.println("###\t" + prefix + " INSERT on EMPTY node");
+
+                // Quadtree manipulation
+                this.splitAndSetPointForNode(parent, point);
                 result = true;
-                //
-//                emptyNodes.remove(parent);
-                if (parent.getParent() != null) {
-                    checkForFullPointerNode(parent.getParent());
-                    parent.getParent().upwardRecalculateValue(minValue, maxValue);
-                }
-                //
+
+                // Statistics updates
+                // Not setting it on this anymore
+//                leafValueNodes.add(parent);
                 break;
             case LEAF:
-                System.out.println("###\t" + prefix + " INSERT on LEAF node");
+                // Leaf node with value
+//                System.out.println("###\t" + prefix + " INSERT on LEAF node");
 
-                // If we are at max depth, overwrite the value here instead of splitting
                 if (parent.getW() <= SMALLEST_DIM || parent.getH() <= SMALLEST_DIM) {
+                    // If we are at max depth, overwrite the value here instead of splitting
 
+                    // Quadtree manipulation
                     this.setPointForNode(parent, point);
-
                     result = false;
-                    //
+
+                    // Statistics updates
 //                emptyNodes.remove(parent);
                     if (parent.getParent() != null) {
                         checkForFullPointerNode(parent.getParent());
@@ -495,21 +506,30 @@ public class RenderableQuadTree {
 
                 } else {
                     if (parent.getPoint().getX() == point.getX() && parent.getPoint().getY() == point.getY()) {
+                        // If the new value is at the exact same location as the old value, just overwrite the value 
+
+                        // Quadtree manipulation
                         this.setPointForNode(parent, point);
                         result = false;
+
+                        // Statistics updates
                         if (parent.getParent() != null) {
                             checkForFullPointerNode(parent.getParent());
                             parent.getParent().upwardRecalculateValue(minValue, maxValue);
                         }
                     } else {
+                        // Otherwise, split this node and insert this node's value and the received value into its new children
+
+                        // Quadtree manipulation
                         this.split(parent);
                         leafValueNodes.remove(parent);
                         removeFullPointerNode(parent.getParent());
-                        if(prefix.indexOf("\t") != -1) {
+                        if (prefix.indexOf("\t") != -1) {
                             prefix = prefix.substring(0, prefix.length() - 1);
                         }
                         result = this.insert(parent, point);
-                        
+
+                        // Statistics updates
                         parent.getNe().updateStatistics(averageValue, variance);
                         parent.getSe().updateStatistics(averageValue, variance);
                         parent.getSw().updateStatistics(averageValue, variance);
@@ -518,7 +538,11 @@ public class RenderableQuadTree {
                 }
                 break;
             case POINTER:
-                System.out.println("###\t " + prefix + " INSERT on POINTER node");
+                // Non-leaf node
+                //  Send to appropriate child node
+//                System.out.println("###\t " + prefix + " INSERT on POINTER node");
+
+                // Quadtree manipulation
                 prefix += "\t";
                 result = this.insert(
                         this.getQuadrantForPoint(parent, point.getX(), point.getY()), point);
@@ -530,48 +554,19 @@ public class RenderableQuadTree {
         return result;
     }
 
-    /**
-     * Converts a leaf node to a pointer node and reinserts the node's point
-     * into the correct child.
-     *
-     * @param {QuadTree.Node} node The node to split.
-     * @private
-     */
-//    private void split(RenderableNode node) {
-//        Point oldPoint = node.getPoint();
-//        node.setPoint(null);
-//        leafNodes.remove(node);
-//
-//        node.setNodeType(NodeType.POINTER);
-//
-//        double easting = node.getUtmCoord().getEasting();
-//        double northing = node.getUtmCoord().getNorthing();
-//        double hw = node.getW() / 2;
-//        double hh = node.getH() / 2;
-//
-//        RenderableNode n;
-//        n = new RenderableNode(x, y, hw, hh, node);
-//        emptyNodes.add(n);
-//        node.setNw(n);
-//        n = new RenderableNode(x + hw, y, hw, hh, node);
-//        emptyNodes.add(n);
-//        node.setNe(n);
-//        n = new RenderableNode(x, y + hh, hw, hh, node);
-//        emptyNodes.add(n);
-//        node.setSw(n);
-//        n = new RenderableNode(x + hw, y + hh, hw, hh, node);
-//        emptyNodes.add(n);
-//        node.setSe(n);
-//
-//        this.insert(node, oldPoint);
-//    }
     private void split(RenderableNode node) {
         Point oldPoint = node.getPoint();
-        System.out.println("### split " + node.getDepth());
+//        System.out.println("### split " + node.getDepth());
         node.setPoint(null, minValue, maxValue);
-//        leafNodes.remove(node);
-
         node.setNodeType(NodeType.POINTER);
+
+        // Statistics update
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.remove(node);
+        }
+        synchronized (leafValueNodes) {
+            leafValueNodes.remove(node);
+        }
 
         int zone = node.getUtmCoord().getZone();
         String hemisphere = node.getUtmCoord().getHemisphere();
@@ -580,35 +575,46 @@ public class RenderableQuadTree {
         double hw = node.getW() / 2.0;
         double hh = node.getH() / 2.0;
 
+        double score;
+//        if (variance == 0) {
+//            score = 0;
+//        } else {
+            score = 1.0 / (node.getDepth() + 1) * (Math.pow(node.getValue() - averageValue, 2) / variance);
+//        }
+
         RenderableNode n;
         n = new RenderableNode(UTMCoord.fromUTM(zone, hemisphere, easting, northing + hh), hw, hh, node, node.getDepth() + 1);
+        n.setScore(score);
 //        n.updateStatistics(averageValue, variance);
-        leafEmptyNodes.add(n);
-//        emptyNodes.add(n);
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.add(n);
+        }
         node.setNw(n);
         n = new RenderableNode(UTMCoord.fromUTM(zone, hemisphere, easting + hw, northing + hh), hw, hh, node, node.getDepth() + 1);
+        n.setScore(score);
 //        n.updateStatistics(averageValue, variance);
-        leafEmptyNodes.add(n);
-//        emptyNodes.add(n);
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.add(n);
+        }
         node.setNe(n);
         n = new RenderableNode(UTMCoord.fromUTM(zone, hemisphere, easting, northing), hw, hh, node, node.getDepth() + 1);
+        n.setScore(score);
 //        n.updateStatistics(averageValue, variance);
-        leafEmptyNodes.add(n);
-//        emptyNodes.add(n);
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.add(n);
+        }
         node.setSw(n);
         n = new RenderableNode(UTMCoord.fromUTM(zone, hemisphere, easting + hw, northing), hw, hh, node, node.getDepth() + 1);
+        n.setScore(score);
 //        n.updateStatistics(averageValue, variance);
-        leafEmptyNodes.add(n);
-//        emptyNodes.add(n);
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.add(n);
+        }
         node.setSe(n);
 
-//        System.out.println("### leafEmptyNodes.size() = " + leafEmptyNodes.size());
-        if (!leafEmptyNodes.isEmpty()) {
-//            System.out.println("###\t highest " + String.format("%4.4f \t %4.0f \t %4.4f \t %4.0f \t %d \t %3.3f", (leafEmptyNodes.peek().getUtmCoord().getEasting() - 553000.0), leafEmptyNodes.peek().getW(), (leafEmptyNodes.peek().getUtmCoord().getNorthing() - 2804000.0), leafEmptyNodes.peek().getH(), leafEmptyNodes.peek().getDepth(), leafEmptyNodes.peek().getScore()));
-//            System.out.println("###\t highest " + leafEmptyNodes.peek().getUtmCoord().getEasting() + ", " + leafEmptyNodes.peek().getUtmCoord().getNorthing() + ": " + leafEmptyNodes.peek().getScore());
+        if(oldPoint != null) {
+            this.insert(node, oldPoint);
         }
-
-        this.insert(node, oldPoint);
     }
 
     /**
@@ -619,6 +625,9 @@ public class RenderableQuadTree {
      * @private
      */
     private void balance(RenderableNode node) {
+        System.out.println("### BALANCING");
+        //@todo update statistics
+
         switch (node.getNodeType()) {
             case EMPTY:
             case LEAF:
@@ -679,6 +688,23 @@ public class RenderableQuadTree {
                     node.setSe(null);
 //                    System.out.println("### balance setPoint");
                     node.setPoint(firstLeaf.getPoint(), minValue, maxValue);
+
+                    // Statistics update
+                    if (firstLeaf.getPoint() != null) {
+                        synchronized (leafEmptyNodes) {
+                            leafEmptyNodes.remove(node);
+                        }
+                        synchronized (leafValueNodes) {
+                            leafValueNodes.add(node);
+                        }
+                    } else {
+                        synchronized (leafEmptyNodes) {
+                            leafEmptyNodes.add(node);
+                        }
+                        synchronized (leafValueNodes) {
+                            leafValueNodes.remove(node);
+                        }
+                    }
                 }
 
                 // Try and balance the parent as well.
@@ -704,15 +730,9 @@ public class RenderableQuadTree {
         double mx = parent.getUtmCoord().getEasting() + parent.getW() / 2;
         double my = parent.getUtmCoord().getNorthing() + parent.getH() / 2;
         if (x < mx) {
-            System.out.println("### " + prefix + (y < my ? "SW" : "NW"));
             return y < my ? parent.getSw() : parent.getNw();
-//            System.out.println("### " + prefix + (y < my ? "NW" : "SW"));
-//            return y < my ? parent.getNw() : parent.getSw();
         } else {
-            System.out.println("### " + prefix + (y < my ? "SE" : "NE"));
             return y < my ? parent.getSe() : parent.getNe();
-//            System.out.println("### " + prefix + (y < my ? "NE" : "SE"));
-//            return y < my ? parent.getNe() : parent.getSe();
         }
     }
 
@@ -727,13 +747,108 @@ public class RenderableQuadTree {
         if (node.getNodeType() == NodeType.POINTER) {
             throw new QuadTreeException("Can not set point for node of type POINTER");
         }
-        System.out.println("### set point for node " + node.getDepth());
+//        System.out.println("### set point for node " + node.getDepth());
         node.setNodeType(NodeType.LEAF);
-//        System.out.println("### setPointForNode setPoint");
         node.setPoint(point, minValue, maxValue);
-//        if (!leafNodes.contains(node)) {
-//            leafNodes.add(node);
-//        }
+
+        // Statistics update
+        if (point != null) {
+            synchronized (leafEmptyNodes) {
+                leafEmptyNodes.remove(node);
+            }
+            synchronized (leafValueNodes) {
+                leafValueNodes.add(node);
+            }
+        } else {
+            synchronized (leafEmptyNodes) {
+                leafEmptyNodes.add(node);
+            }
+            synchronized (leafValueNodes) {
+                leafValueNodes.remove(node);
+            }
+        }
+    }
+
+    /**
+     * Splits an empty node which we want to set a point on and instead set the
+     * point on its appropriate child.
+     *
+     * @param parent
+     * @param point
+     */
+    private void splitAndSetPointForNode(RenderableNode parent, Point point) {
+        // Split
+        parent.setNodeType(NodeType.POINTER);
+
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.remove(parent);
+        }
+
+        int zone = parent.getUtmCoord().getZone();
+        String hemisphere = parent.getUtmCoord().getHemisphere();
+        double easting = parent.getUtmCoord().getEasting();
+        double northing = parent.getUtmCoord().getNorthing();
+        double hw = parent.getW() / 2.0;
+        double hh = parent.getH() / 2.0;
+
+        double score;
+        if(parent.getDepth() == 1) {
+            score = Double.MAX_VALUE;
+        } else {
+            score = 1.0 / (parent.getDepth() + 1) * (Math.pow(parent.getValue() - averageValue, 2) / variance);
+        }
+
+        RenderableNode n;
+        n = new RenderableNode(UTMCoord.fromUTM(zone, hemisphere, easting, northing + hh), hw, hh, parent, parent.getDepth() + 1);
+        n.setScore(score);
+//        n.updateStatistics(averageValue, variance);
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.add(n);
+        }
+//        emptyNodes.add(n);
+        parent.setNw(n);
+        n = new RenderableNode(UTMCoord.fromUTM(zone, hemisphere, easting + hw, northing + hh), hw, hh, parent, parent.getDepth() + 1);
+        n.setScore(score);
+//        n.updateStatistics(averageValue, variance);
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.add(n);
+        }
+        parent.setNe(n);
+        n = new RenderableNode(UTMCoord.fromUTM(zone, hemisphere, easting, northing), hw, hh, parent, parent.getDepth() + 1);
+        n.setScore(score);
+//        n.updateStatistics(averageValue, variance);
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.add(n);
+        }
+        parent.setSw(n);
+        n = new RenderableNode(UTMCoord.fromUTM(zone, hemisphere, easting + hw, northing), hw, hh, parent, parent.getDepth() + 1);
+        n.setScore(score);
+//        n.updateStatistics(averageValue, variance);
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.add(n);
+        }
+        parent.setSe(n);
+
+        // Insert
+        n = this.getQuadrantForPoint(parent, point.getX(), point.getY());
+//        System.out.println("### set point for node " + node.getDepth());
+        n.setNodeType(NodeType.LEAF);
+//        System.out.println("### setPointForNode setPoint");
+        n.setPoint(point, minValue, maxValue);
+
+        // Statistics update
+        synchronized (leafEmptyNodes) {
+            leafEmptyNodes.remove(n);
+        }
+        synchronized (leafValueNodes) {
+            leafValueNodes.add(n);
+        }
+
+        if (parent.getParent() != null) {
+//            System.out.println("### splitAndSetPointForNode: parent.getParent() != null");
+            checkForFullPointerNode(parent.getParent());
+            parent.getParent().upwardRecalculateValue(minValue, maxValue);
+        }
     }
 
     public void checkUpdateColors() {
@@ -960,29 +1075,67 @@ public class RenderableQuadTree {
         return renderables;
     }
 
-    public class NodeComparator implements Comparator<RenderableNode> {
+//    public class NodeComparator implements Comparator<RenderableNode> {
+//
+//        private RenderableQuadTree quadTree;
+//
+//        public NodeComparator(RenderableQuadTree quadTree) {
+//            this.quadTree = quadTree;
+//        }
+//
+//        @Override
+//        public int compare(RenderableNode rn1, RenderableNode rn2) {
+//            if (rn1 != null && rn2 != null) {
+//                if (rn1.getScore() < rn2.getScore()) {
+//                    return 1;
+//                } else if (rn1.getScore() > rn2.getScore()) {
+//                    return -1;
+//                } else {
+//                    return 0;
+//                }
+//
+//            } else {
+//                // error
+//                return 0;
+//            }
+//        }
+//    }
 
-        private RenderableQuadTree quadTree;
+    public double getAverage() {
+        return averageValue;
+    }
 
-        public NodeComparator(RenderableQuadTree quadTree) {
-            this.quadTree = quadTree;
+    public double getVariance() {
+        return variance;
+    }
+
+    public RenderableNode[] getLeafEmptyNodesCopy() {
+        synchronized (leafEmptyNodes) {
+            return leafEmptyNodes.toArray(new RenderableNode[0]);
         }
+    }
 
-        @Override
-        public int compare(RenderableNode rn1, RenderableNode rn2) {
-            if (rn1 != null && rn2 != null) {
-                if (rn1.getScore() < rn2.getScore()) {
-                    return 1;
-                } else if (rn1.getScore() > rn2.getScore()) {
-                    return -1;
-                } else {
-                    return 0;
-                }
+    public RenderableNode peekLeafEmptyNode() {
+        synchronized (leafEmptyNodes) {
+            return leafEmptyNodes.peek();
+        }
+    }
 
-            } else {
-                // error
-                return 0;
-            }
+    public RenderableNode pollLeafEmptyNode() {
+        synchronized (leafEmptyNodes) {
+            return leafEmptyNodes.poll();
+        }
+    }
+
+    public boolean noEmptyLeafNodes() {
+        synchronized (leafEmptyNodes) {
+            return leafEmptyNodes.isEmpty();
+        }
+    }
+
+    public RenderableNode[] getLeafValueNodesCopy() {
+        synchronized (leafValueNodes) {
+            return leafValueNodes.toArray(new RenderableNode[0]);
         }
     }
 }

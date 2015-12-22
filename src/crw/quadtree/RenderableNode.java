@@ -8,6 +8,7 @@ import gov.nasa.worldwind.render.Material;
 import gov.nasa.worldwind.render.ShapeAttributes;
 import gov.nasa.worldwind.render.SurfaceQuad;
 import java.awt.Color;
+import sami.path.UTMCoordinate;
 
 /**
  * Adapted from https://github.com/varunpant/Quadtree/
@@ -53,7 +54,7 @@ public class RenderableNode {
 //    public RenderableNode(double x, double y, double w, double h, RenderableNode opt_parent) {
 //        this.x = x;
 //        this.y = y;
-        System.out.println("### NEW RenderableNode " + (utmCoord.getEasting() - 553000.0) + ", " + (utmCoord.getNorthing() - 2804000.0) + ", " + w + ", " + h);
+//        System.out.println("### NEW RenderableNode " + (utmCoord.getEasting() - 553000.0) + ", " + (utmCoord.getNorthing() - 2804000.0) + ", " + w + ", " + h);
 
         this.utmCoord = utmCoord;
         this.w = w;
@@ -61,9 +62,10 @@ public class RenderableNode {
         this.opt_parent = opt_parent;
         this.depth = depth;
 
-        if (opt_parent != null) {
-
-        }
+//        if (opt_parent != null) {
+////     - score = 1/node depth * parent's avg SD
+//            score = 1.0 / depth * opt_parent.getValue();
+//        }
 
 //        System.out.println("### NEW SURFACE " + utmCoord.getEasting() + ", " + utmCoord.getNorthing() + ", " + w + ", " + h);
         LatLon latLon
@@ -84,6 +86,10 @@ public class RenderableNode {
     //    private int depth;
         //    private double childrenAvg;
         //    private double score;
+    }
+
+    public void setScore(double score) {
+        this.score = score;
     }
 
     public int getDepth() {
@@ -134,10 +140,14 @@ public class RenderableNode {
         //@todo avoid Double cast
         if (point != null) {
             value = (Double) point.getValue();
+            
+//            score
+                    
             updateColor(min, max);
         } else {
             //@todo how to have this mean null?
             value = -1;
+            score = 0;
         }
         if (opt_parent != null) {
             opt_parent.upwardRecalculateValue(min, max);
@@ -210,8 +220,13 @@ public class RenderableNode {
         }
         if (sum > 0) {
             value = sum / num;
+            
+//            score
+                   
+//     - score = 1/node depth * parent's avg SD 
         } else {
             value = -1;
+            score = 0;
         }
         if (depth == 1) {
 //            System.out.println("### root value " + value);
@@ -256,7 +271,11 @@ public class RenderableNode {
 //            System.out.println("### null");
 //            return;
 //        }
-        if (value == -1) {
+        
+        // Render all
+        //if (value == -1) {
+        // Render leafs only
+        if (value == -1 || nodetype != NodeType.LEAF) {
             color = null;
             surfaceQuad.setVisible(false);
         } else {
@@ -372,96 +391,107 @@ public class RenderableNode {
     }
 
     public static void main(String[] args) {
-
-        System.out.println("S");
-        LatLon latLon;
-        latLon = UTMCoord.locationFromUTMCoord(
+        UTMCoord coord;
+        UTMCoordinate coordinate;
+        
+        coord = UTMCoord.fromUTM(
                 39,
                 AVKey.NORTH,
                 553000,
                 2804000,
                 null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000 + 500,
-                2804000,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000 + 500,
-                2804000 + 500,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000,
-                2804000 + 500,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-
-        System.out.println("S");
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000,
-                2804000,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000 + 250,
-                2804000,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000 + 250,
-                2804000 + 250,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000,
-                2804000 + 250,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-
-        System.out.println("S");
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000 + 250,
-                2804000 + 250,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000 + 250 + 250,
-                2804000 + 250,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000 + 250 + 250,
-                2804000 + 250 + 250,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
-        latLon = UTMCoord.locationFromUTMCoord(
-                39,
-                AVKey.NORTH,
-                553000 + 250,
-                2804000 + 250 + 250,
-                null);
-        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+        coordinate = new UTMCoordinate(553000, 2804000, "39R");
+        
+        System.out.println(coord.getZone() + ", " + coord.getHemisphere());
+        
+//        LatLon latLon;
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000,
+//                2804000,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000 + 500,
+//                2804000,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000 + 500,
+//                2804000 + 500,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000,
+//                2804000 + 500,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//
+//        System.out.println("S");
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000,
+//                2804000,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000 + 250,
+//                2804000,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000 + 250,
+//                2804000 + 250,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000,
+//                2804000 + 250,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//
+//        System.out.println("S");
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000 + 250,
+//                2804000 + 250,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000 + 250 + 250,
+//                2804000 + 250,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000 + 250 + 250,
+//                2804000 + 250 + 250,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
+//        latLon = UTMCoord.locationFromUTMCoord(
+//                39,
+//                AVKey.NORTH,
+//                553000 + 250,
+//                2804000 + 250 + 250,
+//                null);
+//        System.out.println("" + latLon.getLatitude().degrees + ", " + latLon.getLongitude().degrees);
     }
 }
