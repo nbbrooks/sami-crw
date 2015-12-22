@@ -25,6 +25,9 @@ public class SensorTest extends UiFrame implements UiClientListenerInt {
     UiClientInt uiClient;
     UiServerInt uiServer;
     public SensorDataQuadtreeWidget data;
+    
+    public enum TestMode {MANUAL, TIMED};
+    public static TestMode TEST_MODE = TestMode.MANUAL;
 
     public SensorTest() {
         super("SensorTest");
