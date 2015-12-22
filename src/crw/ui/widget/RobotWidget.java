@@ -91,7 +91,8 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     private final Hashtable<BoatProxy, BoatMarker> proxyToMarker = new Hashtable<BoatProxy, BoatMarker>();
     private final Hashtable<BoatMarker, BoatProxy> markerToProxy = new Hashtable<BoatMarker, BoatProxy>();
     private final Hashtable<BoatProxy, UUID> proxyToWpEventId = new Hashtable<BoatProxy, UUID>();
-    private JButton teleopButton, pointButton, pathButton, cancelButton, autoButton;
+    public static final boolean ADD_RESEND_BUTTON = false;
+    private JButton resendButton, teleopButton, pointButton, pathButton, cancelButton, autoButton;
     private JLabel proxyNameLabel;
     // controlModeP: Contains buttons for navigation control modes for selected proxy
     // expandedPanel: Contains components for teleoperation and setting gains of selected proxy
@@ -373,6 +374,17 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         proxyNameLabel = new JLabel("");
         controlModeP.add(proxyNameLabel);
 
+        if (ADD_RESEND_BUTTON) {
+            resendButton = new JButton("Resend");
+            controlModeP.add(resendButton);
+            resendButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    resendWaypoints();
+                }
+            });
+        }
+
         if (enabledModes.contains(ControlMode.TELEOP)) {
             teleopButton = new JButton("Teleop");
             teleopButton.setEnabled(false);
@@ -638,6 +650,13 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         selectedPositions = new ArrayList<Position>();
     }
 
+    public void resendWaypoints() {
+        if (selectedProxy == null) {
+            return;
+        }
+        selectedProxy.sendCurrentWaypoints();
+    }
+
     public void cancelAssignedWaypoints() {
         if (selectedProxy == null) {
             return;
@@ -686,8 +705,16 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                 if (relevantProxy.proxies == RelevantProxy.Proxies.ALL_PROXIES) {
                     //@todo What control modes?
                     widget = new RobotWidget((WorldWindPanel) component);
+                    ArrayList<ProxyInt> proxies = Engine.getInstance().getAllProxies();
+                    for (ProxyInt proxy : proxies) {
+                        ((RobotWidget) widget).proxyAdded(proxy);
+                    }
                 } else if (relevantProxy.proxies == RelevantProxy.Proxies.RELEVANT_PROXIES) {
                     //@todo Need to pass in token list for this
+                    ArrayList<ProxyInt> proxies = Engine.getInstance().getAllProxies();
+                    for (ProxyInt proxy : proxies) {
+                        ((RobotWidget) widget).proxyAdded(proxy);
+                    }
                     //@todo What control modes?
                     widget = new RobotWidget((WorldWindPanel) component);
                 }
@@ -705,8 +732,16 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
                 if (relevantProxy.proxies == RelevantProxy.Proxies.ALL_PROXIES) {
                     //@todo What control modes?
                     widget = new RobotWidget((WorldWindPanel) component);
+                    ArrayList<ProxyInt> proxies = Engine.getInstance().getAllProxies();
+                    for (ProxyInt proxy : proxies) {
+                        ((RobotWidget) widget).proxyAdded(proxy);
+                    }
                 } else if (relevantProxy.proxies == RelevantProxy.Proxies.RELEVANT_PROXIES) {
                     //@todo Need to pass in token list for this
+                    ArrayList<ProxyInt> proxies = Engine.getInstance().getAllProxies();
+                    for (ProxyInt proxy : proxies) {
+                        ((RobotWidget) widget).proxyAdded(proxy);
+                    }
                     //@todo What control modes?
                     widget = new RobotWidget((WorldWindPanel) component);
                 }
@@ -799,8 +834,25 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
     }
 
     public void manualSelectBoat(BoatProxy boatProxy) {
-        if (proxyToMarker.containsKey(boatProxy)) {
-            selectMarker(proxyToMarker.get(boatProxy));
+        if (!proxyToMarker.containsKey(boatProxy)) {
+            LOGGER.warning("Manually selected proxy " + boatProxy.getProxyName() + ", but it has not received a position yet: setting position to [0°, 0°]");
+            final BoatMarker bm = new BoatMarker(boatProxy, Position.fromDegrees(0.0, 0.0), new BasicMarkerAttributes(new Material(boatProxy.getColor()), BasicMarkerShape.ORIENTED_SPHERE, 0.9));
+            bm.getAttributes().setHeadingMaterial(UNSELECTED_MAT);
+
+            // Add marker to lists
+            synchronized (markers) {
+                if (!markers.contains(bm)) {
+                    markers.add(bm);
+                    proxyToMarker.put(boatProxy, bm);
+                    markerToProxy.put(bm, boatProxy);
+                }
+            }
         }
+
+        selectMarker(proxyToMarker.get(boatProxy));
+    }
+
+    public GainsPanel getGainsPanel() {
+        return gainsP;
     }
 }

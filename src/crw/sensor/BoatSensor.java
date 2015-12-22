@@ -23,7 +23,7 @@ import sami.CoreHelper;
 public class BoatSensor implements ObserverInt, SensorListener {
 
     private static final Logger LOGGER = Logger.getLogger(BoatSensor.class.getName());
-    private final boolean GENERATE_FAKE_DATA = true;
+    private final boolean GENERATE_FAKE_DATA = false;
     BoatProxy proxy;
     int channel;
     ArrayList<ObservationListenerInt> listeners = new ArrayList<ObservationListenerInt>();

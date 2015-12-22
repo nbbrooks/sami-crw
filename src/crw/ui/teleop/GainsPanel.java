@@ -31,19 +31,20 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
     public static final int THRUST_GAINS_AXIS = 0;
     public static final int RUDDER_GAINS_AXIS = 5;
     public static final int WINCH_GAINS_AXIS = 3;
+    public static final boolean USE_VEL_MULTIPLIER = false;
     private JPanel contentP, velMultP, thrustPidP, rudderPidP, winchPidP;
     public JTextField velocityMultF, winchTF, thrustPTF, thrustITF, thrustDTF, rudderPTF, rudderITF, rudderDTF;
     public JLabel winchL;
     private DecimalFormat decimalFormat = new DecimalFormat("#.##");
     public JButton applyB;
-    public double velocityMult = 0.12, winch, thrustP, thrustI, thrustD, rudderP, rudderI, rudderD;
+    public double winch, thrustP, thrustI, thrustD, rudderP, rudderI, rudderD;
     private BoatProxy activeProxy = null;
     private AsyncVehicleServer activeVehicle = null;
     private ObserverInt activeWinchObserver = null;
 
     public GainsPanel() {
         super();
-        velocityMultF = new JTextField(velocityMult + "");
+        velocityMultF = new JTextField("1.0");
         velocityMultF.setPreferredSize(new Dimension(50, velocityMultF.getPreferredSize().height));
         winchTF = new JTextField("");
         winchTF.setPreferredSize(new Dimension(50, winchTF.getPreferredSize().height));
@@ -60,10 +61,12 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
         rudderDTF = new JTextField("");
         rudderDTF.setPreferredSize(new Dimension(50, rudderDTF.getPreferredSize().height));
 
-        velMultP = new JPanel();
-        velMultP.setBorder(BorderFactory.createLineBorder(Color.BLACK));
-        velMultP.add(new JLabel("Velocity multiplier:"));
-        velMultP.add(velocityMultF);
+        if (USE_VEL_MULTIPLIER) {
+            velMultP = new JPanel();
+            velMultP.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+            velMultP.add(new JLabel("Velocity multiplier:"));
+            velMultP.add(velocityMultF);
+        }
 
         thrustPidP = new JPanel();
         thrustPidP.setBorder(BorderFactory.createLineBorder(Color.BLACK));
@@ -102,10 +105,12 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
 
         contentP = new JPanel();
         contentP.setLayout(new BoxLayout(contentP, BoxLayout.Y_AXIS));
-//        contentP.add(velMultP);
+        if (USE_VEL_MULTIPLIER) {
+            contentP.add(velMultP);
+        }
         contentP.add(thrustPidP);
         contentP.add(rudderPidP);
-        contentP.add(winchPidP);
+//        contentP.add(winchPidP);
         contentP.add(applyB);
         getViewport().add(contentP);
         setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
@@ -188,6 +193,13 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
                 LOGGER.severe("Set winch gains failed: Axis [" + WINCH_GAINS_AXIS + "] PID [" + winch + ", " + winch + ", " + winch + "]");
             }
         });
+    }
+
+    public double getVelocityMultiplier() {
+        if (USE_VEL_MULTIPLIER) {
+            return stringToDouble(velocityMultF.getText());
+        }
+        return 1.0;
     }
 
     public void setProxy(BoatProxy boatProxy) {

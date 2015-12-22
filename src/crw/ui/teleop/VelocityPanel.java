@@ -215,6 +215,14 @@ public class VelocityPanel extends JPanel implements VelocityListener, FocusList
         this.teleLock = teleLock;
         robotWidget.telRudderFrac = telRudderFrac;
         robotWidget.telThrustFrac = telThrustFrac;
+
+        // Multiply thrust by multiplier value in GainsPanel text field
+        if (GainsPanel.USE_VEL_MULTIPLIER && robotWidget.getGainsPanel() != null) {
+            double multiplier = robotWidget.getGainsPanel().getVelocityMultiplier();
+            if (multiplier != Double.NaN) {
+                robotWidget.telThrustFrac *= multiplier;
+            }
+        }
         robotWidget.updateVelocity();
         repaint();
     }

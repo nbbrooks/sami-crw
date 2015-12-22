@@ -49,7 +49,13 @@ public class MouseController implements MouseListener, MouseMotionListener, Tele
             return;
         }
         telRudderFrac = Math.max(Math.min((e.getX() - velocityPanel.btmLeft.x) / velocityPanel.xAxisWidth, CTLR_RUDDER_MAX), CTLR_RUDDER_MIN);
-        telThrustFrac = Math.max(Math.min((velocityPanel.btmLeft.y - e.getY()) / velocityPanel.yAxisHeight, CTLR_THRUST_MAX), CTLR_THRUST_MIN);
+        if (e.getY() > velocityPanel.origin.y) {
+            // Mouse point is below zero thrust line -> reverse
+            telThrustFrac = Math.max(Math.min((velocityPanel.origin.y - e.getY()) / velocityPanel.yAxisReverseHeight, CTLR_THRUST_MAX), CTLR_THRUST_MIN);
+        } else {
+            // Mouse point is at/above zero thrust line -> forward
+            telThrustFrac = Math.max(Math.min((velocityPanel.origin.y - e.getY()) / velocityPanel.yAxisForwardHeight, CTLR_THRUST_MAX), CTLR_THRUST_MIN);
+        }
         double adjTelRudderFrac = Conversion.convertRange(telRudderFrac, CTLR_RUDDER_MIN, CTLR_RUDDER_MAX, VelocityPanel.VEH_RUDDER_MIN, VelocityPanel.VEH_RUDDER_MAX);
         double adjTelThrustFrac = Conversion.convertRange(telThrustFrac, CTLR_THRUST_MIN, CTLR_THRUST_MAX, VelocityPanel.VEH_THRUST_MIN, VelocityPanel.VEH_THRUST_MAX);
         velocityPanel.setVelocityFractions(adjTelRudderFrac, adjTelThrustFrac, this);
@@ -60,8 +66,12 @@ public class MouseController implements MouseListener, MouseMotionListener, Tele
         if (!enabled) {
             return;
         }
-        if (SwingUtilities.isRightMouseButton(e)) {
-            velocityPanel.setVelocityFractions(telRudderFrac, telThrustFrac, true, this);
+        if (SwingUtilities.isRightMouseButton(e) || e.isControlDown()) {
+            telRudderFrac = CTLR_RUDDER_CENTER;
+            telThrustFrac = CTLR_THRUST_ZERO;
+            double adjTelRudderFrac = Conversion.convertRange(telRudderFrac, CTLR_RUDDER_MIN, CTLR_RUDDER_MAX, VelocityPanel.VEH_RUDDER_MIN, VelocityPanel.VEH_RUDDER_MAX);
+            double adjTelThrustFrac = Conversion.convertRange(telThrustFrac, CTLR_THRUST_MIN, CTLR_THRUST_MAX, VelocityPanel.VEH_THRUST_MIN, VelocityPanel.VEH_THRUST_MAX);
+            velocityPanel.setVelocityFractions(adjTelRudderFrac, adjTelThrustFrac, true, this);
         } else {
             telRudderFrac = CTLR_RUDDER_CENTER;
             telThrustFrac = CTLR_THRUST_ZERO;

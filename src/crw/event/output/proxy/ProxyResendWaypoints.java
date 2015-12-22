@@ -17,9 +17,11 @@ public class ProxyResendWaypoints extends OutputEvent {
     public static final HashMap<String, String> fieldNameToDescription = new HashMap<String, String>();
 
     public ProxyResendWaypoints() {
+        id = UUID.randomUUID();
     }
 
     public ProxyResendWaypoints(UUID uuid, UUID missionUuid) {
+        id = UUID.randomUUID();
         this.id = uuid;
         this.missionId = missionUuid;
     }
