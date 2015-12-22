@@ -86,7 +86,7 @@ import sami.service.information.InformationServiceProviderInt;
 public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, InformationServiceProviderInt, ProxyServerListenerInt {
 
     private static final Logger LOGGER = Logger.getLogger(ProxyEventHandler.class.getName());
-    ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
+    final ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
     int portCounter = 0;
     private Hashtable<UUID, Integer> eventIdToAssembleCounter = new Hashtable<UUID, Integer>();
@@ -260,7 +260,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             eventIdToAssembleCounter.put(request.getId(), assembleCounter);
 
             AssembleLocationResponse responseEvent = new AssembleLocationResponse(oe.getId(), oe.getMissionId(), proxyPoints, relevantProxies);
-            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            ArrayList<GeneratedEventListenerInt> listenersCopy;
+            synchronized (listeners) {
+                listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            }
             for (GeneratedEventListenerInt listener : listenersCopy) {
                 LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
                 listener.eventGenerated(responseEvent);
@@ -313,7 +316,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with ProxyCompareDistanceRequest has no tokens with proxies attached: " + oe + ", tokens [" + tokens + "]");
             }
 
-            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            ArrayList<GeneratedEventListenerInt> listenersCopy;
+            synchronized (listeners) {
+                listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            }
             for (GeneratedEventListenerInt listener : listenersCopy) {
                 for (InputEvent response : responses) {
                     LOGGER.log(Level.FINE, "\tSending response: " + response + " to listener: " + listener);
@@ -332,8 +338,13 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(connectEvent.name, connectEvent.color, CrwNetworkUtils.toInetSocketAddress(connectEvent.server));
             ImagePanel.setImagesDirectory(connectEvent.imageStorageDirectory);
             if (proxy != null) {
-                ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), proxy);
-                ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                // Don't specify any matching criteria so this goes to all plans
+                //ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), proxy);
+                ProxyCreated proxyCreated = new ProxyCreated(null, null, proxy);
+                ArrayList<GeneratedEventListenerInt> listenersCopy;
+                synchronized (listeners) {
+                    listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                }
                 for (GeneratedEventListenerInt listener : listenersCopy) {
                     listener.eventGenerated(proxyCreated);
                 }
@@ -346,8 +357,13 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             ProxyInt proxy = Engine.getInstance().getProxyServer().createProxy(connectEvent.boatProxyId.name, connectEvent.boatProxyId.color, CrwNetworkUtils.toInetSocketAddress(connectEvent.boatProxyId.server));
             ImagePanel.setImagesDirectory(connectEvent.boatProxyId.imageStorageDirectory);
             if (proxy != null) {
-                ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), proxy);
-                ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                // Don't specify any matching criteria so this goes to all plans
+                //ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), proxy);
+                ProxyCreated proxyCreated = new ProxyCreated(null, null, proxy);
+                ArrayList<GeneratedEventListenerInt> listenersCopy;
+                synchronized (listeners) {
+                    listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                }
                 for (GeneratedEventListenerInt listener : listenersCopy) {
                     listener.eventGenerated(proxyCreated);
                 }
@@ -395,8 +411,13 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
             // After sleep, generated ProxyCreated event
             if (!error) {
-                ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), relevantProxyList);
-                ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                // Don't specify any matching criteria so this goes to all plans
+                //ProxyCreated proxyCreated = new ProxyCreated(oe.getId(), oe.getMissionId(), relevantProxyList);
+                ProxyCreated proxyCreated = new ProxyCreated(null, null, relevantProxyList);
+                ArrayList<GeneratedEventListenerInt> listenersCopy;
+                synchronized (listeners) {
+                    listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                }
                 for (GeneratedEventListenerInt listener : listenersCopy) {
                     listener.eventGenerated(proxyCreated);
                 }
@@ -440,7 +461,10 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 LOGGER.log(Level.WARNING, "Place with SetGains has no tokens with boat proxies attached: " + oe + ", tokens [" + tokens + "]");
             }
 
-            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            ArrayList<GeneratedEventListenerInt> listenersCopy;
+            synchronized (listeners) {
+                listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+            }
             for (GeneratedEventListenerInt listener : listenersCopy) {
                 for (InputEvent response : responses) {
                     LOGGER.log(Level.FINE, "\tSending response: " + response + " to listener: " + listener);
@@ -483,6 +507,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     @Override
     public boolean offer(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "ProxyEventHandler offered subscription: " + sub);
+        synchronized (listeners) {
         if (sub.getSubscriptionClass() == ProxyPathCompleted.class
                 || sub.getSubscriptionClass() == ProxyPathFailed.class
                 || sub.getSubscriptionClass() == ProxyCreated.class
@@ -506,10 +531,12 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         }
         return false;
     }
+    }
 
     @Override
     public boolean cancel(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "ProxyEventHandler asked to cancel subscription: " + sub);
+        synchronized (listeners) {
         if ((sub.getSubscriptionClass() == ProxyPathCompleted.class
                 || sub.getSubscriptionClass() == ProxyPathFailed.class
                 || sub.getSubscriptionClass() == ProxyCreated.class
@@ -536,12 +563,15 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
         }
         return false;
     }
+    }
 
     @Override
     public void eventOccurred(InputEvent proxyEventGenerated) {
-        LOGGER.log(Level.FINE, "Event occurred: " + proxyEventGenerated + ", rp: " + proxyEventGenerated.getRelevantProxyList() + ", listeners: " + listeners);
-        //Exception in thread "Thread-32" java.util.ConcurrentModificationException
-        ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+        ArrayList<GeneratedEventListenerInt> listenersCopy;
+        synchronized (listeners) {
+            listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+        }
+        LOGGER.log(Level.FINE, "Event occurred: " + proxyEventGenerated + ", rp: " + proxyEventGenerated.getRelevantProxyList() + ", listeners: " + listenersCopy);
         for (GeneratedEventListenerInt listener : listenersCopy) {
             listener.eventGenerated(proxyEventGenerated);
         }

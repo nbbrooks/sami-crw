@@ -46,10 +46,13 @@ import sami.uilanguage.toui.YesNoOptionsMessage;
 public class ToUiMessageEventHandler implements EventHandlerInt {
 
     private final static Logger LOGGER = Logger.getLogger(ToUiMessageEventHandler.class.getName());
-    private static final int DEFAULT_PRIORITY = Priority.getPriority(Priority.Ranking.LOW);
+    private static final int DEFAULT_PRIORITY = Priority.getPriority(Priority.Ranking.MEDIUM);
 
     @Override
     public void invoke(final OutputEvent oe, ArrayList<Token> tokens) {
+        
+//        System.out.println("### TO UI HANDLER with " + oe.getClass().getSimpleName() + "\t markups " + oe.getMarkups().toString());
+        
         LOGGER.log(Level.FINE, "ToUiMessageEventHandler invoked with " + oe);
         ToUiMessage message = null;
 
@@ -105,9 +108,9 @@ public class ToUiMessageEventHandler implements EventHandlerInt {
                 LOGGER.log(Level.WARNING, "Plan with OperatorSelectBoatId has no in-scope variables of class BoatProxyId: " + oe);
             }
             ArrayList<BoatProxyId> idOptionsList = new ArrayList<BoatProxyId>();
-            for(String variable : variables) {
+            for (String variable : variables) {
                 Object value = Engine.getInstance().getVariableValue(variable, Engine.getInstance().getPlanManager(oe.getMissionId()));
-                if(value != null && value instanceof BoatProxyId) {
+                if (value != null && value instanceof BoatProxyId) {
                     idOptionsList.add((BoatProxyId) value);
                 }
             }

@@ -24,7 +24,7 @@ public class BatteryHandler implements EventHandlerInt, InformationServiceProvid
 
     private final static Logger LOGGER = Logger.getLogger(BatteryHandler.class.getName());
     HashMap<Integer, double[]> idToSignalSettings = new HashMap<Integer, double[]>();
-    ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
+    final ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
 
     public BatteryHandler() {
@@ -53,43 +53,47 @@ public class BatteryHandler implements EventHandlerInt, InformationServiceProvid
     @Override
     public boolean offer(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "BatteryHandler offered subscription: " + sub);
-        if (sub.getSubscriptionClass() == BatteryNominal.class
-                || sub.getSubscriptionClass() == BatteryLow.class
-                || sub.getSubscriptionClass() == BatteryCritical.class) {
-            LOGGER.log(Level.FINE, "\tBatteryHandler taking subscription: " + sub);
-            if (!listeners.contains(sub.getListener())) {
-                LOGGER.log(Level.FINE, "\t\tBatteryHandler adding listener: " + sub.getListener());
-                listeners.add(sub.getListener());
-                listenerGCCount.put(sub.getListener(), 1);
-            } else {
-                LOGGER.log(Level.FINE, "\t\tBatteryHandler incrementing listener: " + sub.getListener());
-                listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) + 1);
+        synchronized (listeners) {
+            if (sub.getSubscriptionClass() == BatteryNominal.class
+                    || sub.getSubscriptionClass() == BatteryLow.class
+                    || sub.getSubscriptionClass() == BatteryCritical.class) {
+                LOGGER.log(Level.FINE, "\tBatteryHandler taking subscription: " + sub);
+                if (!listeners.contains(sub.getListener())) {
+                    LOGGER.log(Level.FINE, "\t\tBatteryHandler adding listener: " + sub.getListener());
+                    listeners.add(sub.getListener());
+                    listenerGCCount.put(sub.getListener(), 1);
+                } else {
+                    LOGGER.log(Level.FINE, "\t\tBatteryHandler incrementing listener: " + sub.getListener());
+                    listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) + 1);
+                }
+                return true;
             }
-            return true;
+            return false;
         }
-        return false;
     }
 
     @Override
     public boolean cancel(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "BatteryHandler asked to cancel subscription: " + sub);
-        if ((sub.getSubscriptionClass() == BatteryNominal.class
-                || sub.getSubscriptionClass() == BatteryLow.class
-                || sub.getSubscriptionClass() == BatteryCritical.class)
-                && (listeners.contains(sub.getListener()))) {
-            LOGGER.log(Level.FINE, "\tBatteryHandler canceling subscription: " + sub);
-            if (listenerGCCount.get(sub.getListener()) == 1) {
-                // Remove listener
-                LOGGER.log(Level.FINE, "\t\tBatteryHandler removing listener: " + sub.getListener());
-                listeners.remove(sub.getListener());
-                listenerGCCount.remove(sub.getListener());
-            } else {
-                // Decrement garbage colleciton count
-                LOGGER.log(Level.FINE, "\t\tBatteryHandler decrementing listener: " + sub.getListener());
-                listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) - 1);
+        synchronized (listeners) {
+            if ((sub.getSubscriptionClass() == BatteryNominal.class
+                    || sub.getSubscriptionClass() == BatteryLow.class
+                    || sub.getSubscriptionClass() == BatteryCritical.class)
+                    && (listeners.contains(sub.getListener()))) {
+                LOGGER.log(Level.FINE, "\tBatteryHandler canceling subscription: " + sub);
+                if (listenerGCCount.get(sub.getListener()) == 1) {
+                    // Remove listener
+                    LOGGER.log(Level.FINE, "\t\tBatteryHandler removing listener: " + sub.getListener());
+                    listeners.remove(sub.getListener());
+                    listenerGCCount.remove(sub.getListener());
+                } else {
+                    // Decrement garbage colleciton count
+                    LOGGER.log(Level.FINE, "\t\tBatteryHandler decrementing listener: " + sub.getListener());
+                    listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) - 1);
+                }
+                return true;
             }
-            return true;
+            return false;
         }
-        return false;
     }
 }

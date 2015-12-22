@@ -41,7 +41,7 @@ import sami.service.pathplanning.PlanningServiceResponse;
 public class PathHandler implements EventHandlerInt, InformationServiceProviderInt {
 
     private final static Logger LOGGER = Logger.getLogger(PathHandler.class.getName());
-    ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
+    final ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
 
     public PathHandler() {
@@ -99,7 +99,10 @@ public class PathHandler implements EventHandlerInt, InformationServiceProviderI
                                 }
                                 relevantProxies.add(boatProxy);
                                 PathUtmResponse responseEvent = new PathUtmResponse(oe.getId(), oe.getMissionId(), proxyPathsChoices, relevantProxies);
-                                ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                                ArrayList<GeneratedEventListenerInt> listenersCopy;
+                                synchronized (listeners) {
+                                    listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                                }
                                 for (GeneratedEventListenerInt listener : listenersCopy) {
                                     LOGGER.log(Level.FINE, "\tSending response to listener: " + listener);
                                     listener.eventGenerated(responseEvent);
@@ -117,39 +120,43 @@ public class PathHandler implements EventHandlerInt, InformationServiceProviderI
     @Override
     public boolean offer(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "PathHandler offered subscription: " + sub);
-        if (sub.getSubscriptionClass() == PathUtmResponse.class) {
-            LOGGER.log(Level.FINE, "\tPathHandler taking subscription: " + sub);
-            if (!listeners.contains(sub.getListener())) {
-                LOGGER.log(Level.FINE, "\t\tPathHandler adding listener: " + sub.getListener());
-                listeners.add(sub.getListener());
-                listenerGCCount.put(sub.getListener(), 1);
-            } else {
-                LOGGER.log(Level.FINE, "\t\tPathHandler incrementing listener: " + sub.getListener());
-                listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) + 1);
+        synchronized (listeners) {
+            if (sub.getSubscriptionClass() == PathUtmResponse.class) {
+                LOGGER.log(Level.FINE, "\tPathHandler taking subscription: " + sub);
+                if (!listeners.contains(sub.getListener())) {
+                    LOGGER.log(Level.FINE, "\t\tPathHandler adding listener: " + sub.getListener());
+                    listeners.add(sub.getListener());
+                    listenerGCCount.put(sub.getListener(), 1);
+                } else {
+                    LOGGER.log(Level.FINE, "\t\tPathHandler incrementing listener: " + sub.getListener());
+                    listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) + 1);
+                }
+                return true;
             }
-            return true;
+            return false;
         }
-        return false;
     }
 
     @Override
     public boolean cancel(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "PathHandler asked to cancel subscription: " + sub);
-        if ((sub.getSubscriptionClass() == PathUtmResponse.class)
-                && listeners.contains(sub.getListener())) {
-            LOGGER.log(Level.FINE, "\tPathHandler canceling subscription: " + sub);
-            if (listenerGCCount.get(sub.getListener()) == 1) {
-                // Remove listener
-                LOGGER.log(Level.FINE, "\t\tPathHandler removing listener: " + sub.getListener());
-                listeners.remove(sub.getListener());
-                listenerGCCount.remove(sub.getListener());
-            } else {
-                // Decrement garbage colleciton count
-                LOGGER.log(Level.FINE, "\t\tPathHandler decrementing listener: " + sub.getListener());
-                listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) - 1);
+        synchronized (listeners) {
+            if ((sub.getSubscriptionClass() == PathUtmResponse.class)
+                    && listeners.contains(sub.getListener())) {
+                LOGGER.log(Level.FINE, "\tPathHandler canceling subscription: " + sub);
+                if (listenerGCCount.get(sub.getListener()) == 1) {
+                    // Remove listener
+                    LOGGER.log(Level.FINE, "\t\tPathHandler removing listener: " + sub.getListener());
+                    listeners.remove(sub.getListener());
+                    listenerGCCount.remove(sub.getListener());
+                } else {
+                    // Decrement garbage colleciton count
+                    LOGGER.log(Level.FINE, "\t\tPathHandler decrementing listener: " + sub.getListener());
+                    listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) - 1);
+                }
+                return true;
             }
-            return true;
+            return false;
         }
-        return false;
     }
 }

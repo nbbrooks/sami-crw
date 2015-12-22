@@ -33,7 +33,7 @@ public class AllocationHandler implements EventHandlerInt, InformationServicePro
 
     private final static Logger LOGGER = Logger.getLogger(AllocationHandler.class.getName());
     private final boolean appendAllocations = true;
-    ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
+    final ArrayList<GeneratedEventListenerInt> listeners = new ArrayList<GeneratedEventListenerInt>();
     HashMap<GeneratedEventListenerInt, Integer> listenerGCCount = new HashMap<GeneratedEventListenerInt, Integer>();
 
     public AllocationHandler() {
@@ -130,7 +130,10 @@ public class AllocationHandler implements EventHandlerInt, InformationServicePro
                                 }
                             }
                             AllocationResponse responseEvent = new AllocationResponse(oe.getId(), oe.getMissionId(), resourceAllocations);
-                            ArrayList<GeneratedEventListenerInt> listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                            ArrayList<GeneratedEventListenerInt> listenersCopy;
+                            synchronized (listeners) {
+                                listenersCopy = (ArrayList<GeneratedEventListenerInt>) listeners.clone();
+                            }
                             for (GeneratedEventListenerInt listener : listenersCopy) {
                                 LOGGER.log(Level.FINE, "Sending responseEvent: " + responseEvent + " to listener: " + listener);
                                 listener.eventGenerated(responseEvent);
@@ -145,40 +148,44 @@ public class AllocationHandler implements EventHandlerInt, InformationServicePro
     @Override
     public boolean offer(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "AllocationHandler offered subscription: " + sub);
-        if (sub.getSubscriptionClass() == AllocationResponse.class) {
-            LOGGER.log(Level.FINE, "\tAllocationHandler taking subscription: " + sub);
-            if (!listeners.contains(sub.getListener())) {
-                LOGGER.log(Level.FINE, "\t\tAllocationHandler adding listener: " + sub.getListener());
-                listeners.add(sub.getListener());
-                listenerGCCount.put(sub.getListener(), 1);
-            } else {
-                LOGGER.log(Level.FINE, "\t\tAllocationHandler incrementing listener: " + sub.getListener());
-                listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) + 1);
-            }
+        synchronized (listeners) {
+            if (sub.getSubscriptionClass() == AllocationResponse.class) {
+                LOGGER.log(Level.FINE, "\tAllocationHandler taking subscription: " + sub);
+                if (!listeners.contains(sub.getListener())) {
+                    LOGGER.log(Level.FINE, "\t\tAllocationHandler adding listener: " + sub.getListener());
+                    listeners.add(sub.getListener());
+                    listenerGCCount.put(sub.getListener(), 1);
+                } else {
+                    LOGGER.log(Level.FINE, "\t\tAllocationHandler incrementing listener: " + sub.getListener());
+                    listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) + 1);
+                }
 
-            return true;
+                return true;
+            }
+            return false;
         }
-        return false;
     }
 
     @Override
     public boolean cancel(GeneratedInputEventSubscription sub) {
         LOGGER.log(Level.FINE, "AllocationHandler asked to cancel subscription: " + sub);
-        if ((sub.getSubscriptionClass() == AllocationResponse.class)
-                && listeners.contains(sub.getListener())) {
-            LOGGER.log(Level.FINE, "\tAllocationHandler canceling subscription: " + sub);
-            if (listenerGCCount.get(sub.getListener()) == 1) {
-                // Remove listener
-                LOGGER.log(Level.FINE, "\t\tAllocationHandler removing listener: " + sub.getListener());
-                listeners.remove(sub.getListener());
-                listenerGCCount.remove(sub.getListener());
-            } else {
-                // Decrement garbage colleciton count
-                LOGGER.log(Level.FINE, "\t\tAllocationHandler decrementing listener: " + sub.getListener());
-                listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) - 1);
+        synchronized (listeners) {
+            if ((sub.getSubscriptionClass() == AllocationResponse.class)
+                    && listeners.contains(sub.getListener())) {
+                LOGGER.log(Level.FINE, "\tAllocationHandler canceling subscription: " + sub);
+                if (listenerGCCount.get(sub.getListener()) == 1) {
+                    // Remove listener
+                    LOGGER.log(Level.FINE, "\t\tAllocationHandler removing listener: " + sub.getListener());
+                    listeners.remove(sub.getListener());
+                    listenerGCCount.remove(sub.getListener());
+                } else {
+                    // Decrement garbage colleciton count
+                    LOGGER.log(Level.FINE, "\t\tAllocationHandler decrementing listener: " + sub.getListener());
+                    listenerGCCount.put(sub.getListener(), listenerGCCount.get(sub.getListener()) - 1);
+                }
+                return true;
             }
-            return true;
+            return false;
         }
-        return false;
     }
 }
