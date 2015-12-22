@@ -261,6 +261,7 @@ public class TextPanel implements MarkupComponent {
             component.setFont(new java.awt.Font("Lucida Grande", 1, 13));
             component.setBorder(BorderFactory.createLineBorder(boatProxyId.color, 6));
             component.setForeground(boatProxyId.color);
+            component.setBackground(CrwHelper.getContrastColor(boatProxyId.color));
             component.setOpaque(true);
         } else if (object instanceof Color) {
             component = new JPanel();

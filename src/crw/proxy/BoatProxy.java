@@ -62,7 +62,9 @@ import crw.event.output.connectivity.DisconnectServer;
 import crw.event.output.connectivity.ReconnectServer;
 import crw.event.output.proxy.ProxyExecutePathAndBlock;
 import crw.event.output.proxy.ProxyGotoPointAndBlock;
+import crw.event.output.proxy.single.SingleProxyGotoLatLon;
 import crw.ui.CommPanel;
+import gov.nasa.worldwind.geom.Angle;
 import sami.event.BlankInputEvent;
 import sami.event.TaskComplete;
 import sami.event.TaskDelayed;
@@ -107,6 +109,7 @@ public class BoatProxy extends Thread implements ProxyInt {
     // Identifiers
     int _boatNo;
     private final String name;
+    private String modName;
     private Color color = null;
     InetSocketAddress addr;
     // SAMI variables
@@ -216,6 +219,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
         // this.masterURI = masterURI;
         this.name = name;
+        this.modName = name;
         this.color = color;
 
         //Initialize the boat by initalizing a proxy server for it
@@ -278,8 +282,13 @@ public class BoatProxy extends Thread implements ProxyInt {
                 // Send out event update
                 if (sendEvent.get()) {
                     ProxyPoseUpdated ie = new ProxyPoseUpdated(null, null, bp);
-                    for (ProxyListenerInt boatProxyListener : listeners) {
-                        boatProxyListener.eventOccurred(ie);
+                    if (SIMULATE_COMM_LOSS && CoreHelper.RANDOM.nextDouble() <= COMM_LOSS_PROB) {
+                        LOGGER.fine("*** Dropping ProxyPoseUpdated");
+                    } else {
+                        LOGGER.fine("*** Sending ProxyPoseUpdated");
+                        for (ProxyListenerInt boatProxyListener : listeners) {
+                            boatProxyListener.eventOccurred(ie);
+                        }
                     }
                     sendEvent.set(false);
                 }
@@ -380,7 +389,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     @Override
     public String getProxyName() {
-        return name;
+        return modName;
     }
 
     @Override
@@ -529,8 +538,15 @@ public class BoatProxy extends Thread implements ProxyInt {
             } else {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
             }
+        } else if (oe instanceof SingleProxyGotoLatLon) {
+            sequentialOutputEvents.add(index, oe);
+            if (!useBlankInputEvent) {
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
+            } else {
+                sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            }
         } else if (oe instanceof ProxyGotoPointAndBlock) {
-            System.out.println("ProxyGotoPointAndBlock at index " + index);
+//            System.out.println("ProxyGotoPointAndBlock at index " + index);
             // Insert ProxyGotoPoint followed by BlockMovement
             sequentialOutputEvents.add(index, new BlockMovement(oe.getMissionId()));
             sequentialOutputEvents.add(index, new ProxyGotoPoint(oe.getId(), oe.getMissionId(), ((ProxyGotoPointAndBlock) oe).getProxyPoints()));
@@ -622,7 +638,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     @Override
     public ArrayList<OutputEvent> getEvents() {
-        return sequentialOutputEvents;
+        return ((ArrayList<OutputEvent>) sequentialOutputEvents.clone());
     }
 
     @Override
@@ -1037,6 +1053,18 @@ public class BoatProxy extends Thread implements ProxyInt {
                     } else {
                         LOGGER.severe("Proxy points has no entry for this proxy: " + this + ": " + gotoPoint.getProxyPoints());
                     }
+                } else if (sequentialOutputEvents.get(0) instanceof SingleProxyGotoLatLon) {
+                    SingleProxyGotoLatLon singleGotoPoint = (SingleProxyGotoLatLon) sequentialOutputEvents.get(0);
+                    curSequentialEvent = sequentialOutputEvents.get(0);
+                    Position position = new Position(Angle.fromDegreesLatitude(singleGotoPoint.latLon.getLatitude()), Angle.fromDegreesLongitude(singleGotoPoint.latLon.getLongitude()), 0);
+                    Location location = Conversion.positionToLocation(position);
+                    ArrayList<Position> positions = new ArrayList<Position>();
+                    positions.add(position);
+
+                    _curWaypointsPos = positions;
+                    UTMCoord utm = UTMCoord.fromLatLon(position.latitude, position.longitude);
+                    UtmPose pose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
+                    _curWaypoints.add(pose);
                 } else if (sequentialOutputEvents.get(0) instanceof BlockMovement) {
                     // Do nothing (waypoints are already cleared, which will stop the boat's movement)
 //                    LOGGER.info("Current event is  BlockMovement, list is currently: " + sequentialOutputEvents.toString());
@@ -1432,10 +1460,13 @@ public class BoatProxy extends Thread implements ProxyInt {
         return _server;
     }
 
+    public void setNameModifier(String mod) {
+        modName = name + ":" + mod;
+    }
+
     @Override
     public String toString() {
-        return name + "@" + _server.getVehicleService();
-        // (masterURI == null ? "Unknown" : masterURI.toString());
+        return modName;
     }
 
     private void checkAndSleepForCmd() {

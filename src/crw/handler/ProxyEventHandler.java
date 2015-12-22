@@ -36,6 +36,7 @@ import crw.event.output.proxy.ProxyGotoPoint;
 import crw.event.output.proxy.ProxyGotoPointAndBlock;
 import crw.event.output.proxy.ProxyResendWaypoints;
 import crw.event.output.proxy.SetGains;
+import crw.event.output.proxy.single.SingleProxyGotoLatLon;
 import crw.event.output.service.ProxyCompareDistanceRequest;
 import crw.general.FastSimpleBoatSimulator;
 import crw.proxy.BoatProxy;
@@ -61,11 +62,14 @@ import robotutils.Pose3D;
 import sami.CoreHelper;
 import sami.area.Area2D;
 import sami.engine.Engine;
+import sami.engine.PlanManager;
 import sami.event.GeneratedEventListenerInt;
 import sami.event.GeneratedInputEventSubscription;
 import sami.event.InputEvent;
 import sami.event.OutputEvent;
 import sami.event.ProxyAbortMission;
+import sami.event.ProxyAbortMissionReceived;
+import sami.event.ProxyAddDescription;
 import sami.handler.EventHandlerInt;
 import sami.mission.Token;
 import sami.path.Location;
@@ -120,6 +124,20 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has no tokens with proxies attached: " + oe);
+            }
+        } else if (oe instanceof SingleProxyGotoLatLon) {
+            int numProxies = 0;
+            for (Token token : tokens) {
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy || token.getProxy() instanceof ClickthroughProxy)) {
+                    // Send the path
+                    token.getProxy().handleEvent(oe, token.getTask());
+                    numProxies++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "Place with ProxyGotoPoint has no tokens with proxies attached: " + oe);
+            } else if (numProxies > 1) {
+                LOGGER.log(Level.WARNING, "Place with SingleProxyGotoLatLon had multiple tokens with proxies attached: " + oe);
             }
         } else if (oe instanceof ProxyGotoPointAndBlock) {
             int numProxies = 0;
@@ -234,6 +252,17 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     tokensWithProxy.get(proxyIndex).getProxy().handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask());
                 }
             }
+        } else if (oe instanceof ProxyAddDescription) {
+            int numProxies = 0;
+            for (Token token : tokens) {
+                if (token.getProxy() != null && (token.getProxy() instanceof BoatProxy)) {
+                    ((BoatProxy) token.getProxy()).setNameModifier(((ProxyAddDescription) oe).description);
+                    numProxies++;
+                }
+            }
+            if (numProxies == 0) {
+                LOGGER.log(Level.WARNING, "ProxyAddDescription had no relevant proxies attached: " + oe);
+            }
         } else if (oe instanceof AssembleLocationRequest) {
             AssembleLocationRequest request = (AssembleLocationRequest) oe;
             int assembleCounter = 0;
@@ -330,6 +359,36 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             for (Token token : tokens) {
                 if (token.getProxy() != null) {
                     token.getProxy().abortMission(oe.getMissionId());
+                    ArrayList<ProxyInt> relevantProxies = new ArrayList<ProxyInt>();
+                    relevantProxies.add(token.getProxy());
+
+                    // Now abort any sub-missions
+                    //  Only do immediate children, as this will recurse
+                    ArrayList<PlanManager> subPMs = Engine.getInstance().getSubPlanManagers(oe.getMissionId());
+                    for (PlanManager subPm : subPMs) {
+                        // Check that sub PM has an active AbortMissionReceived that will handle this
+                        //  Shared SMs may not currently have any active places, so the IE will not trigger an transition
+                        //  Non-shared SMs should have an active place which will trigger a transition, but check just in case
+                        boolean found = false;
+                        ArrayList<InputEvent> smActiveInputEvents = subPm.getActiveInputEventsClone();
+                        for (InputEvent ie : smActiveInputEvents) {
+                            if (ie instanceof ProxyAbortMissionReceived) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            // No active AbortMissionReceived in the SM
+                            if (!subPm.getIsSharedSm()) {
+                                LOGGER.severe("Want to send ProxyAbortMissionReceived to non-shared SM, but it has no active IE, manually aborting proxy from SM");
+                            }
+                            // Abort this PM manually
+                            //@todo this only goes one layer deep - what if SM has SM also without ProxyAbortMissionReceived?
+                            token.getProxy().abortMission(subPm.missionId);
+                        } else {
+                            subPm.eventGenerated(new ProxyAbortMissionReceived(subPm.missionId, relevantProxies));
+                        }
+                    }
                 }
             }
         } else if (oe instanceof ConnectExistingProxy) {

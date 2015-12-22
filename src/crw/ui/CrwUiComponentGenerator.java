@@ -17,6 +17,7 @@ import sami.CoreHelper;
 import sami.engine.PlanManager;
 import sami.markup.Markup;
 import sami.mission.MissionPlanSpecification;
+import sami.path.SimpleLatLon;
 import sami.uilanguage.MarkupComponent;
 import sami.uilanguage.UiComponentGeneratorInt;
 
@@ -171,6 +172,7 @@ public class CrwUiComponentGenerator implements UiComponentGeneratorInt {
     public ArrayList<Class> getCreationClasses() {
         ArrayList<Class> creationClasses = new ArrayList<Class>();
         creationClasses.add(BoatProxyId.class);
+        creationClasses.add(SimpleLatLon.class);
         for (Class compClass : componentClasses) {
             try {
                 MarkupComponent temp = (MarkupComponent) compClass.newInstance();

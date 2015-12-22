@@ -3,6 +3,7 @@ package crw;
 import sami.path.Location;
 import sami.path.UTMCoordinate;
 import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
@@ -69,6 +70,11 @@ public class Conversion {
                 (utmCoordinate.getHemisphere().equals(UTMCoordinate.Hemisphere.NORTH) ? AVKey.NORTH : AVKey.SOUTH),
                 utmCoordinate.getEasting(),
                 utmCoordinate.getNorthing());
+    }
+
+    public static UTMCoordinate utmCoordToUtmCoordinate(UTMCoord utmCoord) {
+        //@todo UTMCoord has no method to get zone character needed for UTMCoordinate, being lazy and converting through lat/lon
+        return new UTMCoordinate(utmCoord.getLatitude().degrees, utmCoord.getLongitude().degrees);
     }
 
     // Linearly scale a value from one value range to another
