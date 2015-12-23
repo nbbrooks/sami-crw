@@ -88,7 +88,7 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
     public JComponent component = null;
     //
     private final static Logger LOGGER = Logger.getLogger(WorldWindPanel.class.getName());
-    public static final double SPHERE_SIZE = 15;
+    public static final double SPHERE_SIZE = 1;
     public WorldWindowGLCanvas wwCanvas = null;
     public JPanel buttonPanels;
     protected WorldWindInputAdapter mouseHandler;
