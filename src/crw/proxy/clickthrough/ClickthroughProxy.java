@@ -158,18 +158,22 @@ public class ClickthroughProxy extends Thread implements ProxyInt {
 
     @Override
     public void handleEvent(OutputEvent oe, Task task) {
-        handleEvent(oe, task, false);
+        handleEvent(oe, task, null);
     }
 
     /**
      *
      * @param oe The output event to handle
      * @param task The task (if any) associated with the OE
-     * @param useBlankInputEvent For movement related OEs, whether to pair the
-     * OE with a ProxyCompletedPath IE (last waypoint) or BlankInputEvent (not
-     * last waypoint)
+     * @param returnIeClassHint For "overloaded" OEs created during event
+     * handling of a different type of OE (ex: many path related OEs are handled
+     * by remapping it into a ProxyExecutePath OE to minimize the number of OEs
+     * each ProxyInt must handle) - this tells the ProxyInt if there is a
+     * specific IE that should be generated when the OE is done instead of the
+     * default IE
      */
-    public void handleEvent(OutputEvent oe, Task task, boolean useBlankInputEvent) {
+    @Override
+    public void handleEvent(OutputEvent oe, Task task, Class returnIeClassHint) {
         if (task != null && task != currentTask) {
             // OEs with a defined task should only be processed after that task becomes the current task and a corresponding TaskStarted is generated
             LOGGER.severe("Proxy [" + this + "] asked to handle event [" + oe + "] for a task [" + task + "] that is not the current task [" + currentTask + "] - ignoring");
@@ -249,27 +253,30 @@ public class ClickthroughProxy extends Thread implements ProxyInt {
         if (oe instanceof ProxyExecutePath) {
             System.out.println("ProxyExecutePath at index " + index);
             sequentialOutputEvents.add(index, oe);
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
         } else if (oe instanceof ProxyExecutePathAndBlock) {
             // Insert ProxyExecutePath followed by BlockMovement
             sequentialOutputEvents.add(index, new BlockMovement(oe.getMissionId()));
             sequentialOutputEvents.add(index, new ProxyExecutePath(oe.getId(), oe.getMissionId(), ((ProxyExecutePathAndBlock) oe).getProxyPaths()));
             sequentialInputEvents.add(index, new BlockMovementDone(oe.getId(), oe.getMissionId(), this));
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
         } else if (oe instanceof ProxyGotoPoint) {
             sequentialOutputEvents.add(index, oe);
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
         } else if (oe instanceof ProxyGotoPointAndBlock) {
             System.out.println("ProxyGotoPointAndBlock at index " + index);
@@ -277,10 +284,11 @@ public class ClickthroughProxy extends Thread implements ProxyInt {
             sequentialOutputEvents.add(index, new BlockMovement(oe.getMissionId()));
             sequentialOutputEvents.add(index, new ProxyGotoPoint(oe.getId(), oe.getMissionId(), ((ProxyGotoPointAndBlock) oe).getProxyPoints()));
             sequentialInputEvents.add(index, new BlockMovementDone(oe.getId(), oe.getMissionId(), this));
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
         } else if (oe instanceof ProxyEmergencyAbort) {
             // Clear out all events and stop

@@ -58,9 +58,11 @@ import sami.event.InputEvent;
 import sami.event.OutputEvent;
 import crw.event.output.proxy.BlockMovement;
 import crw.event.input.proxy.BlockMovementDone;
+import crw.event.input.proxy.ProxyListCompleted;
 import crw.event.output.connectivity.DisconnectServer;
 import crw.event.output.connectivity.ReconnectServer;
 import crw.event.output.proxy.ProxyExecutePathAndBlock;
+import crw.event.output.proxy.ProxyGotoListLocation;
 import crw.event.output.proxy.ProxyGotoPointAndBlock;
 import crw.event.output.proxy.single.SingleProxyGotoLatLon;
 import crw.ui.CommPanel;
@@ -425,18 +427,22 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     @Override
     public void handleEvent(OutputEvent oe, Task task) {
-        handleEvent(oe, task, false);
+        handleEvent(oe, task, null);
     }
 
     /**
      *
      * @param oe The output event to handle
      * @param task The task (if any) associated with the OE
-     * @param useBlankInputEvent For movement related OEs, whether to pair the
-     * OE with a ProxyCompletedPath IE (last waypoint) or BlankInputEvent (not
-     * last waypoint)
+     * @param returnIeClassHint For "overloaded" OEs created during event
+     * handling of a different type of OE (ex: many path related OEs are handled
+     * by remapping it into a ProxyExecutePath OE to minimize the number of OEs
+     * each ProxyInt must handle) - this tells the ProxyInt if there is a
+     * specific IE that should be generated when the OE is done instead of the
+     * default IE
      */
-    public void handleEvent(OutputEvent oe, Task task, boolean useBlankInputEvent) {
+    @Override
+    public void handleEvent(OutputEvent oe, Task task, Class returnIeClassHint) {
         if (task != null && task != currentTask) {
             // OEs with a defined task should only be processed after that task becomes the current task and a corresponding TaskStarted is generated
             LOGGER.severe("Proxy [" + this + "] asked to handle event [" + oe + "] for a task [" + task + "] that is not the current task [" + currentTask + "] - ignoring");
@@ -516,34 +522,42 @@ public class BoatProxy extends Thread implements ProxyInt {
         if (oe instanceof ProxyExecutePath) {
             System.out.println("ProxyExecutePath at index " + index);
             sequentialOutputEvents.add(index, oe);
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
         } else if (oe instanceof ProxyExecutePathAndBlock) {
             // Insert ProxyExecutePath followed by BlockMovement
             sequentialOutputEvents.add(index, new BlockMovement(oe.getMissionId()));
             sequentialOutputEvents.add(index, new ProxyExecutePath(oe.getId(), oe.getMissionId(), ((ProxyExecutePathAndBlock) oe).getProxyPaths()));
             sequentialInputEvents.add(index, new BlockMovementDone(oe.getId(), oe.getMissionId(), this));
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
         } else if (oe instanceof ProxyGotoPoint) {
             sequentialOutputEvents.add(index, oe);
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else if (returnIeClassHint == ProxyListCompleted.class) {
+                sequentialInputEvents.add(index, new ProxyListCompleted(oe.getId(), oe.getMissionId(), this));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
         } else if (oe instanceof SingleProxyGotoLatLon) {
             sequentialOutputEvents.add(index, oe);
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else if (returnIeClassHint == ProxyListCompleted.class) {
+                sequentialInputEvents.add(index, new ProxyListCompleted(oe.getId(), oe.getMissionId(), this));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
         } else if (oe instanceof ProxyGotoPointAndBlock) {
 //            System.out.println("ProxyGotoPointAndBlock at index " + index);
@@ -551,11 +565,79 @@ public class BoatProxy extends Thread implements ProxyInt {
             sequentialOutputEvents.add(index, new BlockMovement(oe.getMissionId()));
             sequentialOutputEvents.add(index, new ProxyGotoPoint(oe.getId(), oe.getMissionId(), ((ProxyGotoPointAndBlock) oe).getProxyPoints()));
             sequentialInputEvents.add(index, new BlockMovementDone(oe.getId(), oe.getMissionId(), this));
-            if (!useBlankInputEvent) {
-                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
-            } else {
+            if (returnIeClassHint == BlankInputEvent.class) {
                 sequentialInputEvents.add(index, new BlankInputEvent(oe.getId(), oe.getMissionId()));
+            } else if (returnIeClassHint == ProxyListCompleted.class) {
+                sequentialInputEvents.add(index, new ProxyListCompleted(oe.getId(), oe.getMissionId(), this));
+            } else {
+                // Default return IE
+                sequentialInputEvents.add(index, new ProxyPathCompleted(oe.getId(), oe.getMissionId(), this));
             }
+//        } else if (oe instanceof ProxyGotoListLocation) {
+//
+//            ProxyGotoListLocation asdf = (ProxyGotoListLocation) oe;
+//            // Is there a location at the specified position for this proxy, or have we reached the end of the list?
+//            if (asdf.getProxyLocations().containsKey(this)) {
+//                ArrayList<Location> locations = asdf.getProxyLocations().get(this);
+//
+//                if (asdf.position > 0 && asdf.position <= locations.size()) {
+//                    // Within bounds of this proxy's location list
+//                    Location location = locations.get(asdf.position - 1);
+//                    Hashtable<ProxyInt, Location> thisProxyPoint = new Hashtable<ProxyInt, Location>();
+//                    thisProxyPoint.put(tokensWithProxy.get(proxyIndex).getProxy(), location);
+//                    ProxyGotoPoint proxyEvent = new ProxyGotoPoint(oe.getId(), oe.getMissionId(), thisProxyPoint);
+//                    if (tokensWithProxy.get(proxyIndex).getProxy() instanceof BoatProxy) {
+//                        BoatProxy bp = (BoatProxy) tokensWithProxy.get(proxyIndex).getProxy();
+//                        // Use blank return event unless last point
+//                        bp.handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask(), pointCount < proxyLocations.size() - 1);
+//                    } else if (tokensWithProxy.get(proxyIndex).getProxy() instanceof ClickthroughProxy) {
+//                        ClickthroughProxy cp = (ClickthroughProxy) tokensWithProxy.get(proxyIndex).getProxy();
+//                        // Use blank return event unless last point
+//                        cp.handleEvent(proxyEvent, tokensWithProxy.get(proxyIndex).getTask(), pointCount < proxyLocations.size() - 1);
+//                    } else {
+//                        LOGGER.severe("Not a boat proxy");
+//                    }
+//                }
+//
+//                if (clone.position > 0 && clone.position < locations.size()) {
+//                    // Within the range of the list and not the last item
+//                    sequentialInputEvents.add(index, new ProxyPathCompleted(clone.getId(), clone.getMissionId(), this));
+//                } else if (clone.position > 0 && clone.position == locations.size()) {
+//                    // Last item in the list
+//                    sequentialInputEvents.add(index, new ProxyListCompleted(clone.getId(), clone.getMissionId(), this));
+//                } else {
+//                    // Invalid position
+//                }
+//            } else {
+//
+//            }
+//
+////            
+////                            
+////                  
+//            
+//            sequentialOutputEvents.add(index, new ProxyGotoPoint(oe.getId(), oe.getMissionId(), ((ProxyGotoPointAndBlock) oe).getProxyPoints()));
+//            
+//            // Create a shallow clone so we don't later modify a shared instance's position field
+//            ProxyGotoListLocation clone = ((ProxyGotoListLocation) oe).clone();
+//            sequentialOutputEvents.add(index, clone);
+//
+//            // Is there a location at the specified position for this proxy, or have we reached the end of the list?
+//            if (clone.getProxyLocations().containsKey(this)) {
+//                curSequentialEvent = sequentialOutputEvents.get(0);
+//                ArrayList<Location> locations = clone.getProxyLocations().get(this);
+//                if (clone.position > 0 && clone.position < locations.size()) {
+//                    // Within the range of the list and not the last item
+//                    sequentialInputEvents.add(index, new ProxyPathCompleted(clone.getId(), clone.getMissionId(), this));
+//                } else if (clone.position > 0 && clone.position == locations.size()) {
+//                    // Last item in the list
+//                    sequentialInputEvents.add(index, new ProxyListCompleted(clone.getId(), clone.getMissionId(), this));
+//                } else {
+//                    // Invalid position
+//                }
+//            } else {
+//
+//            }
         } else if (oe instanceof ProxyEmergencyAbort) {
             // Clear out all events and stop
             LOGGER.severe("Handling ProxyEmergencyAbort! sequentialOutputEvents were: " + sequentialOutputEvents + ", sequentialInputEvents were: " + sequentialInputEvents);
@@ -1057,7 +1139,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                     SingleProxyGotoLatLon singleGotoPoint = (SingleProxyGotoLatLon) sequentialOutputEvents.get(0);
                     curSequentialEvent = sequentialOutputEvents.get(0);
                     Position position = new Position(Angle.fromDegreesLatitude(singleGotoPoint.latLon.getLatitude()), Angle.fromDegreesLongitude(singleGotoPoint.latLon.getLongitude()), 0);
-                    Location location = Conversion.positionToLocation(position);
                     ArrayList<Position> positions = new ArrayList<Position>();
                     positions.add(position);
 
@@ -1065,6 +1146,26 @@ public class BoatProxy extends Thread implements ProxyInt {
                     UTMCoord utm = UTMCoord.fromLatLon(position.latitude, position.longitude);
                     UtmPose pose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
                     _curWaypoints.add(pose);
+                } else if (sequentialOutputEvents.get(0) instanceof ProxyGotoListLocation) {
+                    // We made a clone of the original ProxyGotoListLocation so that the position isn't 
+                    //  modified between when it is received by handleEvent and when it actually gets executed here
+                    ProxyGotoListLocation gotoListLocation = (ProxyGotoListLocation) sequentialOutputEvents.get(0);
+                    if (gotoListLocation.getProxyLocations().containsKey(this)) {
+                        curSequentialEvent = sequentialOutputEvents.get(0);
+                        ArrayList<Location> locations = gotoListLocation.getProxyLocations().get(this);
+                        if (gotoListLocation.position > 0 && gotoListLocation.position <= locations.size()) {
+                            Position position = Conversion.locationToPosition(locations.get(gotoListLocation.position - 1));
+                            ArrayList<Position> positions = new ArrayList<Position>();
+                            positions.add(position);
+
+                            _curWaypointsPos = positions;
+                            UTMCoord utm = UTMCoord.fromLatLon(position.latitude, position.longitude);
+                            UtmPose pose = new UtmPose(new Pose3D(utm.getEasting(), utm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(utm.getZone(), utm.getHemisphere().contains("North")));
+                            _curWaypoints.add(pose);
+                        }
+                    } else {
+                        LOGGER.severe("Proxy locations has no entry for this proxy: " + this + ": " + gotoListLocation.getProxyLocations());
+                    }
                 } else if (sequentialOutputEvents.get(0) instanceof BlockMovement) {
                     // Do nothing (waypoints are already cleared, which will stop the boat's movement)
 //                    LOGGER.info("Current event is  BlockMovement, list is currently: " + sequentialOutputEvents.toString());
