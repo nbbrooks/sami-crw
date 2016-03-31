@@ -165,6 +165,8 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 if (clickPosition != null) {
                     selectedPositions.add(clickPosition);
                     // Update temporary path
+                    
+                    // Polyline approach
                     if (polyline != null) {
                         renderableLayer.removeRenderable(polyline);
                     }
@@ -173,6 +175,18 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     polyline.setLineWidth(8);
                     polyline.setFollowTerrain(true);
                     renderableLayer.addRenderable(polyline);
+                    
+                    // Path approach
+//                    if (path != null) {
+//                        renderableLayer.removeRenderable(path);
+//                    }
+////                    path = new Path(selectedPositions);
+////                    ShapeAttributes attributes = new BasicShapeAttributes();
+////                    attributes.setOutlineWidth(8);
+////                    attributes.setOutlineMaterial(Material.YELLOW);
+////                    attributes.setDrawOutline(true);
+////                    path.setAttributes(attributes);
+////                    path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
 //                    path = new Path(selectedPositions);
 //                    ShapeAttributes attributes = new BasicShapeAttributes();
 //                    attributes.setOutlineWidth(8);
@@ -181,13 +195,14 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
 //                    path.setAttributes(attributes);
 //                    path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
 //                    renderableLayer.addRenderable(path);
+
                     wwd.redraw();
                     complexHandled = true;
                 }
                 if (evt.getClickCount() > 1 && !evt.isConsumed()) {
                     // Finish path
                     polyline = null;
-//                        path = null;
+//                    path = null;
                     setSelectMode(SelectMode.NONE);
                     complexHandled = true;
                 }

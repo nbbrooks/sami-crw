@@ -32,6 +32,7 @@ import gov.nasa.worldwind.layers.RenderableLayer;
 import gov.nasa.worldwind.render.BasicShapeAttributes;
 import gov.nasa.worldwind.render.Material;
 import gov.nasa.worldwind.render.Path;
+import gov.nasa.worldwind.render.Polyline;
 import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.render.ShapeAttributes;
 import gov.nasa.worldwind.render.SurfacePolygon;
@@ -363,19 +364,36 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                 Layer tempLayer = wwCanvas.getModel().getLayers().get(i);
                 if (tempLayer instanceof RenderableLayer) {
                     RenderableLayer layer = (RenderableLayer) tempLayer;
-                    Path path = null;
+
+                    // Polyline method
+                    Polyline polyline = null;
                     for (Renderable renderable : layer.getRenderables()) {
-                        if (renderable instanceof Path) {
-                            path = (Path) renderable;
+                        if (renderable instanceof Polyline) {
+                            polyline = (Polyline) renderable;
                         }
                     }
-                    if (path != null) {
+                    if (polyline != null) {
                         ArrayList<Location> locationList = new ArrayList<Location>();
-                        for (Position position : path.getPositions()) {
+                        for (Position position : polyline.getPositions()) {
                             locationList.add(Conversion.positionToLocation(position));
                         }
                         value = new PathUtm(locationList);
                     }
+
+//                    // Path method
+//                    Path path = null;
+//                    for (Renderable renderable : layer.getRenderables()) {
+//                        if (renderable instanceof Path) {
+//                            path = (Path) renderable;
+//                        }
+//                    }
+//                    if (path != null) {
+//                        ArrayList<Location> locationList = new ArrayList<Location>();
+//                        for (Position position : path.getPositions()) {
+//                            locationList.add(Conversion.positionToLocation(position));
+//                        }
+//                        value = new PathUtm(locationList);
+//                    }
                 }
             }
         } else if (componentClass.equals(Area2D.class)) {
