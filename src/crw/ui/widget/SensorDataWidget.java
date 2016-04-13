@@ -3,7 +3,7 @@ package crw.ui.widget;
 import com.platypus.crw.VehicleServer;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
-import crw.Conversion;
+import sami.Conversion;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;

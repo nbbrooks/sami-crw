@@ -1,6 +1,6 @@
 package crw.ui.widget;
 
-import crw.Conversion;
+import sami.Conversion;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import sami.event.InputEvent;

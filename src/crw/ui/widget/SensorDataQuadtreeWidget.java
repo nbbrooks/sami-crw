@@ -3,7 +3,7 @@ package crw.ui.widget;
 import com.platypus.crw.VehicleServer;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
-import crw.Conversion;
+import sami.Conversion;
 import crw.quadtree.NodeComparator;
 import crw.quadtree.RenderableNode;
 import crw.quadtree.RenderableQuadTree;

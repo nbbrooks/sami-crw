@@ -6,7 +6,7 @@ import com.platypus.crw.VehicleServer;
 import com.platypus.crw.data.Utm;
 import com.platypus.crw.data.UtmPose;
 import com.platypus.crw.udp.UdpVehicleService;
-import crw.Conversion;
+import sami.Conversion;
 import crw.CrwHelper;
 import static crw.CrwHelper.LAT_D_PER_M;
 import static crw.CrwHelper.LON_D_PER_M;
@@ -417,6 +417,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     if (!request.getProxyCompareLocation().containsKey(proxy)) {
                         LOGGER.severe("Passed in proxy token for " + proxy + " to place with ProxyCompareDistanceRequest, but there is no compare location entry for the proxy!");
                     } else {
+//                        try {
                             Position stationKeepPosition = Conversion.locationToPosition(request.getProxyCompareLocation().get(proxy));
                             UTMCoord stationKeepUtm = UTMCoord.fromLatLon(stationKeepPosition.latitude, stationKeepPosition.longitude);
                             UtmPose stationKeepPose = new UtmPose(new Pose3D(stationKeepUtm.getEasting(), stationKeepUtm.getNorthing(), 0.0, 0.0, 0.0, 0.0), new Utm(stationKeepUtm.getZone(), stationKeepUtm.getHemisphere().contains("North")));
@@ -435,6 +436,14 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                                 response = new QuantityEqual(request.getId(), request.getMissionId(), relevantProxies);
                             }
                             responses.add(response);
+//                        } catch (NullPointerException npe) {
+//                            LOGGER.severe("Caught NPE in  v, assuming greater");
+//                            npe.printStackTrace();
+//                            relevantProxies = new ArrayList<ProxyInt>();
+//                            relevantProxies.add(proxy);
+//                            InputEvent response = new QuantityGreater(request.getId(), request.getMissionId(), relevantProxies);
+//                            responses.add(response);
+//                        }
                     }
                     numProxies++;
                 }

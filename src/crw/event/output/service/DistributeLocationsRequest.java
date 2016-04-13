@@ -25,7 +25,7 @@ public class DistributeLocationsRequest extends OutputEvent {
     static {
         fieldNames.add("locations");
 
-        fieldNameToDescription.put("locations", "Locations to ditribute?");
+        fieldNameToDescription.put("locations", "Locations to distribute?");
     }
 
     public DistributeLocationsRequest() {

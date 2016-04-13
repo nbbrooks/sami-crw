@@ -1,6 +1,6 @@
 package crw.ui.teleop;
 
-import crw.Conversion;
+import sami.Conversion;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;

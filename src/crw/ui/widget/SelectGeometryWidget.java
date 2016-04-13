@@ -1,18 +1,16 @@
 package crw.ui.widget;
 
 import crw.ui.worldwind.WorldWindWidgetInt;
-import crw.Conversion;
+import sami.Conversion;
 import crw.proxy.BoatProxy;
 import crw.ui.component.WorldWindPanel;
 import static crw.ui.component.WorldWindPanel.SPHERE_SIZE;
-import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.MarkerLayer;
 import gov.nasa.worldwind.layers.RenderableLayer;
 import gov.nasa.worldwind.render.BasicShapeAttributes;
 import gov.nasa.worldwind.render.Material;
-import gov.nasa.worldwind.render.Path;
 import gov.nasa.worldwind.render.Polyline;
 import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.render.ShapeAttributes;
@@ -165,7 +163,7 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                 if (clickPosition != null) {
                     selectedPositions.add(clickPosition);
                     // Update temporary path
-                    
+
                     // Polyline approach
                     if (polyline != null) {
                         renderableLayer.removeRenderable(polyline);
@@ -175,7 +173,7 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     polyline.setLineWidth(8);
                     polyline.setFollowTerrain(true);
                     renderableLayer.addRenderable(polyline);
-                    
+
                     // Path approach
 //                    if (path != null) {
 //                        renderableLayer.removeRenderable(path);
@@ -195,7 +193,6 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
 //                    path.setAttributes(attributes);
 //                    path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
 //                    renderableLayer.addRenderable(path);
-
                     wwd.redraw();
                     complexHandled = true;
                 }
@@ -512,14 +509,19 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
             }
             SelectGeometryWidget select = new SelectGeometryWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
             // Add path
-            Path path = new Path(positions);
-            ShapeAttributes attributes = new BasicShapeAttributes();
-            attributes.setOutlineWidth(8);
-            attributes.setOutlineMaterial(Material.YELLOW);
-            attributes.setDrawOutline(true);
-            path.setAttributes(attributes);
-            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
-            select.addRenderable(path);
+//            Path path = new Path(positions);
+//            ShapeAttributes attributes = new BasicShapeAttributes();
+//            attributes.setOutlineWidth(8);
+//            attributes.setOutlineMaterial(Material.YELLOW);
+//            attributes.setDrawOutline(true);
+//            path.setAttributes(attributes);
+//            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+//            select.addRenderable(path);
+            Polyline polyline = new Polyline(positions);
+            polyline.setColor(Color.yellow);
+            polyline.setLineWidth(8);
+            polyline.setFollowTerrain(true);
+            select.addRenderable(polyline);
             widget = select;
         } else if (selectionObject instanceof Area2D) {
             List<Location> locations = ((Area2D) selectionObject).getPoints();
@@ -573,18 +575,27 @@ public class SelectGeometryWidget implements MarkupComponentWidget, WorldWindWid
                     positions.add(Conversion.locationToPosition(waypoint));
                 }
                 // Create path renderable
-                Path path = new Path(positions);
-                ShapeAttributes attributes = new BasicShapeAttributes();
-                attributes.setOutlineWidth(8);
+//                Path path = new Path(positions);
+//                ShapeAttributes attributes = new BasicShapeAttributes();
+//                attributes.setOutlineWidth(8);
+//                if (proxy instanceof BoatProxy) {
+//                    attributes.setOutlineMaterial(new Material(((BoatProxy) proxy).getColor()));
+//                } else {
+//                    attributes.setOutlineMaterial(Material.YELLOW);
+//                }
+//                attributes.setDrawOutline(true);
+//                path.setAttributes(attributes);
+//                path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+//                select.addRenderable(path);
+                Polyline polyline = new Polyline(positions);
                 if (proxy instanceof BoatProxy) {
-                    attributes.setOutlineMaterial(new Material(((BoatProxy) proxy).getColor()));
+                    polyline.setColor(((BoatProxy) proxy).getColor());
                 } else {
-                    attributes.setOutlineMaterial(Material.YELLOW);
+                    polyline.setColor(Color.yellow);
                 }
-                attributes.setDrawOutline(true);
-                path.setAttributes(attributes);
-                path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
-                select.addRenderable(path);
+                polyline.setLineWidth(8);
+                polyline.setFollowTerrain(true);
+                select.addRenderable(polyline);
             }
         }
         return widget;

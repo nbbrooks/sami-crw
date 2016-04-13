@@ -1,7 +1,7 @@
 package crw.ui.widget;
 
 import crw.ui.worldwind.WorldWindWidgetInt;
-import crw.Conversion;
+import sami.Conversion;
 import crw.proxy.BoatProxy;
 import crw.ui.component.WorldWindPanel;
 import static crw.ui.component.WorldWindPanel.SPHERE_SIZE;
@@ -20,6 +20,7 @@ import gov.nasa.worldwind.layers.RenderableLayer;
 import gov.nasa.worldwind.render.BasicShapeAttributes;
 import gov.nasa.worldwind.render.Material;
 import gov.nasa.worldwind.render.Path;
+import gov.nasa.worldwind.render.Polyline;
 import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.render.ShapeAttributes;
 import gov.nasa.worldwind.render.markers.BasicMarkerAttributes;
@@ -764,14 +765,19 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
             }
             AnnotationWidget select = new AnnotationWidget((WorldWindPanel) component, new ArrayList<SelectMode>(), SelectMode.NONE);
             // Add path
-            Path path = new Path(positions);
-            ShapeAttributes attributes = new BasicShapeAttributes();
-            attributes.setOutlineWidth(8);
-            attributes.setOutlineMaterial(Material.YELLOW);
-            attributes.setDrawOutline(true);
-            path.setAttributes(attributes);
-            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
-            select.addRenderable(path);
+//            Path path = new Path(positions);
+//            ShapeAttributes attributes = new BasicShapeAttributes();
+//            attributes.setOutlineWidth(8);
+//            attributes.setOutlineMaterial(Material.YELLOW);
+//            attributes.setDrawOutline(true);
+//            path.setAttributes(attributes);
+//            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+//            select.addRenderable(path);
+            Polyline polyline = new Polyline(positions);
+            polyline.setColor(Color.yellow);
+            polyline.setLineWidth(8);
+            polyline.setFollowTerrain(true);
+            select.addRenderable(polyline);
             widget = select;
         } else if (selectionObject instanceof Area2D) {
             List<Location> locations = ((Area2D) selectionObject).getPoints();
@@ -825,18 +831,27 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                     positions.add(Conversion.locationToPosition(waypoint));
                 }
                 // Create path renderable
-                Path path = new Path(positions);
-                ShapeAttributes attributes = new BasicShapeAttributes();
-                attributes.setOutlineWidth(8);
+//                Path path = new Path(positions);
+//                ShapeAttributes attributes = new BasicShapeAttributes();
+//                attributes.setOutlineWidth(8);
+//                if (proxy instanceof BoatProxy) {
+//                    attributes.setOutlineMaterial(new Material(((BoatProxy) proxy).getColor()));
+//                } else {
+//                    attributes.setOutlineMaterial(Material.YELLOW);
+//                }
+//                attributes.setDrawOutline(true);
+//                path.setAttributes(attributes);
+//                path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+//                select.addRenderable(path);
+                Polyline polyline = new Polyline(positions);
                 if (proxy instanceof BoatProxy) {
-                    attributes.setOutlineMaterial(new Material(((BoatProxy) proxy).getColor()));
+                    polyline.setColor(((BoatProxy) proxy).getColor());
                 } else {
-                    attributes.setOutlineMaterial(Material.YELLOW);
+                    polyline.setColor(Color.yellow);
                 }
-                attributes.setDrawOutline(true);
-                path.setAttributes(attributes);
-                path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
-                select.addRenderable(path);
+                polyline.setLineWidth(8);
+                polyline.setFollowTerrain(true);
+                select.addRenderable(polyline);
             }
         }
         return widget;
@@ -1061,6 +1076,11 @@ public class AnnotationWidget implements MarkupComponentWidget, WorldWindWidgetI
                 try {
                     String line = br.readLine();
                     while (line != null) {
+                        if (line.trim().startsWith("#")) {
+                            // Comment line
+                            line = br.readLine();
+                            continue;
+                        }
                         if (line.equals("P")) {
                             // Immediately read in a point
                             String latLon = br.readLine();

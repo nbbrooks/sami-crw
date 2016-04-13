@@ -3,7 +3,7 @@ package crw.proxy.clickthrough;
 import com.perc.mitpas.adi.mission.planning.task.Task;
 import com.platypus.crw.data.Utm;
 import com.platypus.crw.data.UtmPose;
-import crw.Conversion;
+import sami.Conversion;
 import crw.event.input.proxy.ProxyPathCompleted;
 import crw.event.output.proxy.ProxyEmergencyAbort;
 import crw.event.output.proxy.ProxyExecutePath;

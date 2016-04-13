@@ -1,6 +1,6 @@
 package crw.ui.component;
 
-import crw.Conversion;
+import sami.Conversion;
 import crw.proxy.BoatProxy;
 import sami.uilanguage.MarkupComponent;
 import crw.ui.widget.RobotTrackWidget;
@@ -19,7 +19,6 @@ import javax.swing.JPanel;
 import crw.ui.worldwind.WorldWindInputAdapter;
 import gov.nasa.worldwind.BasicModel;
 import gov.nasa.worldwind.Configuration;
-import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.LatLon;
@@ -42,6 +41,7 @@ import gov.nasa.worldwind.render.markers.BasicMarkerShape;
 import gov.nasa.worldwind.render.markers.Marker;
 import gov.nasa.worldwind.view.ViewUtil;
 import gov.nasa.worldwind.view.orbit.FlatOrbitView;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Rectangle;
@@ -49,6 +49,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -367,9 +368,12 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
 
                     // Polyline method
                     Polyline polyline = null;
+                    Path path = null;
                     for (Renderable renderable : layer.getRenderables()) {
                         if (renderable instanceof Polyline) {
                             polyline = (Polyline) renderable;
+                        } else if (renderable instanceof Path) {
+                            path = (Path) renderable;
                         }
                     }
                     if (polyline != null) {
@@ -378,22 +382,13 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
                             locationList.add(Conversion.positionToLocation(position));
                         }
                         value = new PathUtm(locationList);
+                    } else if (path != null) {
+                        ArrayList<Location> locationList = new ArrayList<Location>();
+                        for (Position position : path.getPositions()) {
+                            locationList.add(Conversion.positionToLocation(position));
+                        }
+                        value = new PathUtm(locationList);
                     }
-
-//                    // Path method
-//                    Path path = null;
-//                    for (Renderable renderable : layer.getRenderables()) {
-//                        if (renderable instanceof Path) {
-//                            path = (Path) renderable;
-//                        }
-//                    }
-//                    if (path != null) {
-//                        ArrayList<Location> locationList = new ArrayList<Location>();
-//                        for (Position position : path.getPositions()) {
-//                            locationList.add(Conversion.positionToLocation(position));
-//                        }
-//                        value = new PathUtm(locationList);
-//                    }
                 }
             }
         } else if (componentClass.equals(Area2D.class)) {
@@ -438,6 +433,27 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
         }
         boolean success = false;
         if (value.getClass().equals(Location.class)) {
+            // Clear out any already existing BasicMarkers
+            for (int i = 0; i < wwCanvas.getModel().getLayers().size(); i++) {
+                Layer tempLayer = wwCanvas.getModel().getLayers().get(i);
+                if (tempLayer instanceof RenderableLayer) {
+                    RenderableLayer layer = (RenderableLayer) tempLayer;
+                    ArrayList<Renderable> toRemove = new ArrayList<Renderable>();
+                    Iterator<Renderable> iterator = layer.getRenderables().iterator();
+                    while (iterator.hasNext()) {
+                        Renderable renderable = iterator.next();
+                        if (renderable instanceof BasicMarker) {
+//                            // WorldWind iterator causes UnsupportedOperationException here..
+//                            iterator.remove();
+                            toRemove.add(renderable);
+                        }
+                    }
+                    for (Renderable renderable : toRemove) {
+                        layer.removeRenderable(renderable);
+                    }
+                }
+            }
+
             // Grab or create the geometry widget
             SelectGeometryWidget selectWidget;
             if (hasWidget(SelectGeometryWidget.class)) {
@@ -458,6 +474,27 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
             selectWidget.addMarker(circle);
             success = true;
         } else if (value.getClass().equals(PathUtm.class)) {
+            // Clear out any already existing Poylines and Paths
+            for (int i = 0; i < wwCanvas.getModel().getLayers().size(); i++) {
+                Layer tempLayer = wwCanvas.getModel().getLayers().get(i);
+                if (tempLayer instanceof RenderableLayer) {
+                    RenderableLayer layer = (RenderableLayer) tempLayer;
+                    ArrayList<Renderable> toRemove = new ArrayList<Renderable>();
+                    Iterator<Renderable> iterator = layer.getRenderables().iterator();
+                    while (iterator.hasNext()) {
+                        Renderable renderable = iterator.next();
+                        if (renderable instanceof Polyline || renderable instanceof Path) {
+//                            // WorldWind iterator causes UnsupportedOperationException here..
+//                            iterator.remove();
+                            toRemove.add(renderable);
+                        }
+                    }
+                    for (Renderable renderable : toRemove) {
+                        layer.removeRenderable(renderable);
+                    }
+                }
+            }
+
             // Grab or create the geometry widget
             SelectGeometryWidget selectWidget;
             if (hasWidget(SelectGeometryWidget.class)) {
@@ -472,16 +509,42 @@ public class WorldWindPanel implements MarkupComponent, EnvironmentListenerInt {
             for (Location waypoint : waypoints) {
                 positions.add(Conversion.locationToPosition(waypoint));
             }
-            Path path = new Path(positions);
-            ShapeAttributes attributes = new BasicShapeAttributes();
-            attributes.setOutlineWidth(8);
-            attributes.setOutlineMaterial(Material.YELLOW);
-            attributes.setDrawOutline(true);
-            path.setAttributes(attributes);
-            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
-            selectWidget.addRenderable(path);
+//            Path path = new Path(positions);
+//            ShapeAttributes attributes = new BasicShapeAttributes();
+//            attributes.setOutlineWidth(8);
+//            attributes.setOutlineMaterial(Material.YELLOW);
+//            attributes.setDrawOutline(true);
+//            path.setAttributes(attributes);
+//            path.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
+//            selectWidget.addRenderable(path);
+            Polyline polyline = new Polyline(positions);
+            polyline.setColor(Color.yellow);
+            polyline.setLineWidth(8);
+            polyline.setFollowTerrain(true);
+            selectWidget.addRenderable(polyline);
             success = true;
         } else if (value.getClass().equals(Area2D.class)) {
+            // Clear out any already existing SurfacePolygons
+            for (int i = 0; i < wwCanvas.getModel().getLayers().size(); i++) {
+                Layer tempLayer = wwCanvas.getModel().getLayers().get(i);
+                if (tempLayer instanceof RenderableLayer) {
+                    RenderableLayer layer = (RenderableLayer) tempLayer;
+                    ArrayList<Renderable> toRemove = new ArrayList<Renderable>();
+                    Iterator<Renderable> iterator = layer.getRenderables().iterator();
+                    while (iterator.hasNext()) {
+                        Renderable renderable = iterator.next();
+                        if (renderable instanceof SurfacePolygon) {
+//                            // WorldWind iterator causes UnsupportedOperationException here..
+//                            iterator.remove();
+                            toRemove.add(renderable);
+                        }
+                    }
+                    for (Renderable renderable : toRemove) {
+                        layer.removeRenderable(renderable);
+                    }
+                }
+            }
+
             // Grab or create the geometry widget
             SelectGeometryWidget selectWidget;
             if (hasWidget(SelectGeometryWidget.class)) {
