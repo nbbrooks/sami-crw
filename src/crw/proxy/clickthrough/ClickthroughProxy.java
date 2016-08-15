@@ -322,8 +322,6 @@ public class ClickthroughProxy extends Thread implements ProxyInt {
         } else if (oe instanceof BlockMovement) {
             sequentialOutputEvents.add(index, oe);
             sequentialInputEvents.add(index, new BlockMovementDone(oe.getId(), oe.getMissionId(), this));
-        } else if (oe instanceof BlockMovement) {
-            // Do nothing
         } else {
             LOGGER.severe("Can't handle OutputEvent of class " + oe.getClass().getSimpleName());
         }

@@ -40,9 +40,14 @@ public class BoatSensor implements ObserverInt, SensorListener {
     static ArrayList<Double> ys = new ArrayList<Double>();
     static ArrayList<Double> vs = new ArrayList<Double>();
     static ArrayList<Double> sigmas = new ArrayList<Double>();
+    static boolean randomData = true;
     static boolean simpleData = false;
     static boolean hysteresis = true;
     private Position currLoc = null;
+    
+    static final int FAKE_ES2_MIN = 100, FAKE_ES2_MAX = 600;
+    static final int FAKE_PH_MIN = 5, FAKE_PH_MAX = 8;
+    static final int FAKE_DO_MIN = 4, FAKE_DO_MAX = 12;
 
     public BoatSensor(final BoatProxy proxy, int channel) {
         this.proxy = proxy;
@@ -55,6 +60,9 @@ public class BoatSensor implements ObserverInt, SensorListener {
         // @todo Only should be on for simulation
         // ABHINAV COMMENT OUT THIS THREAD BEFORE RUNNING ON THE REAL BOATS!!
         if (GENERATE_FAKE_DATA) {
+            
+            LOGGER.warning("GENERATE_FAKE_DATA is set to TRUE, will generate fake data!");
+            
             (new Thread() {
 
                 public void run() {
@@ -68,23 +76,46 @@ public class BoatSensor implements ObserverInt, SensorListener {
                         currLoc = proxy.getPosition();
                         if (currLoc != null) {
                             SensorData sd = new SensorData();
-
-                            // @todo Observation
-                            if (CoreHelper.RANDOM.nextBoolean()) {
-                                sd.type = VehicleServer.SensorType.HDS_TEMP;
-                            } else {
-                                sd.type = VehicleServer.SensorType.UNKNOWN;
+                            int sensorType = (int) (CoreHelper.RANDOM.nextDouble() * 3);
+                            switch (sensorType) {
+                                case 0:
+                                    sd.type = VehicleServer.SensorType.ATLAS_DO;
+                                    break;
+                                case 1:
+                                    sd.type = VehicleServer.SensorType.ATLAS_PH;
+                                    break;
+                                case 2:
+                                default:
+                                    sd.type = VehicleServer.SensorType.ES2;
+                                    break;
                             }
-
                             sd.data = new double[4];
 
-                            if (simpleData) {
+                            if (randomData) {
+                                // Random data scaled to realistic sensor bounds
+                                double value;
+                                switch (sensorType) {
+                                    case 0:
+                                        value = CoreHelper.RANDOM.nextDouble() * (FAKE_DO_MAX - FAKE_DO_MIN) + FAKE_DO_MIN;
+                                        break;
+                                    case 1:
+                                        value = CoreHelper.RANDOM.nextDouble() * (FAKE_PH_MAX - FAKE_PH_MIN) + FAKE_PH_MIN;
+                                        break;
+                                    case 2:
+                                    default:
+                                        value = CoreHelper.RANDOM.nextDouble() * (FAKE_ES2_MAX - FAKE_ES2_MIN) + FAKE_ES2_MIN;
+                                        break;
+                                }
+                                for (int i = 0; i < sd.data.length; i++) {
+                                    sd.data[i] = value;
+                                }
+                            } else if (simpleData) {
                                 for (int i = 0; i < sd.data.length; i++) {
                                     if (prev == null || !hysteresis) {
                                         sd.data[i] = Math.abs(currLoc.longitude.degrees); //  + rand.nextDouble();
                                     } else {
                                         sd.data[i] = (Math.abs(currLoc.longitude.degrees) + prev[i]) / 2.0;
-                                    }
+                                }
                                 }
                             } else {
                                 double v = computeGTValue(currLoc.latitude.degrees, currLoc.longitude.degrees);

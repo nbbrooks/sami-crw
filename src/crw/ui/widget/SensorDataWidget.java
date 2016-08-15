@@ -1,10 +1,13 @@
 package crw.ui.widget;
 
 import com.platypus.crw.VehicleServer;
+import crw.CrwHelper;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import sami.Conversion;
 import gov.nasa.worldwind.WorldWindow;
+import gov.nasa.worldwind.event.SelectEvent;
+import gov.nasa.worldwind.event.SelectListener;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.coords.UTMCoord;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.logging.Logger;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -78,12 +82,27 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     private ArrayList<double[]> dataMinMax = new ArrayList<double[]>();
     private ArrayList<Renderable> activeLowAltRenderables = null;
 //    private ArrayList<Marker> activeHighAltMarkers = null;
+    // Size 3 array
+    // [0]: Current min value of sensor
+    // [1]: Current max value of sensor
+    // [2]: Old (max - min) value of sensor computed at last heatmap update
     private double[] activeDataMinMax = null;
     private ArrayList<Observation> activeObservations = null;
     private RenderableLayer lowAltRenderableLayer;
 //    private MarkerLayer highAltMarkerLayer;
+
+    // Observation selection variables
+    // Used to select which sensor's received observations to visualize
     JLabel sourceL;
     JComboBox sourceCB;
+    // Allows toggling the displaying of the numerical value of the observation renderable (ie colored square) the mouse is currently hovering over
+    JButton viewValuesB;
+    // Displays the numerical value of the observation renderable the mouse is hovering over (if viewValuesB is enabled)
+    JLabel hoveredValueL;
+    private final Object hoveredLock = new Object();
+    private SurfaceQuad hoveredObservation = null;
+    private static final String SENSOR_VALUE_KEY = "value";
+    
     private boolean visible = true;
     private WorldWindPanel wwPanel;
 
@@ -159,7 +178,8 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
         }
 
         lowAltRenderableLayer = new RenderableLayer();
-        lowAltRenderableLayer.setPickEnabled(false);
+        // setPickEnabled to true so sensor renderables trigger SelectEvents
+        lowAltRenderableLayer.setPickEnabled(true);
 //        lowAltRenderableLayer.setMaxActiveAltitude(ALT_THRESH);
         lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
         wwPanel.wwCanvas.getModel().getLayers().add(lowAltRenderableLayer);
@@ -194,7 +214,7 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
 //        highAltMarkers.add(null);
         dataMinMax.add(null);
         observations.add(null);
-
+        
         for (int i = 0; i < sensorTypes.length; i++) {
             choices[i + 1] = sensorTypes[i].name();
             sensorNameToIndex.put(sensorTypes[i].toString(), i + 1);
@@ -209,6 +229,68 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
         sourceCB.setSelectedIndex(0);
         sourceCB.addActionListener(new SensorChoiceLister());
         buttonPanel.add(sourceCB);
+        
+        viewValuesB = new JButton("Hover: ON");
+        viewValuesB.setSelected(true);
+        
+        // This listens to Worldwind mouse rolloever events for when markers/renderables in selectable layers are "under" the mouse pointer
+        // Use this to know when user is hovering over a visualized sensor data point
+        final SelectListener sensorHoverListener = new SelectListener() {
+
+            @Override
+            public void selected(SelectEvent event) {
+                // Click type SelectEvents are only generated if an event is generated, and
+                //  are handled before MouseEvents, which makes deselecting a BoatMarker impossible from a SelectEvent
+                // Instead, keep track of if the cursor is over a BoatMarker and let the MouseListener handle selection/deselection
+
+                if (event.getEventAction().equals(SelectEvent.ROLLOVER)
+                        && event.hasObjects()
+                        && event.getTopObject() instanceof SurfaceQuad) {
+                    if (event.getTopObject() != hoveredObservation) {
+                        synchronized (hoveredLock) {
+                            hoveredObservation = (SurfaceQuad) event.getTopObject();
+                            hoveredValueL.setText(hoveredObservation.getValue(SENSOR_VALUE_KEY) != null ? hoveredObservation.getValue(SENSOR_VALUE_KEY).toString() : "NULL");
+                            // Make the label color match the renderable's heatmap color
+                            hoveredValueL.setForeground(hoveredObservation.getAttributes().getInteriorMaterial().getDiffuse());
+                            hoveredValueL.setBackground(CrwHelper.getContrastColor(hoveredObservation.getAttributes().getInteriorMaterial().getDiffuse()));
+                        }
+                    }
+                } else if (event.getEventAction().equals(SelectEvent.ROLLOVER)) {
+                    if (hoveredObservation != null) {
+                        synchronized (hoveredLock) {
+                            hoveredObservation = null;
+                            hoveredValueL.setText("");
+                        }
+                    }
+                }
+            }
+        };
+        wwPanel.wwCanvas.addSelectListener(sensorHoverListener);
+        
+        // Add option to turn off observation hover SelectListener in case it is causing 
+        //  selection issues for other widgets or slowing things down
+        //  It shouldn't but I haven't been able to test this in the field so this is just in case
+        viewValuesB.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                boolean hoverEnabled = !viewValuesB.isSelected();
+                viewValuesB.setSelected(hoverEnabled);
+                viewValuesB.setText(hoverEnabled ? "Hover: ON " : "Hover: OFF");
+                if(hoverEnabled) {
+                    // Set up a SelectListener to know when the cursor is over an observation's SurfaceQuad
+                    wwPanel.wwCanvas.addSelectListener(sensorHoverListener);
+                } else {
+                    hoveredValueL.setText("");
+                    wwPanel.wwCanvas.removeSelectListener(sensorHoverListener);
+                }
+            }
+        });
+        buttonPanel.add(viewValuesB);
+        
+        hoveredValueL = new JLabel("");
+        hoveredValueL.setFont(new java.awt.Font("Lucida Grande", 1, 13));
+        hoveredValueL.setOpaque(true);
+        buttonPanel.add(hoveredValueL);
 
         wwPanel.buttonPanels.add(buttonPanel, BorderLayout.SOUTH);
         wwPanel.buttonPanels.revalidate();
@@ -298,7 +380,7 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
                         adjUtm.getEasting(),
                         adjUtm.getNorthing(),
                         null);
-
+        
         // Check if sensor measurement is outside of current heatmap bounds
         if (observation.value < sensorDataMinMax[0]) {
             sensorDataMinMax[0] = observation.value;
@@ -335,6 +417,8 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
         rectAtt.setOutlineOpacity(RECT_OPACITY);
         rectAtt.setOutlineWidth(0);
         rect.setAttributes(rectAtt);
+        // Just set a value on the Renderable instead of doing a big Hashtable<Renderable, Observation>
+        rect.setValue(SENSOR_VALUE_KEY, observation.value);
         synchronized (sensorLowAltRenderables) {
             sensorLowAltRenderables.add(rect);
         }
@@ -370,10 +454,14 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
      * @return True if heatmap needs to be recomputed
      */
     public boolean checkHeatmap(double[] dataMinMax) {
-        if (((dataMinMax[1] - dataMinMax[0]) / dataMinMax[2] - 1) * 100.0 > HEATMAP_THRESH) {
-            return true;
-        }
-        return false;
+        // Working on basic percent error formula
+        // ( |experimental - theoretical| ) / ( |theoretical| ) * 100
+        // ( |newRange - oldRange| ) / |oldRange| * 100
+        // newRange will always be larger than oldRange, newRange will always be positive, oldRange will always be positive
+        // (newRange - oldRange) / oldRange * 100
+        // (newRange / oldrange - 1) * 100
+        double pctDiff = ((dataMinMax[1] - dataMinMax[0]) / dataMinMax[2] - 1) * 100.0;
+        return pctDiff > HEATMAP_THRESH;
     }
 
     /**
@@ -381,9 +469,9 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
      * thread
      */
     public void recomputeHeatmap() {
-//        System.out.println("### RECOMPUTE ###");
         (new Thread() {
             public void run() {
+                // Update data range
                 activeDataMinMax[2] = activeDataMinMax[1] - activeDataMinMax[0];
                 Iterator obsIt = activeObservations.iterator();
                 Iterator lowAltIt = activeLowAltRenderables.iterator();
@@ -421,13 +509,11 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
     public Color dataToColor(double value, double min, double max) {
 
         double wavelength = 0.0, factor = 0.0, red = 0.0, green = 0.0, blue = 0.0, gamma = 1.0;
-        double adjMin = min - 5;
-        double adjMax = max - 5;
 
-        if (value < adjMin) {
+        if (value < min) {
             wavelength = 0.0;
-        } else if (value <= adjMax) {
-            wavelength = (value - adjMin) / (adjMax - adjMin) * (750.0f - 350.0f) + 350.0f;
+        } else if (value <= max) {
+            wavelength = (value - min) / (max - min) * (750.0f - 350.0f) + 350.0f;
         } else {
             wavelength = 0.0;
         }

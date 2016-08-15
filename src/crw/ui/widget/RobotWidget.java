@@ -2,6 +2,7 @@ package crw.ui.widget;
 
 import com.platypus.crw.AsyncVehicleServer;
 import com.platypus.crw.data.Twist;
+import crw.CrwHelper;
 import crw.ui.worldwind.WorldWindWidgetInt;
 import crw.ui.component.WorldWindPanel;
 import crw.event.output.proxy.ProxyExecutePath;
@@ -352,7 +353,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         markerLayer = new MarkerLayer();
         markerLayer.setOverrideMarkerElevation(true);
 //        markerLayer.setElevation(10d);
+        // setKeepSeparated to false so nearby proxy markers aren't combined into one marker
         markerLayer.setKeepSeparated(false);
+        // setPickEnabled to true so proxy markers trigger SelectEvents
         markerLayer.setPickEnabled(true);
         markerLayer.setMarkers(markers);
         wwPanel.wwCanvas.getModel().getLayers().add(markerLayer);
@@ -372,6 +375,8 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
         combinedPanel = new JPanel(new BorderLayout());
 
         proxyNameLabel = new JLabel("");
+        proxyNameLabel.setFont(new java.awt.Font("Lucida Grande", 1, 13));
+        proxyNameLabel.setOpaque(true);
         controlModeP.add(proxyNameLabel);
 
         if (ADD_RESEND_BUTTON) {
@@ -554,7 +559,9 @@ public class RobotWidget implements MarkupComponentWidget, WorldWindWidgetInt, P
             _vehicle = boatProxy.getVehicleServer();
             velocityP.setVehicle(boatProxy.getVehicleServer());
             gainsP.setProxy(boatProxy);
-            proxyNameLabel.setText(boatProxy.getProxyName());
+            proxyNameLabel.setText(" " + boatProxy.getProxyName() + " ");
+            proxyNameLabel.setForeground(boatProxy.getColor());
+            proxyNameLabel.setBackground(CrwHelper.getContrastColor(boatProxy.getColor()));
         } else {
             // Remove teleop panel's proxy and hide teleop panel
             _vehicle = null;

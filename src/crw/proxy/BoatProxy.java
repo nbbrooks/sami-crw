@@ -186,6 +186,8 @@ public class BoatProxy extends Thread implements ProxyInt {
             }
         }
 
+        // Don't generate input events at rate faster than EVENT_GENERATION_TIMER
+        //  IE Don't spam PlanManager with ProxyPoseUpdated input events
         Timer stateTimer = new Timer(EVENT_GENERATION_TIMER, new ActionListener() {
 
             @Override
@@ -692,8 +694,6 @@ public class BoatProxy extends Thread implements ProxyInt {
                     }
                 }
             }
-        } else if (oe instanceof BlockMovement) {
-            // Do nothing
         } else {
             LOGGER.severe("Can't handle OutputEvent of class " + oe.getClass().getSimpleName());
         }
