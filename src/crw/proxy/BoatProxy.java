@@ -167,6 +167,11 @@ public class BoatProxy extends Thread implements ProxyInt {
 
     // End stuff for simulated data creation
     public BoatProxy(final String name, Color color, final int boatNo, InetSocketAddress addr) {
+        this.name = name;
+        this.modName = name;
+        this.color = color;
+        _boatNo = boatNo;
+        this.addr = addr;
 
         String message = "Boat proxy created with name: " + name + ", color: " + color + ", addr: " + addr;
         if (SIMULATE_COMM_LOSS) {
@@ -221,16 +226,8 @@ public class BoatProxy extends Thread implements ProxyInt {
             driftTimer.start();
         }
 
-        // this.masterURI = masterURI;
-        this.name = name;
-        this.modName = name;
-        this.color = color;
-
         //Initialize the boat by initalizing a proxy server for it
         // Connect to boat
-        _boatNo = boatNo;
-        this.addr = addr;
-
         if (addr == null) {
             LOGGER.severe("INetAddress is null!");
         }

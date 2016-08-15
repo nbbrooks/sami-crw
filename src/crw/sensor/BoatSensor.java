@@ -10,8 +10,13 @@ import sami.sensor.Observation;
 import sami.sensor.ObservationListenerInt;
 import sami.sensor.ObserverInt;
 import gov.nasa.worldwind.geom.Position;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Hashtable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import sami.CoreHelper;
@@ -26,6 +31,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
     private final boolean GENERATE_FAKE_DATA = false;
     BoatProxy proxy;
     int channel;
+    final String sensorName;
     ArrayList<ObservationListenerInt> listeners = new ArrayList<ObservationListenerInt>();
     Hashtable<ObservationListenerInt, Integer> listenerCounter = new Hashtable<ObservationListenerInt, Integer>();
 
@@ -48,10 +54,32 @@ public class BoatSensor implements ObserverInt, SensorListener {
     static final int FAKE_ES2_MIN = 100, FAKE_ES2_MAX = 600;
     static final int FAKE_PH_MIN = 5, FAKE_PH_MAX = 8;
     static final int FAKE_DO_MIN = 4, FAKE_DO_MAX = 12;
+    
+    private final AtomicBoolean loggingReady = new AtomicBoolean(false);
+    public static final String LOG_DIRECTORY = "run/logs/" + CoreHelper.LOGGING_TIMESTAMP + "/";
+    private static FileWriter writer;
+    
+    public static void setUpLogging() {
+        LOGGER.info("Log directory is " + LOG_DIRECTORY);
+        try {
+            // Create directory
+            new File(LOG_DIRECTORY).mkdir();
+            // Add log file
+            writer = new FileWriter(new File(LOG_DIRECTORY + "sensor.log")); 
+        } catch (IOException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+        } catch (SecurityException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+        }
+    }
 
     public BoatSensor(final BoatProxy proxy, int channel) {
+        if(!loggingReady.compareAndSet(true, true)) {
+            setUpLogging();
+        }
         this.proxy = proxy;
         this.channel = channel;
+        sensorName = (proxy != null ? proxy.getProxyName(): "NULL") + "-" + channel;
         proxy.getVehicleServer().addSensorListener(channel, this, null);
 
         // Cheating dummy data, another version of this is in SimpleBoatSimulator, 
@@ -67,7 +95,7 @@ public class BoatSensor implements ObserverInt, SensorListener {
 
                 public void run() {
 
-                    LOGGER.info("Generating fake sensor data for " + proxy);
+                    LOGGER.info("Generating fake sensor data for " + proxy + " with " + sensorName);
 
                     while (true) {
 
@@ -225,9 +253,22 @@ public class BoatSensor implements ObserverInt, SensorListener {
         Position curP = proxy.getPosition();
         Long timeReceived = System.currentTimeMillis();
         Location curLocation = new Location(curP.latitude.degrees, curP.longitude.degrees, 0);
-        Observation obs = new Observation(sd.type.toString(), sd.data[0], proxy.getName(), curLocation, timeReceived);
+        Observation obs = new Observation(sd.type.toString(), sd.data[0], proxy.getProxyName(), curLocation, timeReceived);
+        // Don't spam primary log
+//        LOGGER.info("Received SensorData: " + obs);
+        try {
+            writer.write(obs.variable + "\t" + obs.value + "\t" + obs.source + "\t" + obs.location + "\t" + String.format("%1$tH:%1$tM:%1$tS:%1$tL", new Date(obs.time)) + "\n");
+            writer.flush();
+        } catch (IOException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+        }
         for (ObservationListenerInt listener : listeners) {
             listener.newObservation(obs);
         }
+    }
+    
+    @Override
+    public String toString() {
+        return sensorName;
     }
 }
