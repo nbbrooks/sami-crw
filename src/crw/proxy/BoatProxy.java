@@ -377,7 +377,7 @@ public class BoatProxy extends Thread implements ProxyInt {
 						}
 				}, null);
 
-				if (BoatSensor.NEW_SENSOR_FORMAT) {
+				if (BoatSensor.USE_TABLET_SENSOR_PARSING) {
 						((CrwObserverServer) Engine.getInstance().getObserverServer()).createObserver(this, 1);
 						((CrwObserverServer) Engine.getInstance().getObserverServer()).createObserver(this, 2);
 						((CrwObserverServer) Engine.getInstance().getObserverServer()).createObserver(this, 3);

@@ -31,7 +31,9 @@ public class BoatSensor implements ObserverInt, SensorListener {
 		private static final Logger LOGGER = Logger.getLogger(BoatSensor.class.getName());
 
 		// Copied over sensor value handling from Shantanu's tablet-debug code but it causes parsing errors so far as I know
-		public static final boolean NEW_SENSOR_FORMAT = false;
+		public static final boolean USE_TABLET_SENSOR_PARSING = false;
+		// Hard-coded data channel lookup used by NEW_SENSOR_FORMAT
+		static final int DO_CHANNEL = 1, PH_CHANNEL = 2, ES2_CHANNEL = 3, BATTERY_CHANNEL = 4;
 
 		// For data visualization testing only!
 		// Do NOT commit this set to true
@@ -59,10 +61,10 @@ public class BoatSensor implements ObserverInt, SensorListener {
 		static boolean hysteresis = true;
 		private Position currLoc = null;
 
-		static final int FAKE_ES2_CHANNEL = 3, FAKE_ES2_MIN = 100, FAKE_ES2_MAX = 600;
-		static final int FAKE_PH_CHANNEL = 2, FAKE_PH_MIN = 5, FAKE_PH_MAX = 8;
-		static final int FAKE_DO_CHANNEL = 1, FAKE_DO_MIN = 4, FAKE_DO_MAX = 12;
-		static final int FAKE_BATTERY_CHANNEL = 4, FAKE_BATTERY_MIN = 4, FAKE_BATTERY_MAX = 12;
+		static final int FAKE_DO_MIN = 4, FAKE_DO_MAX = 12;
+		static final int FAKE_PH_MIN = 5, FAKE_PH_MAX = 8;
+		static final int FAKE_ES2_MIN = 100, FAKE_ES2_MAX = 600;
+		static final int FAKE_BATTERY_MIN = 4, FAKE_BATTERY_MAX = 12;
 
 		private final AtomicBoolean loggingReady = new AtomicBoolean(false);
 		public static final String LOG_DIRECTORY = "run/logs/" + CoreHelper.LOGGING_TIMESTAMP + "/";
@@ -116,36 +118,36 @@ public class BoatSensor implements ObserverInt, SensorListener {
 														int sensorChannel = (int) (CoreHelper.RANDOM.nextDouble() * 4) + 1;
 														sd.channel = sensorChannel;
 														switch (sensorChannel) {
-																case FAKE_DO_CHANNEL:
+																case DO_CHANNEL:
 																		sd.type = VehicleServer.SensorType.ATLAS_DO;
 																		break;
-																case FAKE_PH_CHANNEL:
+																case PH_CHANNEL:
 																		sd.type = VehicleServer.SensorType.ATLAS_PH;
 																		break;
-																case FAKE_ES2_CHANNEL:
+																case ES2_CHANNEL:
 																		sd.type = VehicleServer.SensorType.ES2;
 																		break;
-																case FAKE_BATTERY_CHANNEL:
+																case BATTERY_CHANNEL:
 																default:
 																		sd.type = VehicleServer.SensorType.BATTERY;
 																		break;
 														}
 
-														sd.data = new double[4];
+														sd.data = new double[1];
 														if (randomData) {
 																// Random data scaled to realistic sensor bounds
 																double value;
 																switch (sensorChannel) {
-																		case FAKE_DO_CHANNEL:
+																		case DO_CHANNEL:
 																				value = CoreHelper.RANDOM.nextDouble() * (FAKE_DO_MAX - FAKE_DO_MIN) + FAKE_DO_MIN;
 																				break;
-																		case FAKE_PH_CHANNEL:
+																		case PH_CHANNEL:
 																				value = CoreHelper.RANDOM.nextDouble() * (FAKE_PH_MAX - FAKE_PH_MIN) + FAKE_PH_MIN;
 																				break;
-																		case FAKE_ES2_CHANNEL:
+																		case ES2_CHANNEL:
 																				value = CoreHelper.RANDOM.nextDouble() * (FAKE_ES2_MAX - FAKE_ES2_MIN) + FAKE_ES2_MIN;
 																				break;
-																		case FAKE_BATTERY_CHANNEL:
+																		case BATTERY_CHANNEL:
 																		default:
 																				value = CoreHelper.RANDOM.nextDouble() * (FAKE_BATTERY_MAX - FAKE_BATTERY_MIN) + FAKE_BATTERY_MIN;
 																				break;
@@ -266,28 +268,28 @@ public class BoatSensor implements ObserverInt, SensorListener {
 
 		@Override
 		public void receivedSensor(SensorData sd) {
-				if (NEW_SENSOR_FORMAT) {
+				if (USE_TABLET_SENSOR_PARSING) {
 						String stringValue = Arrays.toString(sd.data);
 						stringValue = stringValue.substring(1, stringValue.length() - 1);
 						String sensorType = "";
 						double value = -1;
 						switch (sd.channel) {
-								case 4:
+								case BATTERY_CHANNEL:
 										sensorType = VehicleServer.SensorType.BATTERY.toString();
 										String[] batteries = stringValue.split(",");
 										value = Double.parseDouble(batteries[0]);
 										break;
-								case 1:
+								case DO_CHANNEL:
 										sensorType = VehicleServer.SensorType.ATLAS_DO.toString();
 										value = Double.parseDouble(stringValue);
 										break;
-								case 2:
+								case PH_CHANNEL:
 										sensorType = VehicleServer.SensorType.ATLAS_PH.toString();
-										Double.parseDouble(stringValue);
+										value = Double.parseDouble(stringValue);
 										break;
-								case 3:
+								case ES2_CHANNEL:
 										sensorType = VehicleServer.SensorType.ES2.toString();
-										Double.parseDouble(stringValue);
+										value = Double.parseDouble(stringValue);
 										break;
 								default:
 										break;
