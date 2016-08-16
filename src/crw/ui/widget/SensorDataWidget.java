@@ -55,134 +55,134 @@ import sami.uilanguage.MarkupManager;
  */
 public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetInt, ObserverServerListenerInt, ObservationListenerInt {
 
-    // MarkupComponentWidget variables
-    public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
-    public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
-    public final Hashtable<Class, ArrayList<Class>> supportedHashtableCreationClasses = new Hashtable<Class, ArrayList<Class>>();
-    public final Hashtable<Class, ArrayList<Class>> supportedHashtableSelectionClasses = new Hashtable<Class, ArrayList<Class>>();
-    public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
-    //
-    private static final Logger LOGGER = Logger.getLogger(SensorDataWidget.class.getName());
+		// MarkupComponentWidget variables
+		public final ArrayList<Class> supportedCreationClasses = new ArrayList<Class>();
+		public final ArrayList<Class> supportedSelectionClasses = new ArrayList<Class>();
+		public final Hashtable<Class, ArrayList<Class>> supportedHashtableCreationClasses = new Hashtable<Class, ArrayList<Class>>();
+		public final Hashtable<Class, ArrayList<Class>> supportedHashtableSelectionClasses = new Hashtable<Class, ArrayList<Class>>();
+		public final ArrayList<Enum> supportedMarkups = new ArrayList<Enum>();
+		//
+		private static final Logger LOGGER = Logger.getLogger(SensorDataWidget.class.getName());
 //    // Altitude to switch from rectangles that are fixed size in m (< ALT_THRESH) to spheres that are fixed size in pixels (> ALT_THRESH)
 //    static final double ALT_THRESH = 2500.0;
-    // What percent difference in data range to trigger a recalculation of heatmap colors for data values
-    static final double HEATMAP_THRESH = 10.0;
-    // How far (m) from the last measurement recorded a new measurement must be in order to add it to the visualization
-    static final double DIST_THRESH = 10.0;
-    // Opacity of markers that are fixed size in m (< ALT_THRESH)
-    final double RECT_OPACITY = 0.5;
-    // Opacity of spheres that are fixed size in pixels (> ALT_THRESH)
-    final double SPHERE_OPACITY = 1.0;
-    private Hashtable<String, Integer> sensorNameToIndex = new Hashtable<String, Integer>();
-    private Hashtable<Integer, String> indexToSensorName = new Hashtable<Integer, String>();
-    private ArrayList<ArrayList<Renderable>> lowAltRenderables = new ArrayList<ArrayList<Renderable>>();
+		// What percent difference in data range to trigger a recalculation of heatmap colors for data values
+		static final double HEATMAP_THRESH = 10.0;
+		// How far (m) from the last measurement recorded a new measurement must be in order to add it to the visualization
+		static final double DIST_THRESH = 10.0;
+		// Opacity of markers that are fixed size in m (< ALT_THRESH)
+		final double RECT_OPACITY = 0.5;
+		// Opacity of spheres that are fixed size in pixels (> ALT_THRESH)
+		final double SPHERE_OPACITY = 1.0;
+		private Hashtable<String, Integer> sensorNameToIndex = new Hashtable<String, Integer>();
+		private Hashtable<Integer, String> indexToSensorName = new Hashtable<Integer, String>();
+		private ArrayList<ArrayList<Renderable>> lowAltRenderables = new ArrayList<ArrayList<Renderable>>();
 //    private ArrayList<ArrayList<Marker>> highAltMarkers = new ArrayList<ArrayList<Marker>>();
-    private ArrayList<ArrayList<Observation>> observations = new ArrayList<ArrayList<Observation>>();
-    private Hashtable<String, UTMCoord> sourceToLastObsUtm = new Hashtable<String, UTMCoord>();
-    private ArrayList<double[]> dataMinMax = new ArrayList<double[]>();
-    private ArrayList<Renderable> activeLowAltRenderables = null;
+		private ArrayList<ArrayList<Observation>> observations = new ArrayList<ArrayList<Observation>>();
+		private Hashtable<String, UTMCoord> sourceToLastObsUtm = new Hashtable<String, UTMCoord>();
+		private ArrayList<double[]> dataMinMax = new ArrayList<double[]>();
+		private ArrayList<Renderable> activeLowAltRenderables = null;
 //    private ArrayList<Marker> activeHighAltMarkers = null;
-    // Size 3 array
-    // [0]: Current min value of sensor
-    // [1]: Current max value of sensor
-    // [2]: Old (max - min) value of sensor computed at last heatmap update
-    private double[] activeDataMinMax = null;
-    private ArrayList<Observation> activeObservations = null;
-    private RenderableLayer lowAltRenderableLayer;
+		// Size 3 array
+		// [0]: Current min value of sensor
+		// [1]: Current max value of sensor
+		// [2]: Old (max - min) value of sensor computed at last heatmap update
+		private double[] activeDataMinMax = null;
+		private ArrayList<Observation> activeObservations = null;
+		private RenderableLayer lowAltRenderableLayer;
 //    private MarkerLayer highAltMarkerLayer;
 
     // Observation selection variables
-    // Used to select which sensor's received observations to visualize
-    JLabel sourceL;
-    JComboBox sourceCB;
-    // Allows toggling the displaying of the numerical value of the observation renderable (ie colored square) the mouse is currently hovering over
-    JButton viewValuesB;
-    // Displays the numerical value of the observation renderable the mouse is hovering over (if viewValuesB is enabled)
-    JLabel hoveredValueL;
-    private final Object hoveredLock = new Object();
-    private SurfaceQuad hoveredObservation = null;
-    private static final String SENSOR_VALUE_KEY = "value";
-    
-    private boolean visible = true;
-    private WorldWindPanel wwPanel;
+		// Used to select which sensor's received observations to visualize
+		JLabel sourceL;
+		JComboBox sourceCB;
+		// Allows toggling the displaying of the numerical value of the observation renderable (ie colored square) the mouse is currently hovering over
+		JButton viewValuesB;
+		// Displays the numerical value of the observation renderable the mouse is hovering over (if viewValuesB is enabled)
+		JLabel hoveredValueL;
+		private final Object hoveredLock = new Object();
+		private SurfaceQuad hoveredObservation = null;
+		private static final String SENSOR_VALUE_KEY = "value";
 
-    public SensorDataWidget() {
-        populateLists();
-    }
+		private boolean visible = true;
+		private WorldWindPanel wwPanel;
 
-    public SensorDataWidget(WorldWindPanel wwPanel) {
-        this.wwPanel = wwPanel;
-        initRenderableLayer();
-        initButtons();
-        Engine.getInstance().getObserverServer().addListener(this);
-    }
+		public SensorDataWidget() {
+				populateLists();
+		}
 
-    @Override
-    public void setMap(WorldWindPanel wwPanel) {
-        this.wwPanel = wwPanel;
-    }
+		public SensorDataWidget(WorldWindPanel wwPanel) {
+				this.wwPanel = wwPanel;
+				initRenderableLayer();
+				initButtons();
+				Engine.getInstance().getObserverServer().addListener(this);
+		}
 
-    @Override
-    public void setVisible(boolean visible) {
-        this.visible = visible;
-    }
+		@Override
+		public void setMap(WorldWindPanel wwPanel) {
+				this.wwPanel = wwPanel;
+		}
 
-    @Override
-    public boolean isVisible() {
-        return visible;
-    }
+		@Override
+		public void setVisible(boolean visible) {
+				this.visible = visible;
+		}
 
-    @Override
-    public void paint(Graphics2D g2d) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+		@Override
+		public boolean isVisible() {
+				return visible;
+		}
 
-    @Override
-    public boolean mouseClicked(MouseEvent evt, WorldWindow wwd) {
-        return false;
-    }
+		@Override
+		public void paint(Graphics2D g2d) {
+				throw new UnsupportedOperationException("Not supported yet.");
+		}
 
-    @Override
-    public boolean mousePressed(MouseEvent evt, WorldWindow wwd) {
-        return false;
-    }
+		@Override
+		public boolean mouseClicked(MouseEvent evt, WorldWindow wwd) {
+				return false;
+		}
 
-    @Override
-    public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
-        return false;
-    }
+		@Override
+		public boolean mousePressed(MouseEvent evt, WorldWindow wwd) {
+				return false;
+		}
 
-    @Override
-    public boolean mouseDragged(MouseEvent evt, WorldWindow wwd) {
-        return false;
-    }
+		@Override
+		public boolean mouseReleased(MouseEvent evt, WorldWindow wwd) {
+				return false;
+		}
 
-    @Override
-    public boolean mouseMoved(MouseEvent evt, WorldWindow wwd) {
-        return false;
-    }
+		@Override
+		public boolean mouseDragged(MouseEvent evt, WorldWindow wwd) {
+				return false;
+		}
 
-    @Override
-    public boolean mouseWheelMoved(MouseWheelEvent evt, WorldWindow wwd) {
-        return false;
-    }
+		@Override
+		public boolean mouseMoved(MouseEvent evt, WorldWindow wwd) {
+				return false;
+		}
 
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent e, WorldWindow wwd) {
-        return false;
-    }
+		@Override
+		public boolean mouseWheelMoved(MouseWheelEvent evt, WorldWindow wwd) {
+				return false;
+		}
 
-    protected void initRenderableLayer() {
-        if (wwPanel == null) {
-            return;
-        }
+		@Override
+		public boolean dispatchKeyEvent(KeyEvent e, WorldWindow wwd) {
+				return false;
+		}
 
-        lowAltRenderableLayer = new RenderableLayer();
-        // setPickEnabled to true so sensor renderables trigger SelectEvents
-        lowAltRenderableLayer.setPickEnabled(true);
+		protected void initRenderableLayer() {
+				if (wwPanel == null) {
+						return;
+				}
+
+				lowAltRenderableLayer = new RenderableLayer();
+				// setPickEnabled to true so sensor renderables trigger SelectEvents
+				lowAltRenderableLayer.setPickEnabled(true);
 //        lowAltRenderableLayer.setMaxActiveAltitude(ALT_THRESH);
-        lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
-        wwPanel.wwCanvas.getModel().getLayers().add(lowAltRenderableLayer);
+				lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
+				wwPanel.wwCanvas.getModel().getLayers().add(lowAltRenderableLayer);
 
 //        highAltMarkerLayer = new MarkerLayer();
 //        highAltMarkerLayer.setOverrideMarkerElevation(true);
@@ -192,211 +192,211 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
 //        highAltMarkerLayer.setMinActiveAltitude(ALT_THRESH);
 //        highAltMarkerLayer.setMarkers(activeHighAltMarkers);
 //        wwPanel.wwCanvas.getModel().getLayers().add(highAltMarkerLayer);
-    }
+		}
 
-    protected void initButtons() {
-        if (wwPanel == null) {
-            return;
-        }
+		protected void initButtons() {
+				if (wwPanel == null) {
+						return;
+				}
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        sourceL = new JLabel("Visualized data source:");
-        buttonPanel.add(sourceL);
+				JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+				sourceL = new JLabel("Visualized data source:");
+				buttonPanel.add(sourceL);
 
-        VehicleServer.SensorType[] sensorTypes = VehicleServer.SensorType.values();
-        String[] choices = new String[sensorTypes.length + 1];
-        final String noSensor = "NONE";
-        choices[0] = noSensor;
-        sensorNameToIndex.put(noSensor, 0);
-        indexToSensorName.put(0, noSensor);
+				VehicleServer.SensorType[] sensorTypes = VehicleServer.SensorType.values();
+				String[] choices = new String[sensorTypes.length + 1];
+				final String noSensor = "NONE";
+				choices[0] = noSensor;
+				sensorNameToIndex.put(noSensor, 0);
+				indexToSensorName.put(0, noSensor);
 
-        lowAltRenderables.add(null);
+				lowAltRenderables.add(null);
 //        highAltMarkers.add(null);
-        dataMinMax.add(null);
-        observations.add(null);
-        
-        for (int i = 0; i < sensorTypes.length; i++) {
-            choices[i + 1] = sensorTypes[i].name();
-            sensorNameToIndex.put(sensorTypes[i].toString(), i + 1);
-            indexToSensorName.put(i + 1, sensorTypes[i].toString());
+				dataMinMax.add(null);
+				observations.add(null);
 
-            lowAltRenderables.add(new ArrayList<Renderable>());
+				for (int i = 0; i < sensorTypes.length; i++) {
+						choices[i + 1] = sensorTypes[i].name();
+						sensorNameToIndex.put(sensorTypes[i].toString(), i + 1);
+						indexToSensorName.put(i + 1, sensorTypes[i].toString());
+
+						lowAltRenderables.add(new ArrayList<Renderable>());
 //            highAltMarkers.add(new ArrayList<Marker>());
-            dataMinMax.add(new double[]{Double.MAX_VALUE, Double.MIN_VALUE, 0.0});
-            observations.add(new ArrayList<Observation>());
-        }
-        sourceCB = new JComboBox(choices);
-        sourceCB.setSelectedIndex(0);
-        sourceCB.addActionListener(new SensorChoiceLister());
-        buttonPanel.add(sourceCB);
-        
-        viewValuesB = new JButton("Hover: ON");
-        viewValuesB.setSelected(true);
-        
+						dataMinMax.add(new double[]{Double.MAX_VALUE, Double.MIN_VALUE, 0.0});
+						observations.add(new ArrayList<Observation>());
+				}
+				sourceCB = new JComboBox(choices);
+				sourceCB.setSelectedIndex(0);
+				sourceCB.addActionListener(new SensorChoiceLister());
+				buttonPanel.add(sourceCB);
+
+				viewValuesB = new JButton("Hover: ON");
+				viewValuesB.setSelected(true);
+
         // This listens to Worldwind mouse rolloever events for when markers/renderables in selectable layers are "under" the mouse pointer
-        // Use this to know when user is hovering over a visualized sensor data point
-        final SelectListener sensorHoverListener = new SelectListener() {
+				// Use this to know when user is hovering over a visualized sensor data point
+				final SelectListener sensorHoverListener = new SelectListener() {
 
-            @Override
-            public void selected(SelectEvent event) {
+						@Override
+						public void selected(SelectEvent event) {
                 // Click type SelectEvents are only generated if an event is generated, and
-                //  are handled before MouseEvents, which makes deselecting a BoatMarker impossible from a SelectEvent
-                // Instead, keep track of if the cursor is over a BoatMarker and let the MouseListener handle selection/deselection
+								//  are handled before MouseEvents, which makes deselecting a BoatMarker impossible from a SelectEvent
+								// Instead, keep track of if the cursor is over a BoatMarker and let the MouseListener handle selection/deselection
 
-                if (event.getEventAction().equals(SelectEvent.ROLLOVER)
-                        && event.hasObjects()
-                        && event.getTopObject() instanceof SurfaceQuad) {
-                    if (event.getTopObject() != hoveredObservation) {
-                        synchronized (hoveredLock) {
-                            hoveredObservation = (SurfaceQuad) event.getTopObject();
-                            hoveredValueL.setText(hoveredObservation.getValue(SENSOR_VALUE_KEY) != null ? hoveredObservation.getValue(SENSOR_VALUE_KEY).toString() : "NULL");
-                            // Make the label color match the renderable's heatmap color
-                            hoveredValueL.setForeground(hoveredObservation.getAttributes().getInteriorMaterial().getDiffuse());
-                            hoveredValueL.setBackground(CrwHelper.getContrastColor(hoveredObservation.getAttributes().getInteriorMaterial().getDiffuse()));
-                        }
-                    }
-                } else if (event.getEventAction().equals(SelectEvent.ROLLOVER)) {
-                    if (hoveredObservation != null) {
-                        synchronized (hoveredLock) {
-                            hoveredObservation = null;
-                            hoveredValueL.setText("");
-                        }
-                    }
-                }
-            }
-        };
-        wwPanel.wwCanvas.addSelectListener(sensorHoverListener);
-        
+								if (event.getEventAction().equals(SelectEvent.ROLLOVER)
+												&& event.hasObjects()
+												&& event.getTopObject() instanceof SurfaceQuad) {
+										if (event.getTopObject() != hoveredObservation) {
+												synchronized (hoveredLock) {
+														hoveredObservation = (SurfaceQuad) event.getTopObject();
+														hoveredValueL.setText(hoveredObservation.getValue(SENSOR_VALUE_KEY) != null ? hoveredObservation.getValue(SENSOR_VALUE_KEY).toString() : "NULL");
+														// Make the label color match the renderable's heatmap color
+														hoveredValueL.setForeground(hoveredObservation.getAttributes().getInteriorMaterial().getDiffuse());
+														hoveredValueL.setBackground(CrwHelper.getContrastColor(hoveredObservation.getAttributes().getInteriorMaterial().getDiffuse()));
+												}
+										}
+								} else if (event.getEventAction().equals(SelectEvent.ROLLOVER)) {
+										if (hoveredObservation != null) {
+												synchronized (hoveredLock) {
+														hoveredObservation = null;
+														hoveredValueL.setText("");
+												}
+										}
+								}
+						}
+				};
+				wwPanel.wwCanvas.addSelectListener(sensorHoverListener);
+
         // Add option to turn off observation hover SelectListener in case it is causing 
-        //  selection issues for other widgets or slowing things down
-        //  It shouldn't but I haven't been able to test this in the field so this is just in case
-        viewValuesB.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent ae) {
-                boolean hoverEnabled = !viewValuesB.isSelected();
-                viewValuesB.setSelected(hoverEnabled);
-                viewValuesB.setText(hoverEnabled ? "Hover: ON " : "Hover: OFF");
-                if(hoverEnabled) {
-                    // Set up a SelectListener to know when the cursor is over an observation's SurfaceQuad
-                    wwPanel.wwCanvas.addSelectListener(sensorHoverListener);
-                } else {
-                    hoveredValueL.setText("");
-                    wwPanel.wwCanvas.removeSelectListener(sensorHoverListener);
-                }
-            }
-        });
-        buttonPanel.add(viewValuesB);
-        
-        hoveredValueL = new JLabel("");
-        hoveredValueL.setFont(new java.awt.Font("Lucida Grande", 1, 13));
-        hoveredValueL.setOpaque(true);
-        buttonPanel.add(hoveredValueL);
+				//  selection issues for other widgets or slowing things down
+				//  It shouldn't but I haven't been able to test this in the field so this is just in case
+				viewValuesB.addActionListener(new ActionListener() {
+						@Override
+						public void actionPerformed(ActionEvent ae) {
+								boolean hoverEnabled = !viewValuesB.isSelected();
+								viewValuesB.setSelected(hoverEnabled);
+								viewValuesB.setText(hoverEnabled ? "Hover: ON " : "Hover: OFF");
+								if (hoverEnabled) {
+										// Set up a SelectListener to know when the cursor is over an observation's SurfaceQuad
+										wwPanel.wwCanvas.addSelectListener(sensorHoverListener);
+								} else {
+										hoveredValueL.setText("");
+										wwPanel.wwCanvas.removeSelectListener(sensorHoverListener);
+								}
+						}
+				});
+				buttonPanel.add(viewValuesB);
 
-        wwPanel.buttonPanels.add(buttonPanel, BorderLayout.SOUTH);
-        wwPanel.buttonPanels.revalidate();
-    }
+				hoveredValueL = new JLabel("");
+				hoveredValueL.setFont(new java.awt.Font("Lucida Grande", 1, 13));
+				hoveredValueL.setOpaque(true);
+				buttonPanel.add(hoveredValueL);
 
-    @Override
-    public void observerAdded(ObserverInt p) {
-        p.addListener(this);
-    }
+				wwPanel.buttonPanels.add(buttonPanel, BorderLayout.SOUTH);
+				wwPanel.buttonPanels.revalidate();
+		}
 
-    @Override
-    public void observerRemoved(ObserverInt p) {
-    }
+		@Override
+		public void observerAdded(ObserverInt p) {
+				p.addListener(this);
+		}
 
-    @Override
-    public void eventOccurred(InputEvent ie) {
-    }
+		@Override
+		public void observerRemoved(ObserverInt p) {
+		}
 
-    @Override
-    public void newObservation(Observation observation) {
-        UTMCoord adjUtm = checkObservation(observation);
-        if (adjUtm != null) {
-            addObservation(observation, adjUtm);
-        }
-    }
+		@Override
+		public void eventOccurred(InputEvent ie) {
+		}
 
-    /**
-     * Check if this sensor data is at least DIST_THRESH away from the last
-     * recorded sensor data from this proxy's sensor
-     *
-     * @param sd The received sensor data
-     * @param curP The proxy's position when the sensor data was received
-     * @return The UTM coordinate of the sensor data, snapped to the grid
-     * defined by DIST_THRESH
-     */
-    public UTMCoord checkObservation(Observation observation) {
-        int sensorIndex = sensorNameToIndex.get(observation.getVariable());
-        ArrayList<Renderable> sensorLowAltRenderables = lowAltRenderables.get(sensorIndex);
+		@Override
+		public void newObservation(Observation observation) {
+				if (observation.variable.equals(VehicleServer.SensorType.BATTERY.toString())) {
+						// Don't do a heatmap for battery readings
+						return;
+				}
+				UTMCoord adjUtm = checkObservation(observation);
+				if (adjUtm != null) {
+						addObservation(observation, adjUtm);
+				}
+		}
+
+		/**
+		 * Check if this sensor data is at least DIST_THRESH away from the last recorded sensor data from this proxy's sensor
+		 *
+		 * @param sd The received sensor data
+		 * @param curP The proxy's position when the sensor data was received
+		 * @return The UTM coordinate of the sensor data, snapped to the grid defined by DIST_THRESH
+		 */
+		public UTMCoord checkObservation(Observation observation) {
+				int sensorIndex = sensorNameToIndex.get(observation.getVariable());
+				ArrayList<Renderable> sensorLowAltRenderables = lowAltRenderables.get(sensorIndex);
 //        ArrayList<Marker> sensorHighAltMarkers = highAltMarkers.get(sensorIndex);
 
-        if (sensorLowAltRenderables == activeLowAltRenderables) {
+				if (sensorLowAltRenderables == activeLowAltRenderables) {
 //        if (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers) {
-            // If we are visualizing the dataset this measurement belongs to,
-            //  clone the list WW is rendering to avoid concurrent modification exceptions
-            lowAltRenderableLayer.setRenderables((ArrayList<Renderable>) sensorLowAltRenderables.clone());
+						// If we are visualizing the dataset this measurement belongs to,
+						//  clone the list WW is rendering to avoid concurrent modification exceptions
+						lowAltRenderableLayer.setRenderables((ArrayList<Renderable>) sensorLowAltRenderables.clone());
 //            highAltMarkerLayer.setMarkers((ArrayList<Marker>) sensorHighAltMarkers.clone());
-            wwPanel.wwCanvas.redrawNow();
-        }
-        // Compute adjusted center location for grid-like visualization
-        Position curP = Conversion.utmToPosition(observation.location.getCoordinate(), 0);
-        UTMCoord curUtm = UTMCoord.fromLatLon(curP.latitude, curP.longitude);
-        //@todo assumes shift does not change zones
-        UTMCoord adjUtm = UTMCoord.fromUTM(curUtm.getZone(), curUtm.getHemisphere(),
-                DIST_THRESH * Math.floor(curUtm.getEasting() / DIST_THRESH),
-                DIST_THRESH * Math.floor(curUtm.getNorthing() / DIST_THRESH));
-        UTMCoord lastUtm = sourceToLastObsUtm.get(observation.getSource() + observation.getVariable());
-        if ((lastUtm != null && (Math.sqrt(Math.pow(lastUtm.getEasting() - adjUtm.getEasting(), 2) + Math.pow(lastUtm.getNorthing() - adjUtm.getNorthing(), 2))) < DIST_THRESH)) {
-            // Too close to last recorded measurement, skip these measurements
-            return null;
-        }
-        return adjUtm;
-    }
+						wwPanel.wwCanvas.redrawNow();
+				}
+				// Compute adjusted center location for grid-like visualization
+				Position curP = Conversion.utmToPosition(observation.location.getCoordinate(), 0);
+				UTMCoord curUtm = UTMCoord.fromLatLon(curP.latitude, curP.longitude);
+				//@todo assumes shift does not change zones
+				UTMCoord adjUtm = UTMCoord.fromUTM(curUtm.getZone(), curUtm.getHemisphere(),
+								DIST_THRESH * Math.floor(curUtm.getEasting() / DIST_THRESH),
+								DIST_THRESH * Math.floor(curUtm.getNorthing() / DIST_THRESH));
+				UTMCoord lastUtm = sourceToLastObsUtm.get(observation.getSource() + observation.getVariable());
+				if ((lastUtm != null && (Math.sqrt(Math.pow(lastUtm.getEasting() - adjUtm.getEasting(), 2) + Math.pow(lastUtm.getNorthing() - adjUtm.getNorthing(), 2))) < DIST_THRESH)) {
+						// Too close to last recorded measurement, skip these measurements
+						return null;
+				}
+				return adjUtm;
+		}
 
-    /**
-     * Add a heatmapped rectangle and sphere marker representing the sensor data
-     * and record the observation
-     *
-     * @param sd The received sensor data
-     * @param adjUtm The UTM coordinate of the sensor data, snapped to the grid
-     * defined by DIST_THRESH
-     */
-    public void addObservation(Observation observation, UTMCoord adjUtm) {
-        int sensorIndex = sensorNameToIndex.get(observation.getVariable());
-        ArrayList<Renderable> sensorLowAltRenderables = lowAltRenderables.get(sensorIndex);
+		/**
+		 * Add a heatmapped rectangle and sphere marker representing the sensor data and record the observation
+		 *
+		 * @param sd The received sensor data
+		 * @param adjUtm The UTM coordinate of the sensor data, snapped to the grid defined by DIST_THRESH
+		 */
+		public void addObservation(Observation observation, UTMCoord adjUtm) {
+				int sensorIndex = sensorNameToIndex.get(observation.getVariable());
+				ArrayList<Renderable> sensorLowAltRenderables = lowAltRenderables.get(sensorIndex);
 //        ArrayList<Marker> sensorHighAltMarkers = highAltMarkers.get(sensorIndex);
-        ArrayList<Observation> sensorObservations = observations.get(sensorIndex);
-        double[] sensorDataMinMax = dataMinMax.get(sensorIndex);
-        boolean rangeChanged = false;
+				ArrayList<Observation> sensorObservations = observations.get(sensorIndex);
+				double[] sensorDataMinMax = dataMinMax.get(sensorIndex);
+				boolean rangeChanged = false;
 
-        synchronized (sourceToLastObsUtm) {
-            sourceToLastObsUtm.put(observation.getSource() + observation.getVariable(), adjUtm);
-        }
-        LatLon adjLatLon
-                = UTMCoord.locationFromUTMCoord(
-                        adjUtm.getZone(),
-                        adjUtm.getHemisphere(),
-                        adjUtm.getEasting(),
-                        adjUtm.getNorthing(),
-                        null);
-        
-        // Check if sensor measurement is outside of current heatmap bounds
-        if (observation.value < sensorDataMinMax[0]) {
-            sensorDataMinMax[0] = observation.value;
-            rangeChanged = true;
-        }
-        if (observation.value > sensorDataMinMax[1]) {
-            sensorDataMinMax[1] = observation.value;
-            rangeChanged = true;
-        }
-        // Add observation
-        synchronized (sensorObservations) {
-            sensorObservations.add(observation);
-        }
-        // Compute heatmap color from current heatmap bounds
-        Color dataColor = dataToColor(observation.value, sensorDataMinMax[0], sensorDataMinMax[1]);
-        Material material = new Material(dataColor);
+				synchronized (sourceToLastObsUtm) {
+						sourceToLastObsUtm.put(observation.getSource() + observation.getVariable(), adjUtm);
+				}
+				LatLon adjLatLon
+								= UTMCoord.locationFromUTMCoord(
+												adjUtm.getZone(),
+												adjUtm.getHemisphere(),
+												adjUtm.getEasting(),
+												adjUtm.getNorthing(),
+												null);
+
+				// Check if sensor measurement is outside of current heatmap bounds
+				if (observation.value < sensorDataMinMax[0]) {
+						sensorDataMinMax[0] = observation.value;
+						rangeChanged = true;
+				}
+				if (observation.value > sensorDataMinMax[1]) {
+						sensorDataMinMax[1] = observation.value;
+						rangeChanged = true;
+				}
+				// Add observation
+				synchronized (sensorObservations) {
+						sensorObservations.add(observation);
+				}
+				// Compute heatmap color from current heatmap bounds
+				Color dataColor = dataToColor(observation.value, sensorDataMinMax[0], sensorDataMinMax[1]);
+				Material material = new Material(dataColor);
 //        // Create high altitude sphere
 //        BasicMarkerAttributes markerAtt = new BasicMarkerAttributes();
 //        markerAtt.setShapeType(BasicMarkerShape.SPHERE);
@@ -408,276 +408,273 @@ public class SensorDataWidget implements MarkupComponentWidget, WorldWindWidgetI
 //        synchronized (sensorHighAltMarkers) {
 //            sensorHighAltMarkers.add(marker);
 //        }
-        // Create low altitude square
-        SurfaceQuad rect = new SurfaceQuad(adjLatLon, DIST_THRESH, DIST_THRESH);
-        ShapeAttributes rectAtt = new BasicShapeAttributes();
-        rectAtt.setInteriorMaterial(material);
-        rectAtt.setInteriorOpacity(RECT_OPACITY);
-        rectAtt.setOutlineMaterial(material);
-        rectAtt.setOutlineOpacity(RECT_OPACITY);
-        rectAtt.setOutlineWidth(0);
-        rect.setAttributes(rectAtt);
-        // Just set a value on the Renderable instead of doing a big Hashtable<Renderable, Observation>
-        rect.setValue(SENSOR_VALUE_KEY, observation.value);
-        synchronized (sensorLowAltRenderables) {
-            sensorLowAltRenderables.add(rect);
-        }
+				// Create low altitude square
+				SurfaceQuad rect = new SurfaceQuad(adjLatLon, DIST_THRESH, DIST_THRESH);
+				ShapeAttributes rectAtt = new BasicShapeAttributes();
+				rectAtt.setInteriorMaterial(material);
+				rectAtt.setInteriorOpacity(RECT_OPACITY);
+				rectAtt.setOutlineMaterial(material);
+				rectAtt.setOutlineOpacity(RECT_OPACITY);
+				rectAtt.setOutlineWidth(0);
+				rect.setAttributes(rectAtt);
+				// Just set a value on the Renderable instead of doing a big Hashtable<Renderable, Observation>
+				rect.setValue(SENSOR_VALUE_KEY, observation.value);
+				synchronized (sensorLowAltRenderables) {
+						sensorLowAltRenderables.add(rect);
+				}
 
-        boolean recompute = false;
-        if (rangeChanged && (sensorLowAltRenderables == activeLowAltRenderables)) {
+				boolean recompute = false;
+				if (rangeChanged && (sensorLowAltRenderables == activeLowAltRenderables)) {
 //        if (rangeChanged && (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers)) {
-            // If a observation was outside of the current heatmap min/max bounds and is from the sensor being visualized, check if the heatmap needs updating
-            double[] activeDataMinMaxClone;
-            synchronized (activeDataMinMax) {
-                activeDataMinMaxClone = activeDataMinMax.clone();
-            }
-            if (checkHeatmap(activeDataMinMaxClone)) {
-                // In separate thread, recompute heatmap and update marker and renderable layer
-                recompute = true;
-                recomputeHeatmap();
-            }
-        }
-        if (!recompute && (sensorLowAltRenderables == activeLowAltRenderables)) {
+						// If a observation was outside of the current heatmap min/max bounds and is from the sensor being visualized, check if the heatmap needs updating
+						double[] activeDataMinMaxClone;
+						synchronized (activeDataMinMax) {
+								activeDataMinMaxClone = activeDataMinMax.clone();
+						}
+						if (checkHeatmap(activeDataMinMaxClone)) {
+								// In separate thread, recompute heatmap and update marker and renderable layer
+								recompute = true;
+								recomputeHeatmap();
+						}
+				}
+				if (!recompute && (sensorLowAltRenderables == activeLowAltRenderables)) {
 //        if (!recompute && (sensorLowAltRenderables == activeLowAltRenderables || sensorHighAltMarkers == activeHighAltMarkers)) {
-            // Heatmap was not updated, switch back from cloned version of list to original list with the received observation added
-            lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
+						// Heatmap was not updated, switch back from cloned version of list to original list with the received observation added
+						lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
 //            highAltMarkerLayer.setMarkers(activeHighAltMarkers);
-            wwPanel.wwCanvas.redrawNow();
-        }
-    }
+						wwPanel.wwCanvas.redrawNow();
+				}
+		}
 
-    /**
-     * Check if a sensor's values have diverged enough to warrant recomputation
-     * of heatmap colors
-     *
-     * @param dataMinMax Bounds of the data of interest
-     * @return True if heatmap needs to be recomputed
-     */
-    public boolean checkHeatmap(double[] dataMinMax) {
+		/**
+		 * Check if a sensor's values have diverged enough to warrant recomputation of heatmap colors
+		 *
+		 * @param dataMinMax Bounds of the data of interest
+		 * @return True if heatmap needs to be recomputed
+		 */
+		public boolean checkHeatmap(double[] dataMinMax) {
         // Working on basic percent error formula
-        // ( |experimental - theoretical| ) / ( |theoretical| ) * 100
-        // ( |newRange - oldRange| ) / |oldRange| * 100
-        // newRange will always be larger than oldRange, newRange will always be positive, oldRange will always be positive
-        // (newRange - oldRange) / oldRange * 100
-        // (newRange / oldrange - 1) * 100
-        double pctDiff = ((dataMinMax[1] - dataMinMax[0]) / dataMinMax[2] - 1) * 100.0;
-        return pctDiff > HEATMAP_THRESH;
-    }
+				// ( |experimental - theoretical| ) / ( |theoretical| ) * 100
+				// ( |newRange - oldRange| ) / |oldRange| * 100
+				// newRange will always be larger than oldRange, newRange will always be positive, oldRange will always be positive
+				// (newRange - oldRange) / oldRange * 100
+				// (newRange / oldrange - 1) * 100
+				double pctDiff = ((dataMinMax[1] - dataMinMax[0]) / dataMinMax[2] - 1) * 100.0;
+				return pctDiff > HEATMAP_THRESH;
+		}
 
-    /**
-     * Recomputes the currently viewed sensor's heatmap values in a separate
-     * thread
-     */
-    public void recomputeHeatmap() {
-        (new Thread() {
-            public void run() {
-                // Update data range
-                activeDataMinMax[2] = activeDataMinMax[1] - activeDataMinMax[0];
-                Iterator obsIt = activeObservations.iterator();
-                Iterator lowAltIt = activeLowAltRenderables.iterator();
+		/**
+		 * Recomputes the currently viewed sensor's heatmap values in a separate thread
+		 */
+		public void recomputeHeatmap() {
+				(new Thread() {
+						public void run() {
+								// Update data range
+								activeDataMinMax[2] = activeDataMinMax[1] - activeDataMinMax[0];
+								Iterator obsIt = activeObservations.iterator();
+								Iterator lowAltIt = activeLowAltRenderables.iterator();
 //                Iterator highAltIt = activeHighAltMarkers.iterator();
 
-                while (obsIt.hasNext() && lowAltIt.hasNext()) {
+								while (obsIt.hasNext() && lowAltIt.hasNext()) {
 //                while (obsIt.hasNext() && lowAltIt.hasNext() && highAltIt.hasNext()) {
-                    Observation o = (Observation) obsIt.next();
-                    Renderable r = (Renderable) lowAltIt.next();
+										Observation o = (Observation) obsIt.next();
+										Renderable r = (Renderable) lowAltIt.next();
 //                    Marker m = (Marker) highAltIt.next();
 
-                    Color dataColor = dataToColor(o.getValue(), activeDataMinMax[0], activeDataMinMax[1]);
-                    Material material = new Material(dataColor);
+										Color dataColor = dataToColor(o.getValue(), activeDataMinMax[0], activeDataMinMax[1]);
+										Material material = new Material(dataColor);
 //                    ((BasicMarker) m).getAttributes().setMaterial(material);
-                    ((SurfaceQuad) r).getAttributes().setInteriorMaterial(material);
-                    ((SurfaceQuad) r).getAttributes().setOutlineMaterial(material);
-                }
-                lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
+										((SurfaceQuad) r).getAttributes().setInteriorMaterial(material);
+										((SurfaceQuad) r).getAttributes().setOutlineMaterial(material);
+								}
+								lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
 //                highAltMarkerLayer.setMarkers(activeHighAltMarkers);
-                wwPanel.wwCanvas.redrawNow();
+								wwPanel.wwCanvas.redrawNow();
 
-            }
-        }).start();
-    }
+						}
+				}).start();
+		}
 
-    /**
-     * Heatmap color computation taken from
-     * http://stackoverflow.com/questions/2374959/algorithm-to-convert-any-positive-integer-to-an-rgb-value
-     *
-     * @param value The value to compute the color for
-     * @param min Min value of data range
-     * @param max Max value of data range
-     * @return Heatmap color
-     */
-    public Color dataToColor(double value, double min, double max) {
+		/**
+		 * Heatmap color computation taken from http://stackoverflow.com/questions/2374959/algorithm-to-convert-any-positive-integer-to-an-rgb-value
+		 *
+		 * @param value The value to compute the color for
+		 * @param min Min value of data range
+		 * @param max Max value of data range
+		 * @return Heatmap color
+		 */
+		public Color dataToColor(double value, double min, double max) {
 
-        double wavelength = 0.0, factor = 0.0, red = 0.0, green = 0.0, blue = 0.0, gamma = 1.0;
+				double wavelength = 0.0, factor = 0.0, red = 0.0, green = 0.0, blue = 0.0, gamma = 1.0;
 
-        if (value < min) {
-            wavelength = 0.0;
-        } else if (value <= max) {
-            wavelength = (value - min) / (max - min) * (750.0f - 350.0f) + 350.0f;
-        } else {
-            wavelength = 0.0;
-        }
+				if (value < min) {
+						wavelength = 0.0;
+				} else if (value <= max) {
+						wavelength = (value - min) / (max - min) * (750.0f - 350.0f) + 350.0f;
+				} else {
+						wavelength = 0.0;
+				}
 
-        if (wavelength == 0.0f) {
-            red = 0.0;
-            green = 0.0;
-            blue = 0.0;
-        } else if (wavelength < 440.0f) {
-            red = -(wavelength - 440.0f) / (440.0f - 350.0f);
-            green = 0.0;
-            blue = 1.0;
-        } else if (wavelength < 490.0f) {
-            red = 0.0;
-            green = (wavelength - 440.0f) / (490.0f - 440.0f);
-            blue = 1.0;
-        } else if (wavelength < 510.0f) {
-            red = 0.0;
-            green = 1.0;
-            blue = -(wavelength - 510.0f) / (510.0f - 490.0f);
-        } else if (wavelength < 580.0f) {
-            red = (wavelength - 510.0f) / (580.0f - 510.0f);
-            green = 1.0;
-            blue = 0.0;
-        } else if (wavelength < 645) {
-            red = 1.0;
-            green = -(wavelength - 645.0f) / (645.0f - 580.0f);
-            blue = 0.0;
-        } else {
-            red = 1.0;
-            green = 0.0;
-            blue = 0.0;
-        }
+				if (wavelength == 0.0f) {
+						red = 0.0;
+						green = 0.0;
+						blue = 0.0;
+				} else if (wavelength < 440.0f) {
+						red = -(wavelength - 440.0f) / (440.0f - 350.0f);
+						green = 0.0;
+						blue = 1.0;
+				} else if (wavelength < 490.0f) {
+						red = 0.0;
+						green = (wavelength - 440.0f) / (490.0f - 440.0f);
+						blue = 1.0;
+				} else if (wavelength < 510.0f) {
+						red = 0.0;
+						green = 1.0;
+						blue = -(wavelength - 510.0f) / (510.0f - 490.0f);
+				} else if (wavelength < 580.0f) {
+						red = (wavelength - 510.0f) / (580.0f - 510.0f);
+						green = 1.0;
+						blue = 0.0;
+				} else if (wavelength < 645) {
+						red = 1.0;
+						green = -(wavelength - 645.0f) / (645.0f - 580.0f);
+						blue = 0.0;
+				} else {
+						red = 1.0;
+						green = 0.0;
+						blue = 0.0;
+				}
 
-        if (wavelength == 0.0f) {
-            factor = 0.0;
-        } else if (wavelength < 420) {
-            factor = 0.3f + 0.7f * (wavelength - 350.0f) / (420.0f - 350.0f);
-        } else if (wavelength < 680) {
-            factor = 1.0;
-        } else {
-            factor = 0.3f + 0.7f * (750.0f - wavelength) / (750.0f - 680.0f);
-        }
+				if (wavelength == 0.0f) {
+						factor = 0.0;
+				} else if (wavelength < 420) {
+						factor = 0.3f + 0.7f * (wavelength - 350.0f) / (420.0f - 350.0f);
+				} else if (wavelength < 680) {
+						factor = 1.0;
+				} else {
+						factor = 0.3f + 0.7f * (750.0f - wavelength) / (750.0f - 680.0f);
+				}
 
-        Color color = new Color(
-                (int) Math.floor(255.0 * Math.pow(red * factor, gamma)),
-                (int) Math.floor(255.0 * Math.pow(green * factor, gamma)),
-                (int) Math.floor(255.0 * Math.pow(blue * factor, gamma)));
-        return color;
-    }
+				Color color = new Color(
+								(int) Math.floor(255.0 * Math.pow(red * factor, gamma)),
+								(int) Math.floor(255.0 * Math.pow(green * factor, gamma)),
+								(int) Math.floor(255.0 * Math.pow(blue * factor, gamma)));
+				return color;
+		}
 
-    class SensorChoiceLister implements ActionListener {
+		class SensorChoiceLister implements ActionListener {
 
-        public void actionPerformed(ActionEvent e) {
-            JComboBox cb = (JComboBox) e.getSource();
-            String sensorChoice = (String) cb.getSelectedItem();
-            int index = sensorNameToIndex.get(sensorChoice);
-            activeLowAltRenderables = lowAltRenderables.get(index);
+				public void actionPerformed(ActionEvent e) {
+						JComboBox cb = (JComboBox) e.getSource();
+						String sensorChoice = (String) cb.getSelectedItem();
+						int index = sensorNameToIndex.get(sensorChoice);
+						activeLowAltRenderables = lowAltRenderables.get(index);
 //            activeHighAltMarkers = highAltMarkers.get(index);
-            activeDataMinMax = dataMinMax.get(index);
-            activeObservations = observations.get(index);
+						activeDataMinMax = dataMinMax.get(index);
+						activeObservations = observations.get(index);
 
-            boolean recompute = false;
-            if (activeDataMinMax != null) {
-                // May have new values that changed the data range since last time we visualized this sensor type, check if heatmap needs recomputing
-                double[] activeDataMinMaxClone;
-                synchronized (activeDataMinMax) {
-                    activeDataMinMaxClone = activeDataMinMax.clone();
-                }
-                if (checkHeatmap(activeDataMinMaxClone)) {
-                    recompute = true;
-                    recomputeHeatmap();
-                } else {
-                    lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
+						boolean recompute = false;
+						if (activeDataMinMax != null) {
+								// May have new values that changed the data range since last time we visualized this sensor type, check if heatmap needs recomputing
+								double[] activeDataMinMaxClone;
+								synchronized (activeDataMinMax) {
+										activeDataMinMaxClone = activeDataMinMax.clone();
+								}
+								if (checkHeatmap(activeDataMinMaxClone)) {
+										recompute = true;
+										recomputeHeatmap();
+								} else {
+										lowAltRenderableLayer.setRenderables(activeLowAltRenderables);
 //                    highAltMarkerLayer.setMarkers(activeHighAltMarkers);
-                    wwPanel.wwCanvas.redrawNow();
-                }
-            } else {
-                lowAltRenderableLayer.setRenderables(null);
+										wwPanel.wwCanvas.redrawNow();
+								}
+						} else {
+								lowAltRenderableLayer.setRenderables(null);
 //                highAltMarkerLayer.setMarkers(null);
-                wwPanel.wwCanvas.redraw();
-            }
-        }
-    }
+								wwPanel.wwCanvas.redraw();
+						}
+				}
+		}
 
-    private void populateLists() {
+		private void populateLists() {
         // Creation
-        //
-        // Visualization
-        //
-        // Markups
-        supportedMarkups.add(RelevantInformation.Information.SPECIFY);
-        supportedMarkups.add(RelevantInformation.Visualization.HEATMAP);
-    }
+				//
+				// Visualization
+				//
+				// Markups
+				supportedMarkups.add(RelevantInformation.Information.SPECIFY);
+				supportedMarkups.add(RelevantInformation.Visualization.HEATMAP);
+		}
 
-    @Override
-    public int getCreationWidgetScore(Type type, Field field, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedHashtableCreationClasses, supportedMarkups, type, field, markups);
-    }
+		@Override
+		public int getCreationWidgetScore(Type type, Field field, ArrayList<Markup> markups) {
+				return MarkupComponentHelper.getCreationWidgetScore(supportedCreationClasses, supportedHashtableCreationClasses, supportedMarkups, type, field, markups);
+		}
 
-    @Override
-    public int getSelectionWidgetScore(Type type, Object object, ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedHashtableSelectionClasses, supportedMarkups, type, object, markups);
-    }
+		@Override
+		public int getSelectionWidgetScore(Type type, Object object, ArrayList<Markup> markups) {
+				return MarkupComponentHelper.getSelectionWidgetScore(supportedSelectionClasses, supportedHashtableSelectionClasses, supportedMarkups, type, object, markups);
+		}
 
-    @Override
-    public int getMarkupScore(ArrayList<Markup> markups) {
-        return MarkupComponentHelper.getMarkupWidgetScore(supportedMarkups, markups);
-    }
+		@Override
+		public int getMarkupScore(ArrayList<Markup> markups) {
+				return MarkupComponentHelper.getMarkupWidgetScore(supportedMarkups, markups);
+		}
 
-    @Override
-    public MarkupComponentWidget addCreationWidget(MarkupComponent component, Type type, ArrayList<Markup> markups) {
-        MarkupComponentWidget widget = null;
-        for (Markup markup : markups) {
-            if (markup instanceof RelevantInformation) {
-                RelevantInformation relevantInformation = (RelevantInformation) markup;
-                if (relevantInformation.information == RelevantInformation.Information.SPECIFY) {
-                    if (relevantInformation.visualization == RelevantInformation.Visualization.HEATMAP) {
-                        widget = new SensorDataWidget((WorldWindPanel) component);
-                    }
-                }
-            }
-        }
-        return widget;
-    }
+		@Override
+		public MarkupComponentWidget addCreationWidget(MarkupComponent component, Type type, ArrayList<Markup> markups) {
+				MarkupComponentWidget widget = null;
+				for (Markup markup : markups) {
+						if (markup instanceof RelevantInformation) {
+								RelevantInformation relevantInformation = (RelevantInformation) markup;
+								if (relevantInformation.information == RelevantInformation.Information.SPECIFY) {
+										if (relevantInformation.visualization == RelevantInformation.Visualization.HEATMAP) {
+												widget = new SensorDataWidget((WorldWindPanel) component);
+										}
+								}
+						}
+				}
+				return widget;
+		}
 
-    @Override
-    public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
-        MarkupComponentWidget widget = null;
-        for (Markup markup : markups) {
-            if (markup instanceof RelevantInformation) {
-                RelevantInformation relevantInformation = (RelevantInformation) markup;
-                if (relevantInformation.information == RelevantInformation.Information.SPECIFY) {
-                    if (relevantInformation.visualization == RelevantInformation.Visualization.HEATMAP) {
-                        widget = new SensorDataWidget((WorldWindPanel) component);
-                    }
-                }
-            }
-        }
-        return null;
-    }
+		@Override
+		public MarkupComponentWidget addSelectionWidget(MarkupComponent component, Object selectionObject, ArrayList<Markup> markups) {
+				MarkupComponentWidget widget = null;
+				for (Markup markup : markups) {
+						if (markup instanceof RelevantInformation) {
+								RelevantInformation relevantInformation = (RelevantInformation) markup;
+								if (relevantInformation.information == RelevantInformation.Information.SPECIFY) {
+										if (relevantInformation.visualization == RelevantInformation.Visualization.HEATMAP) {
+												widget = new SensorDataWidget((WorldWindPanel) component);
+										}
+								}
+						}
+				}
+				return null;
+		}
 
-    @Override
-    public Object getComponentValue(Field field) {
-        return null;
-    }
+		@Override
+		public Object getComponentValue(Field field) {
+				return null;
+		}
 
-    @Override
-    public boolean setComponentValue(Object value) {
-        return false;
-    }
+		@Override
+		public boolean setComponentValue(Object value) {
+				return false;
+		}
 
-    @Override
-    public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
-        // No dynamic markups handled
-    }
+		@Override
+		public void handleMarkups(ArrayList<Markup> markups, MarkupManager manager) {
+				// No dynamic markups handled
+		}
 
-    @Override
-    public void disableMarkup(Markup markup) {
-        // No dynamic markups handled
-    }
+		@Override
+		public void disableMarkup(Markup markup) {
+				// No dynamic markups handled
+		}
 
-    @Override
-    public ArrayList<Class> getSupportedCreationClasses() {
-        return (ArrayList<Class>) supportedCreationClasses.clone();
-    }
+		@Override
+		public ArrayList<Class> getSupportedCreationClasses() {
+				return (ArrayList<Class>) supportedCreationClasses.clone();
+		}
 }

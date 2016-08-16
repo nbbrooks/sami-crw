@@ -279,11 +279,13 @@ public class GainsPanel extends JScrollPane implements ObservationListenerInt {
 
     @Override
     public void newObservation(Observation o) {
-        if (!o.getSource().equals(activeProxy.getName())) {
-            LOGGER.warning("Received observation from proxy other than active proxy!");
+        if (activeProxy == null) {
+            LOGGER.warning("Received observation from proxy (" + o.getSource() + ") but there is no active proxy");
+				} else if (!o.getSource().equals(activeProxy.getProxyName())) {
+            LOGGER.warning("Received observation from proxy (" + o.getSource() + ") which is not active proxy (" + activeProxy.getProxyName() + ")");
             return;
         } else {
-            winchL.setText("Winch value: " + decimalFormat.format(o.getValue()));
+            winchL.setText("Winch: " + decimalFormat.format(o.getValue()));
         }
     }
 }
