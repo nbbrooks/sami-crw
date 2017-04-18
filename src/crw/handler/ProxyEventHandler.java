@@ -202,15 +202,15 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             ArrayList<Position> positions = new ArrayList<Position>();
             Area2D area = ((ProxyExploreArea) oe).getArea();
             // How many meters the proxy should move north after each horizontal section of the lawnmower pattern
-            double latDegInc = ((ProxyExploreArea) oe).getSpacing() * LAT_D_PER_M;
             for (Location location : area.getPoints()) {
                 positions.add(Conversion.locationToPosition(location));
             }
             Polygon polygon = new Polygon(positions);
-            Object[] tuple = getLawnmowerPath(polygon, latDegInc);
+            double stepSizeM = ((ProxyExploreArea) oe).getSpacing();
+            Object[] tuple = getLawnmowerPath(polygon, stepSizeM);
             ArrayList<Position> lawnmowerPositions = (ArrayList<Position>) tuple[0];
             double totalLength = (Double) tuple[1];
-
+            
             // Divy up the waypoints to the selected proxies
             // Explore rectangle using horizontally oriented lawnmower paths
             int numProxies = 0;
@@ -224,7 +224,8 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             if (numProxies == 0) {
                 LOGGER.log(Level.WARNING, "ProxyExploreArea had no relevant proxies attached: " + oe);
             }
-            double lengthPerProxy = totalLength / numProxies, proxyLength, length;
+            double lengthPerProxy = totalLength / numProxies;
+            double proxyLength, length;
             List<Location> lawnmowerLocations;
             int lawnmowerIndex = 0;
             for (int proxyIndex = 0; proxyIndex < numProxies; proxyIndex++) {
@@ -239,12 +240,12 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                     boolean loop = lawnmowerIndex < lawnmowerPositions.size() && proxyLength < lengthPerProxy;
                     while (loop) {
                         Position p2 = lawnmowerPositions.get(lawnmowerIndex);
-                        if (lawnmowerIndex % 2 == 0) {
+                        if (p1.latitude.degrees == p2.latitude.degrees) {
                             // Horizontal segment
-                            length = Math.abs((p1.longitude.degrees - p2.longitude.degrees) * LON_D_PER_M);
+                            length = Math.abs((p1.longitude.degrees - p2.longitude.degrees) / LON_D_PER_M);
                         } else {
                             // Vertical shift
-                            length = latDegInc;
+                            length = stepSizeM;
                         }
                         if (proxyLength + length < lengthPerProxy) {
                             lawnmowerLocations.add(Conversion.positionToLocation(p2));
@@ -356,7 +357,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
                 // Truncated # locations per proxy
                 locationsPerProxy = (int) (request.getLocations().getPoints().size() / numProxies);
             }
-                
+            
             // Give each proxy [locationsPerProxy] locations and give any remaining locations to the last proxy
             // ex: 5 locations, 2 proxies: 2 to p1, 3 to p2
             // ex: 2 location, 3 proxies: 0 to p1, 0 to p2, 2 to p3
@@ -771,7 +772,7 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
     public void proxyRemoved(ProxyInt p) {
     }
 
-    private Object[] getLawnmowerPath(Polygon area, double stepSize) {
+    private Object[] getLawnmowerPath(Polygon area, double stepSizeM) {
         // Compute the bounding box
         Angle minLat = Angle.POS360;
         Angle maxLat = Angle.NEG360;
@@ -791,6 +792,11 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             }
         }
         curLat = minLat;
+        
+        double stepSizeDeg1 = stepSizeM * LAT_D_PER_M;
+        UTMCoord utm1 = UTMCoord.fromLatLon(minLat, minLon);
+        UTMCoord utm2 = UTMCoord.fromUTM(utm1.getZone(), utm1.getHemisphere(), utm1.getEasting(), utm1.getNorthing() + stepSizeM);
+        double stepSizeDeg2 = Math.abs(utm1.getLatitude().degrees - utm2.getLatitude().degrees);
 
         double totalLength = 0.0;
         Angle leftLon = null, rightLon = null;
@@ -800,27 +806,41 @@ public class ProxyEventHandler implements EventHandlerInt, ProxyListenerInt, Inf
             leftLon = getMinLonAt(area, minLon, maxLon, curLat);
             rightLon = getMaxLonAt(area, minLon, maxLon, curLat);
             if (leftLon != null && rightLon != null) {
-                path.add(new Position(new LatLon(curLat, leftLon), 0.0));
-                path.add(new Position(new LatLon(curLat, rightLon), 0.0));
-                totalLength += Math.abs((rightLon.degrees - leftLon.degrees) * LON_D_PER_M);
+                Position pLeft = new Position(new LatLon(curLat, leftLon), 0.0);
+                Position pRight = new Position(new LatLon(curLat, rightLon), 0.0);
+                path.add(pLeft);
+                path.add(pRight);
+                UTMCoord utmLeft = UTMCoord.fromLatLon(curLat, leftLon);
+                UTMCoord utmRight = UTMCoord.fromLatLon(curLat, rightLon);
+                double d1 = Math.abs((rightLon.degrees - leftLon.degrees) / LON_D_PER_M);
+                //@todo assumes same zone
+                double d2 = Math.abs(utmRight.getEasting() - utmLeft.getEasting());
+                totalLength += d1;
             } else {
             }
             // Right to left
-            curLat = curLat.addDegrees(stepSize);
+            curLat = curLat.addDegrees(stepSizeDeg1);
             if (curLat.degrees <= maxLat.degrees) {
-                totalLength += stepSize;
+                totalLength += stepSizeDeg1;
                 rightLon = getMaxLonAt(area, minLon, maxLon, curLat);
                 leftLon = getMinLonAt(area, minLon, maxLon, curLat);
                 if (leftLon != null && rightLon != null) {
-                    path.add(new Position(new LatLon(curLat, rightLon), 0.0));
-                    path.add(new Position(new LatLon(curLat, leftLon), 0.0));
-                    totalLength += Math.abs((rightLon.degrees - leftLon.degrees) * LON_D_PER_M);
+                    Position pRight = new Position(new LatLon(curLat, rightLon), 0.0);
+                    Position pLeft = new Position(new LatLon(curLat, leftLon), 0.0);
+                    path.add(pRight);
+                    path.add(pLeft);
+                    UTMCoord utmRight = UTMCoord.fromLatLon(curLat, rightLon);
+                    UTMCoord utmLeft = UTMCoord.fromLatLon(curLat, leftLon);
+                    double d1 = Math.abs((rightLon.degrees - leftLon.degrees) / LON_D_PER_M);
+                    //@todo assumes same zone
+                    double d2 = Math.abs(utmRight.getEasting() - utmLeft.getEasting());
+                    totalLength += d1;
                 } else {
                 }
             }
-            curLat = curLat.addDegrees(stepSize);
+            curLat = curLat.addDegrees(stepSizeDeg1);
             if (curLat.degrees <= maxLat.degrees) {
-                totalLength += stepSize;
+                totalLength += stepSizeM;
             }
         }
 
