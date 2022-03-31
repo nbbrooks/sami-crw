@@ -1,6 +1,5 @@
 package crw.ui.queue.text;
 
-import static com.sun.glass.ui.Cursor.setVisible;
 import crw.ui.queue.QueueContent;
 import crw.ui.queue.QueueDatabase;
 import java.awt.BorderLayout;
